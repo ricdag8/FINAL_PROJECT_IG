@@ -199,8 +199,14 @@ export class PlayerController {
         if (this.moveForward) {
             const forward = this.getForwardDirection();
             const velocity = forward.multiplyScalar(this.moveSpeed * deltaTime);
+            
+            // Store current position before movement
+            const previousPosition = this.mesh.position.clone();
+            
+            // Apply movement
             this.mesh.position.add(velocity);
             
+            // Check for collisions and handle them
             this.handleMachineCollisions();
             this.constrainToRoom();
         }
@@ -333,37 +339,46 @@ export class PlayerController {
             const machineMinZ = machine.center.z - machine.size.z / 2 - playerRadius;
             const machineMaxZ = machine.center.z + machine.size.z / 2 + playerRadius;
             
-            // If player is inside the machine's exclusion zone, push them out
+            // If player is inside the machine's exclusion zone, apply pushback
             if (this.mesh.position.x >= machineMinX && this.mesh.position.x <= machineMaxX &&
                 this.mesh.position.z >= machineMinZ && this.mesh.position.z <= machineMaxZ) {
                 
-                // Calculate which side is closest to push the player out
-                const distToLeft = Math.abs(this.mesh.position.x - machineMinX);
-                const distToRight = Math.abs(this.mesh.position.x - machineMaxX);
-                const distToFront = Math.abs(this.mesh.position.z - machineMinZ);
-                const distToBack = Math.abs(this.mesh.position.z - machineMaxZ);
+                // Calculate penetration distances for each side
+                const penetrationLeft = this.mesh.position.x - machineMinX;
+                const penetrationRight = machineMaxX - this.mesh.position.x;
+                const penetrationFront = this.mesh.position.z - machineMinZ;
+                const penetrationBack = machineMaxZ - this.mesh.position.z;
                 
-                const minDist = Math.min(distToLeft, distToRight, distToFront, distToBack);
+                // Find the minimum penetration (closest exit)
+                const minPenetration = Math.min(penetrationLeft, penetrationRight, penetrationFront, penetrationBack);
                 
-                if (minDist === distToLeft) {
-                    this.mesh.position.x = machineMinX - 0.1;
-                    if (this.debugEnabled) {
-                        console.log(`🚫 Collision prevented with ${machine.name} - pushed LEFT`);
-                    }
-                } else if (minDist === distToRight) {
-                    this.mesh.position.x = machineMaxX + 0.1;
-                    if (this.debugEnabled) {
-                        console.log(`🚫 Collision prevented with ${machine.name} - pushed RIGHT`);
-                    }
-                } else if (minDist === distToFront) {
-                    this.mesh.position.z = machineMinZ - 0.1;
-                    if (this.debugEnabled) {
-                        console.log(`🚫 Collision prevented with ${machine.name} - pushed FORWARD`);
+                // If penetration is very small, use smooth pushback
+                if (minPenetration > 0.05) {
+                    const pushbackStrength = 0.15;
+                    const maxPushback = 0.2;
+                    const pushbackForce = Math.min(minPenetration * pushbackStrength, maxPushback);
+                    
+                    // Apply gradual pushback in the direction of least resistance
+                    if (minPenetration === penetrationLeft) {
+                        this.mesh.position.x -= pushbackForce;
+                    } else if (minPenetration === penetrationRight) {
+                        this.mesh.position.x += pushbackForce;
+                    } else if (minPenetration === penetrationFront) {
+                        this.mesh.position.z -= pushbackForce;
+                    } else if (minPenetration === penetrationBack) {
+                        this.mesh.position.z += pushbackForce;
                     }
                 } else {
-                    this.mesh.position.z = machineMaxZ + 0.1;
-                    if (this.debugEnabled) {
-                        console.log(`🚫 Collision prevented with ${machine.name} - pushed BACKWARD`);
+                    // If penetration is deep, use stronger correction
+                    const safetyMargin = 0.02;
+                    if (minPenetration === penetrationLeft) {
+                        this.mesh.position.x = machineMinX - safetyMargin;
+                    } else if (minPenetration === penetrationRight) {
+                        this.mesh.position.x = machineMaxX + safetyMargin;
+                    } else if (minPenetration === penetrationFront) {
+                        this.mesh.position.z = machineMinZ - safetyMargin;
+                    } else if (minPenetration === penetrationBack) {
+                        this.mesh.position.z = machineMaxZ + safetyMargin;
                     }
                 }
             }
@@ -379,25 +394,31 @@ export class PlayerController {
             maxZ: 10    // Half of depth
         };
         
-        const wasConstrained = false;
+        // Smooth boundary constraint with soft pushback
+        const boundaryPushback = 0.1; // Gentle pushback force for room boundaries
+        const boundaryBuffer = 0.2; // Buffer zone before applying pushback
         
-        // Constrain X axis
-        if (this.mesh.position.x < roomBounds.minX) {
-            this.mesh.position.x = roomBounds.minX;
-            if (this.debugEnabled) console.log("🏠 Constrained to room - left wall");
-        } else if (this.mesh.position.x > roomBounds.maxX) {
-            this.mesh.position.x = roomBounds.maxX;
-            if (this.debugEnabled) console.log("🏠 Constrained to room - right wall");
+        // Smooth X axis constraint
+        if (this.mesh.position.x < roomBounds.minX + boundaryBuffer) {
+            const penetration = (roomBounds.minX + boundaryBuffer) - this.mesh.position.x;
+            this.mesh.position.x += Math.min(penetration * boundaryPushback, 0.05);
+        } else if (this.mesh.position.x > roomBounds.maxX - boundaryBuffer) {
+            const penetration = this.mesh.position.x - (roomBounds.maxX - boundaryBuffer);
+            this.mesh.position.x -= Math.min(penetration * boundaryPushback, 0.05);
         }
         
-        // Constrain Z axis
-        if (this.mesh.position.z < roomBounds.minZ) {
-            this.mesh.position.z = roomBounds.minZ;
-            if (this.debugEnabled) console.log("🏠 Constrained to room - back wall");
-        } else if (this.mesh.position.z > roomBounds.maxZ) {
-            this.mesh.position.z = roomBounds.maxZ;
-            if (this.debugEnabled) console.log("🏠 Constrained to room - front wall");
+        // Smooth Z axis constraint
+        if (this.mesh.position.z < roomBounds.minZ + boundaryBuffer) {
+            const penetration = (roomBounds.minZ + boundaryBuffer) - this.mesh.position.z;
+            this.mesh.position.z += Math.min(penetration * boundaryPushback, 0.05);
+        } else if (this.mesh.position.z > roomBounds.maxZ - boundaryBuffer) {
+            const penetration = this.mesh.position.z - (roomBounds.maxZ - boundaryBuffer);
+            this.mesh.position.z -= Math.min(penetration * boundaryPushback, 0.05);
         }
+        
+        // Hard boundaries as fallback (in case player somehow gets too far)
+        this.mesh.position.x = THREE.MathUtils.clamp(this.mesh.position.x, roomBounds.minX, roomBounds.maxX);
+        this.mesh.position.z = THREE.MathUtils.clamp(this.mesh.position.z, roomBounds.minZ, roomBounds.maxZ);
     }
     
     getPosition() {
