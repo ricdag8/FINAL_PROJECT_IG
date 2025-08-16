@@ -48,6 +48,11 @@ let currentZone = null;
 let popcornMode = false;
 let ceilingPopcornManager = null;
 
+// ✨ LIGHT SHOW VARIABLES
+let lightShowActive = false;
+let lightShowTimer = 0;
+let originalLightColors = {};
+
 // 🆕 CLAW CAMERA MODE TRACKING
 let clawCameraMode = 'normal'; // 'normal', 'top_down'
 let normalCameraPosition = null;
@@ -126,7 +131,7 @@ function startCeilingPopcorn() {
         scene: scene,
         spawnMesh: ceilingSpawnMesh,
         containerMesh: null, // No container - they fall to the floor
-        count: 1000, // Much more popcorn for intense rain effect
+        count: 5000, // Much more popcorn for intense rain effect
         gravity: 0.5, // Much stronger gravity for faster falling
         baseScale: 0.08, // Slightly smaller for more realistic look
         colliders: staticColliders, // Pass all static colliders for collision
@@ -146,6 +151,88 @@ function stopCeilingPopcorn() {
         ceilingPopcornManager = null;
         console.log("🍿 Ceiling popcorn system stopped");
     }
+}
+
+// ✨ LIGHT SHOW FUNCTIONS
+function startLightShow() {
+    if (!lightingManager || lightShowActive) return;
+    
+    lightShowActive = true;
+    lightShowTimer = 0;
+    
+    // Store original light colors
+    const lightRefs = lightingManager.getLightReferences();
+    if (lightRefs) {
+        originalLightColors = {
+            ambientLight: lightRefs.ambientLight ? lightRefs.ambientLight.color.clone() : null,
+            clawLight: lightRefs.clawLight ? lightRefs.clawLight.color.clone() : null,
+            candyLight: lightRefs.candyLight ? lightRefs.candyLight.color.clone() : null,
+            sideLight: lightRefs.sideLight ? lightRefs.sideLight.color.clone() : null,
+            centerLight: lightRefs.centerLight ? lightRefs.centerLight.color.clone() : null
+        };
+    }
+    
+    console.log("✨ LIGHT SHOW STARTED! Yellow victory lights activated!");
+}
+
+function updateLightShow(deltaTime) {
+    if (!lightShowActive || !lightingManager) return;
+    
+    lightShowTimer += deltaTime;
+    const flashSpeed = 8; // Flashes per second
+    const showDuration = 3.0; // 3 seconds total
+    
+    // Calculate flash intensity using sine wave
+    const flashIntensity = Math.abs(Math.sin(lightShowTimer * flashSpeed * Math.PI));
+    const yellowIntensity = 0.5 + flashIntensity * 1.5; // Flash between 0.5 and 2.0 (much brighter!)
+    
+    // Much brighter yellow colors for the light show
+    const brightYellow = new THREE.Color(2, 2, 0); // Super bright yellow (over 1.0 values)
+    const dimYellow = new THREE.Color(yellowIntensity, yellowIntensity, 0);
+    
+    // Apply much brighter yellow flashing to all lights
+    const lightRefs = lightingManager.getLightReferences();
+    if (lightRefs) {
+        if (lightRefs.ambientLight) lightRefs.ambientLight.color.copy(dimYellow);
+        if (lightRefs.clawLight) lightRefs.clawLight.color.copy(brightYellow);
+        if (lightRefs.candyLight) lightRefs.candyLight.color.copy(brightYellow);
+        if (lightRefs.sideLight) lightRefs.sideLight.color.copy(brightYellow);
+        if (lightRefs.centerLight) lightRefs.centerLight.color.copy(brightYellow);
+    }
+    
+    // End light show after duration
+    if (lightShowTimer >= showDuration) {
+        stopLightShow();
+    }
+}
+
+function stopLightShow() {
+    if (!lightShowActive || !lightingManager) return;
+    
+    lightShowActive = false;
+    lightShowTimer = 0;
+    
+    // Restore original light colors
+    const lightRefs = lightingManager.getLightReferences();
+    if (lightRefs && originalLightColors) {
+        if (lightRefs.ambientLight && originalLightColors.ambientLight) {
+            lightRefs.ambientLight.color.copy(originalLightColors.ambientLight);
+        }
+        if (lightRefs.clawLight && originalLightColors.clawLight) {
+            lightRefs.clawLight.color.copy(originalLightColors.clawLight);
+        }
+        if (lightRefs.candyLight && originalLightColors.candyLight) {
+            lightRefs.candyLight.color.copy(originalLightColors.candyLight);
+        }
+        if (lightRefs.sideLight && originalLightColors.sideLight) {
+            lightRefs.sideLight.color.copy(originalLightColors.sideLight);
+        }
+        if (lightRefs.centerLight && originalLightColors.centerLight) {
+            lightRefs.centerLight.color.copy(originalLightColors.centerLight);
+        }
+    }
+    
+    console.log("✨ Light show ended - lights restored to original colors");
 }
 
 
@@ -278,6 +365,9 @@ function startPrizeAnimation(body) {
     
     // 🆕 Riproduci il suono di vittoria tramite AudioManager
     audioManager.playSound('prizeWin');
+
+    // ✨ TRIGGER YELLOW LIGHT SHOW FOR STAR COLLECTION!
+    startLightShow();
 
     // Aggiunge la stella alla lista delle animazioni da eseguire
     animatingPrizes.push({
@@ -1124,6 +1214,10 @@ function animate() {
       // 🆕 UPDATE LIGHTING ANIMATIONS
       lightingManager?.update(deltaTime);
       
+      // ✨ UPDATE LIGHT SHOW (victory yellow flashing)
+      if (lightShowActive) {
+          updateLightShow(deltaTime);
+      }
 
       if (popcornManager) {
           popcornManager.update(deltaTime);
