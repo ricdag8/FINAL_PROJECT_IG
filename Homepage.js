@@ -25,9 +25,9 @@ export class HomepageManager {
         this.selectedCharacterIndex = -1;
         this.characterDefs = [
             // 🆕 Posizioni modificate per essere più centrali
-            { name: "Hoodie", url: 'Hoodie Character.glb', position: new THREE.Vector3(-2.8, 0.2, 0) },
-            { name: "Businessman", url: 'Business Man.glb', position: new THREE.Vector3(0, 0.2, 0) },
-            { name: "Worker", url: 'Worker.glb', position: new THREE.Vector3(2.8, 0.2, 0) },
+            { name: "Hoodie", url: 'glbmodels/Hoodie Character.glb', position: new THREE.Vector3(-2.8, 0.2, 0) },
+            { name: "Businessman", url: 'glbmodels/Business Man.glb', position: new THREE.Vector3(0, 0.2, 0) },
+            { name: "Worker", url: 'glbmodels/Worker.glb', position: new THREE.Vector3(2.8, 0.2, 0) },
         ];
         
         this.isActive = false;

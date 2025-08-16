@@ -271,7 +271,7 @@ export class LightingManager {
 
     setupCeilingLights() {
         const loader = new GLTFLoader();
-        loader.load('led_light.glb', (gltf) => {
+        loader.load('glbmodels/led_light.glb', (gltf) => {
             const ledTemplate = gltf.scene;
 
             //  AGGIUNGI PIÙ POSIZIONI PER LE LUCI
@@ -314,10 +314,10 @@ export class LightingManager {
                 createLight(light2Mesh);
             });
             
-            console.log(`✅ Created ${this.lightReferences.ceilingLeds.length} ceiling lights from led_light.glb.`);
+            console.log(`✅ Created ${this.lightReferences.ceilingLeds.length} ceiling lights from glbmodels/led_light.glb.`);
 
         }, undefined, (error) => {
-            console.error("❌ Failed to load led_light.glb for ceiling", error);
+            console.error("❌ Failed to load glbmodels/led_light.glb for ceiling", error);
         });
     }
 

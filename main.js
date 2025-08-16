@@ -944,7 +944,7 @@ function init() {
 // =================== 🍿 SOSTITUISCI IL VECCHIO BLOCCO CON QUESTO ===================
 // =================== 🍿 SOSTITUISCI IL VECCHIO BLOCCO CON QUESTO ===================
 const loader = new GLTFLoader();
-loader.load('popcorn_machine.glb', (gltf) => {
+loader.load('glbmodels/popcorn_machine.glb', (gltf) => {
     const popcornMachineMesh = gltf.scene;
     popcornMachineMesh.scale.set(0.5, 0.5, 0.5);
     popcornMachineMesh.position.set(-3, 0.7, -2);
@@ -1026,7 +1026,7 @@ const smallerGeometry = new THREE.BoxGeometry(newSize.x, newSize.y, newSize.z);
             count: 100
         });
     } else {
-        console.error("❌ ERRORE CRITICO: Nessuna mesh trovata nel modello popcorn_machine.glb.");
+        console.error("❌ ERRORE CRITICO: Nessuna mesh trovata nel modello glbmodels/popcorn_machine.glb.");
     }
 
 }, undefined, (error) => {
@@ -1219,7 +1219,7 @@ function setupPhysicsAndObjects() {
     
     // Load multiple objects
     const objectsToLoad = [
-        { file: 'star_prize.glb', name: 'Star', scale: 0.16, targetMeshName: 'star' },
+        { file: 'glbmodels/star_prize.glb', name: 'Star', scale: 0.16, targetMeshName: 'star' },
         //file: 'perfect_football__soccer_ball.glb', name: 'Ball', scale: 0.003, targetMeshName: null }
     ];
     
@@ -1227,7 +1227,7 @@ function setupPhysicsAndObjects() {
     const loader = new GLTFLoader();
     /* carica il modello star_prize.glb UNA volta */
 
-loader.load('star_prize.glb', (gltf) => {
+loader.load('glbmodels/star_prize.glb', (gltf) => {
 
 /* 0. trova la mesh "star" */
 let starMesh;
