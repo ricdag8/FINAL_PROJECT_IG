@@ -44,6 +44,10 @@ let roomSetupManager = null;
 let gameMode = 'exploration'; // 'exploration', 'claw_machine', 'candy_machine'
 let currentZone = null;
 
+// 🍿 POPCORN MODE VARIABLES
+let popcornMode = false;
+let ceilingPopcornManager = null;
+
 // 🆕 CLAW CAMERA MODE TRACKING
 let clawCameraMode = 'normal'; // 'normal', 'top_down'
 let normalCameraPosition = null;
@@ -77,6 +81,72 @@ let popcornSpawnPoint;
 
 // --- Make newGame function available globally ---
 window.newGame = newGame;
+
+// 🍿 POPCORN MODE TOGGLE FUNCTION
+window.togglePopcornMode = function() {
+    popcornMode = !popcornMode;
+    if (popcornMode) {
+        console.log("🍿 Popcorn mode ACTIVATED! Popcorn will fall from the ceiling!");
+        updateModeIndicator('popcorn');
+        startCeilingPopcorn();
+    } else {
+        console.log("🍿 Popcorn mode DEACTIVATED!");
+        updateModeIndicator('exploration');
+        stopCeilingPopcorn();
+    }
+};
+
+// 🍿 CEILING POPCORN FUNCTIONS
+function startCeilingPopcorn() {
+    if (!scene) return;
+    
+    // Create a ceiling spawn area across the whole room
+    const ceilingHeight = 5.0; // Height above the room
+    const roomBounds = {
+        minX: -20, maxX: 20,
+        minZ: -10, maxZ: 10
+    };
+    
+    // Create virtual ceiling spawn mesh
+    const ceilingGeometry = new THREE.PlaneGeometry(
+        roomBounds.maxX - roomBounds.minX, 
+        roomBounds.maxZ - roomBounds.minZ
+    );
+    const ceilingMaterial = new THREE.MeshBasicMaterial({ visible: false });
+    const ceilingSpawnMesh = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+    ceilingSpawnMesh.position.set(0, ceilingHeight, 0);
+    ceilingSpawnMesh.rotation.x = -Math.PI / 2; // Face down
+    scene.add(ceilingSpawnMesh);
+    
+    // Get all static colliders for popcorn collision
+    const staticColliders = physicsEngine.staticColliders || [];
+    
+    // Create ceiling popcorn manager
+    ceilingPopcornManager = new PopcornManager({
+        scene: scene,
+        spawnMesh: ceilingSpawnMesh,
+        containerMesh: null, // No container - they fall to the floor
+        count: 1000, // Much more popcorn for intense rain effect
+        gravity: 0.5, // Much stronger gravity for faster falling
+        baseScale: 0.08, // Slightly smaller for more realistic look
+        colliders: staticColliders, // Pass all static colliders for collision
+        burstSize: 10, // Much larger bursts for heavy rain
+        burstInterval: 200 // Much more frequent bursts (every 0.2 seconds)
+    });
+    
+    console.log("🍿 Ceiling popcorn system started with", staticColliders.length, "colliders");
+}
+
+function stopCeilingPopcorn() {
+    if (ceilingPopcornManager) {
+        // Clean up all popcorn particles
+        ceilingPopcornManager.particles.forEach(particle => {
+            scene.remove(particle.mesh);
+        });
+        ceilingPopcornManager = null;
+        console.log("🍿 Ceiling popcorn system stopped");
+    }
+}
 
 
 // ... (keep existing init() function)
@@ -917,6 +987,10 @@ function updateModeIndicator(mode) {
             indicator.textContent = 'FIRST PERSON - Candy Machine: C to insert coin, M to dispense, ESC to exit';
             indicator.style.background = 'rgba(68,68,255,0.8)';
             break;
+        case 'popcorn':
+            indicator.textContent = 'POPCORN MODE ACTIVE - X to toggle popcorn rain, WASD to move';
+            indicator.style.background = 'rgba(255,215,0,0.8)';
+            break;
     }
 }
 
@@ -1053,6 +1127,11 @@ function animate() {
 
       if (popcornManager) {
           popcornManager.update(deltaTime);
+      }
+      
+      // 🍿 UPDATE CEILING POPCORN WHEN IN POPCORN MODE
+      if (popcornMode && ceilingPopcornManager) {
+          ceilingPopcornManager.update(deltaTime);
       }
       
 

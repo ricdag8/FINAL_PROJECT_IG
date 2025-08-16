@@ -2,16 +2,17 @@ import * as THREE from 'three';
 import { MeshBVH } from 'https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js';
 
 class PopcornParticle {
-  constructor(geometry, baseMaterial, scene, spawnMesh, containerBounds) {
+  constructor(geometry, baseMaterial, scene, spawnMesh, containerBounds, colliders = [], gravity = 0.03, baseScale = 0.15) {
     this.material = baseMaterial.clone();
     this.mesh = new THREE.Mesh(geometry, this.material);
     this.mesh.castShadow = true;
     scene.add(this.mesh);
 
     this.spawnMesh = spawnMesh;
-    this.gravity = 0.03; // Un po' più di gravità
-    this.baseScale = 0.15;
+    this.gravity = gravity;
+    this.baseScale = baseScale;
     this.restitution = 0.3; // Basso rimbalzo
+    this.colliders = colliders; // Static colliders for machine collision
     
     // 📦 Limiti del contenitore, calcolati una sola volta dal manager
     this.containerBounds = containerBounds;
@@ -108,6 +109,68 @@ class PopcornParticle {
     }
   }
 
+  // 🍿 Handle collision with static colliders (machines)
+  handleStaticCollisions() {
+    if (!this.colliders || this.colliders.length === 0) return;
+    
+    const particleRadius = this.baseScale * 0.5; // Approximate radius
+    const position = this.mesh.position;
+    
+    this.colliders.forEach(staticMesh => {
+      // Simple bounding box collision detection
+      const meshBox = new THREE.Box3().setFromObject(staticMesh);
+      
+      // Expand the mesh box by particle radius for collision detection
+      meshBox.expandByScalar(particleRadius);
+      
+      if (meshBox.containsPoint(position)) {
+        // Calculate push-out direction (center of mesh to particle)
+        const meshCenter = meshBox.getCenter(new THREE.Vector3());
+        const pushDirection = position.clone().sub(meshCenter).normalize();
+        
+        // If push direction is invalid, push upward
+        if (pushDirection.length() < 0.001) {
+          pushDirection.set(0, 1, 0);
+        }
+        
+        // Find the closest face of the bounding box
+        const meshSize = meshBox.getSize(new THREE.Vector3());
+        const relativePos = position.clone().sub(meshCenter);
+        
+        // Determine which face is closest and push out accordingly
+        const absX = Math.abs(relativePos.x / meshSize.x);
+        const absY = Math.abs(relativePos.y / meshSize.y);
+        const absZ = Math.abs(relativePos.z / meshSize.z);
+        
+        if (absY > absX && absY > absZ) {
+          // Push out vertically
+          if (relativePos.y > 0) {
+            position.y = meshBox.max.y + particleRadius;
+          } else {
+            position.y = meshBox.min.y - particleRadius;
+          }
+          this.velocity.y = Math.abs(this.velocity.y) * this.restitution; // Bounce up
+        } else if (absX > absZ) {
+          // Push out horizontally (X)
+          if (relativePos.x > 0) {
+            position.x = meshBox.max.x + particleRadius;
+          } else {
+            position.x = meshBox.min.x - particleRadius;
+          }
+          this.velocity.x *= -this.restitution;
+        } else {
+          // Push out horizontally (Z)
+          if (relativePos.z > 0) {
+            position.z = meshBox.max.z + particleRadius;
+          } else {
+            position.z = meshBox.min.z - particleRadius;
+          }
+          this.velocity.z *= -this.restitution;
+        }
+      }
+    });
+  }
+
   update(dt) {
     // Se il popcorn è depositato, non fare nulla
     if (this.isSettled) {
@@ -126,8 +189,18 @@ class PopcornParticle {
     // ✨ Controlla le collisioni con il contenitore
     this.handleContainment();
     
+    // 🍿 Check collision with static colliders (machines)
+    this.handleStaticCollisions();
+    
+    // Floor collision (when no container bounds)
+    if (!this.containerBounds && this.mesh.position.y <= 0.1) {
+      this.mesh.position.y = 0.1;
+      this.velocity.y = 0;
+      this.isSettled = true; // Stop updating when it hits the floor
+    }
+    
     // Se un popcorn esce molto dai limiti (per bug o tunneling), resettalo
-    if (!this.containerBounds.containsPoint(this.mesh.position) && this.mesh.position.y < this.containerBounds.min.y - 1) {
+    if (this.containerBounds && (!this.containerBounds.containsPoint(this.mesh.position) && this.mesh.position.y < this.containerBounds.min.y - 1)) {
         this.reset();
     }
   }
@@ -135,8 +208,13 @@ class PopcornParticle {
 
 export class PopcornManager {
   // ✨ COSTRUTTORE AGGIORNATO
-  constructor({ scene, spawnMesh, containerMesh, count = 100 }) {
+  constructor({ scene, spawnMesh, containerMesh, count = 100, gravity = 0.1, baseScale = 0.15, colliders = [], burstSize = 15, burstInterval = 500 }) {
     this.particles = [];
+    this.colliders = colliders; // Store static colliders for collision detection
+    this.gravity = gravity;
+    this.baseScale = baseScale;
+    this.burstSize = burstSize;
+    this.burstInterval = burstInterval;
     
     let containerBounds = null;
     if (containerMesh) {
@@ -165,11 +243,11 @@ export class PopcornManager {
 
     for (let i = 0; i < count; i++) {
       this.particles.push(
-        new PopcornParticle(geometry, material, scene, spawnMesh, containerBounds)
+        new PopcornParticle(geometry, material, scene, spawnMesh, containerBounds, this.colliders, this.gravity, this.baseScale)
       );
     }
     
-    setInterval(() => this.burst(15), 500);
+    setInterval(() => this.burst(this.burstSize), this.burstInterval);
   }
   
   // Fa "scoppiare" (resettare) un numero di particelle

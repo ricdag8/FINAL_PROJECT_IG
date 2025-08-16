@@ -577,7 +577,7 @@ export class PlayerInputHandler {
         if (!this.playerController) return;
         
         // Prevent default for movement keys
-        if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyE', 'Escape', 'KeyT'].includes(e.code)) {
+        if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyE', 'Escape', 'KeyT', 'KeyX'].includes(e.code)) {
             e.preventDefault();
         }
         
@@ -601,6 +601,12 @@ export class PlayerInputHandler {
                     this.playerController.performGreeting(this.cameraManager);
                 }
                 break;
+            case 'KeyX':
+                if (!e.repeat && this.gameStateManager.currentZone === null) {
+                    // 🍿 Only activate popcorn mode when not near machines
+                    this.togglePopcornMode();
+                }
+                break;
         }
     }
     
@@ -617,6 +623,16 @@ export class PlayerInputHandler {
             case 'KeyD':
                 this.playerController.setMoving('right', false);
                 break;
+        }
+    }
+    
+    // 🍿 TOGGLE POPCORN MODE
+    togglePopcornMode() {
+        // Call global function to toggle popcorn mode
+        if (window.togglePopcornMode) {
+            window.togglePopcornMode();
+        } else {
+            console.log("🍿 Popcorn mode not available yet");
         }
     }
 }
