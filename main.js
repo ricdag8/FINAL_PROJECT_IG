@@ -44,6 +44,11 @@ let roomSetupManager = null;
 let gameMode = 'exploration'; // 'exploration', 'claw_machine', 'candy_machine'
 let currentZone = null;
 
+// 🆕 CLAW CAMERA MODE TRACKING
+let clawCameraMode = 'normal'; // 'normal', 'top_down'
+let normalCameraPosition = null;
+let normalCameraTarget = null;
+
 // 🆕 UI ELEMENTS
 let interactionPrompt = null;
 
@@ -913,7 +918,8 @@ function updateModeIndicator(mode) {
             indicator.style.background = 'rgba(0,0,0,0.7)';
             break;
         case 'claw_machine':
-            indicator.textContent = 'FIRST PERSON - Claw Machine: WASD to move claw, ↓ to grab, ESC to exit';
+            const cameraMode = clawCameraMode === 'top_down' ? 'TOP-DOWN' : 'FIRST PERSON';
+            indicator.textContent = `${cameraMode} - Claw Machine: WASD to move claw, ↓ to grab, P to toggle camera, ESC to exit`;
             indicator.style.background = 'rgba(255,68,68,0.8)';
             break;
         case 'candy_machine':
@@ -1075,6 +1081,18 @@ function animate() {
               clawController?.update(deltaTime);
               objectsInteraction?.update();
               
+              // 🆕 UPDATE TOP-DOWN CAMERA TO FOLLOW CLAW
+              if (camera.userData.followClaw && clawGroup) {
+                  const clawPosition = clawGroup.position.clone();
+                  const cameraHeight = 0.03;
+                  camera.position.set(
+                      clawPosition.x,
+                      clawPosition.y + cameraHeight,
+                      clawPosition.z
+                  );
+                  camera.lookAt(clawPosition);
+              }
+              
               // Check game over for claw machine
               if (coins <= 0 && clawController && !clawController.isAnimating && !isGameOver) {
                   isGameOver = true;
@@ -1172,6 +1190,12 @@ function exitMachineMode() {
     const oldMode = gameMode;
     gameMode = 'exploration';
     
+    // 🆕 RESET CLAW CAMERA MODE
+    clawCameraMode = 'normal';
+    camera.userData.followClaw = false;
+    normalCameraPosition = null;
+    normalCameraTarget = null;
+    
     // 🆕 SHOW PLAYER MODEL
     playerController.mesh.visible = true;
     console.log("👻 Player visible again");
@@ -1188,6 +1212,64 @@ function exitMachineMode() {
             showInteractionPrompt(currentZone.machineType);
         }
     });
+}
+
+// 🆕 CLAW CAMERA MODE TOGGLE
+function toggleClawCameraMode() {
+    if (gameMode !== 'claw_machine' || !cameraManager || !clawGroup) return;
+    
+    if (clawCameraMode === 'normal') {
+        // Save current camera position and target
+        normalCameraPosition = camera.position.clone();
+        normalCameraTarget = new THREE.Vector3();
+        camera.getWorldDirection(normalCameraTarget);
+        normalCameraTarget.add(camera.position);
+        
+        // Switch to top-down view
+        switchToTopDownView();
+        clawCameraMode = 'top_down';
+        updateModeIndicator('claw_machine');
+        console.log("📷 Switched to top-down camera view");
+    } else {
+        // Switch back to normal view
+        switchToNormalView();
+        clawCameraMode = 'normal';
+        updateModeIndicator('claw_machine');
+        console.log("📷 Switched back to normal camera view");
+    }
+}
+
+function switchToTopDownView() {
+    if (!clawGroup) return;
+    
+    // Get the claw's current position
+    const clawPosition = clawGroup.position.clone();
+    
+    // Position camera above the claw
+    const cameraHeight = 1.5; // Height above the claw
+    const cameraPos = new THREE.Vector3(
+        clawPosition.x,
+        clawPosition.y + cameraHeight,
+        clawPosition.z
+    );
+    
+    // Set camera position and look down at the claw
+    camera.position.copy(cameraPos);
+    camera.lookAt(clawPosition);
+    
+    // Update camera each frame to follow the claw
+    camera.userData.followClaw = true;
+}
+
+function switchToNormalView() {
+    if (!normalCameraPosition || !normalCameraTarget) return;
+    
+    // Restore the original camera position and target
+    camera.position.copy(normalCameraPosition);
+    camera.lookAt(normalCameraTarget);
+    
+    // Stop following the claw
+    camera.userData.followClaw = false;
 }
 
 // 🆕 INPUT HANDLER ROUTER
@@ -1237,7 +1319,7 @@ function handleClawMachineKeyDown(e) {
     if (!clawController) return;
     
     // Prevent default for keys we use
-    if (['ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'Escape'].includes(e.code)) {
+    if (['ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyP', 'Escape'].includes(e.code)) {
         e.preventDefault();
     }
 
@@ -1262,6 +1344,11 @@ function handleClawMachineKeyDown(e) {
                     coins--;
                     clawController.startDropSequence();
                 }
+            }
+            break;
+        case 'KeyP':
+            if (!e.repeat) {
+                toggleClawCameraMode();
             }
             break;
         case 'Escape':
