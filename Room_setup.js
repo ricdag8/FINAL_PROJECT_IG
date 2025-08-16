@@ -586,9 +586,9 @@ export class RoomSetupManager {
 
                     model.traverse(child => {
                         if (child.isMesh) {
-                            const impenetrableMeshes = ['Object_3', 'Gate', 'Plane2', 'Plane3', 'Plane4'];
-                            if (impenetrableMeshes.includes(child.name)) {
-                                console.log(`🚧 Adding impenetrable mesh as static collider: ${child.name}`);
+                            // 🍬 ADD COLLISION TO ALL CANDY MACHINE MESHES (except specific exclusions)
+                            const excludedMeshes = ['Object_2']; // Container mesh - keep this traversable
+                            if (!excludedMeshes.includes(child.name)) {
                                 child.geometry.computeVertexNormals();
                                 child.geometry.computeBoundingBox();
                                 child.geometry.boundsTree = new MeshBVH(child.geometry);

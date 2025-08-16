@@ -299,6 +299,11 @@ export class PlayerController {
                     name: 'Candy Machine', 
                     center: this.roomSetupManager.getCandyMachineOffset(),
                     size: { x: 3, z: 3 }
+                },
+                {
+                    name: 'Popcorn Machine',
+                    center: new THREE.Vector3(-3, 0.7, -2), // 🍿 Position from main.js:686
+                    size: { x: 2, z: 2 } // 🍿 Scaled down size (0.5 scale factor)
                 }
             ];
         } else {
@@ -313,6 +318,11 @@ export class PlayerController {
                     name: 'Candy Machine', 
                     center: new THREE.Vector3(-15, 0, 0),
                     size: { x: 3, z: 3 }
+                },
+                {
+                    name: 'Popcorn Machine',
+                    center: new THREE.Vector3(-3, 0.7, -2),
+                    size: { x: 2, z: 2 }
                 }
             ];
         }

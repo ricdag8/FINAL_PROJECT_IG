@@ -78,12 +78,12 @@ let popcornSpawnPoint;
 // --- Make newGame function available globally ---
 window.newGame = newGame;
 
-
 // ... (keep existing init() function)
 
 init();
 // --- NEW: Function to start a new game ---
 function newGame() {
+    console.log("🚀 Starting a new game!");
     coins = 5;
     isGameOver = false;
     
@@ -205,6 +205,7 @@ function updateExplosions(deltaTime) {
    // in bbox.html
 
 function startPrizeAnimation(body) {
+    console.log(`🏆 Animazione finale avviata per ${body.mesh.name}!`);
     
     // 🆕 Riproduci il suono di vittoria tramite AudioManager
     audioManager.playSound('prizeWin');
@@ -241,6 +242,7 @@ function updatePrizeAnimations(deltaTime) {
             case 'choose_destruction':
                 const animations = ['explode', 'shrink', 'fly_up'];
                 const choice = animations[Math.floor(Math.random() * animations.length)];
+                console.log(`Animation chosen for ${mesh.name}: ${choice}`);
 
                 if (choice === 'explode') {
                     // CORRECT: Use the body's position for the explosion.
@@ -297,6 +299,7 @@ function startCandyDisappearanceAnimation(candyBody) {
     const animations = ['confetti', 'ribbons'];
     const choice = animations[Math.floor(Math.random() * animations.length)];
     
+    console.log(`🍬 Animazione di scomparsa per la caramella: ${choice}`);
 
     // 3. Aggiungi la caramella alla lista delle animazioni da eseguire
     animatingCandies.push({
@@ -431,6 +434,7 @@ function checkChuteTrigger() {
 
             // Se la bounding box della stella interseca quella dell'helper...
             if (triggerBox.intersectsBox(bodyBox)) {
+                console.log(`🌟 La stella ${body.mesh.name} è nello scivolo! Autorizzata a cadere.`);
                 body.canFallThrough = true; // ...imposta il flag per farla cadere.
             }
         }
@@ -463,6 +467,7 @@ function tryInitializePopcornManager() {
         colliders: collidersForPopcorn
     });
 
+    console.log("✅ Popcorn Manager inizializzato!");
 }
 
 
@@ -483,10 +488,12 @@ function tryInitializeClawController() {
                 objectsInteraction.addGrabbableObject(objData.body, objData.name);
             }
         });
+        console.log("✅ Claw controller initialised with joystick PIVOT.");
         
         // 🆕 LINK CANDY MACHINE TO CLAW CONTROLLER
         if (candyMachine && clawController) {
             candyMachine.setClawController(clawController);
+            console.log("✅ CandyMachine linked to ClawController.");
         }
     }
 }
@@ -543,6 +550,7 @@ function resetObjects() {
 
         // If the calculated position is inside the chute, place it at a default safe spot.
         if (chuteBox && chuteBox.expandByScalar(starRadius).containsPoint(testPosition)) {
+             console.warn(`Skipping spawn for a star at (${x.toFixed(2)}, ${z.toFixed(2)}) as it's in the chute zone.`);
              b.position.set(center.x, baseY, clawTopBox.min.z + 0.3);
         } else {
              b.position.set(x, y, z);
@@ -666,6 +674,7 @@ function init() {
   
          // 🆕 LOAD ALL MACHINES ASYNCHRONOUSLY
    roomSetupManager.loadAllMachines().then((results) => {
+       console.log("✅ All machines loaded, setting up compatibility references...");
        setupCompatibilityReferences();
      
        
@@ -694,16 +703,9 @@ loader.load('popcorn_machine.glb', (gltf) => {
 
     popcornMachineMesh.traverse(child => {
         if (child.isMesh) {
-            // 🍿 EXCLUDE SPECIFIC MESH FROM COLLISION
-            const excludedMeshes = ['Cylinder056_07_-_Default_0']; // Mesh to ignore for collision
-            const shouldAddCollision = !excludedMeshes.includes(child.name);
-            
             child.geometry.computeVertexNormals();
             child.geometry.boundsTree = new MeshBVH(child.geometry);
-            
-            if (shouldAddCollision) {
-                physicsEngine.addStaticCollider(child);
-            }
+            physicsEngine.addStaticCollider(child);
 
             if (child.name === 'Cylinder042__0') {
                 popcornSpawnPoint = child;
@@ -718,6 +720,7 @@ loader.load('popcorn_machine.glb', (gltf) => {
     });
 
     if (!popcornSpawnPoint) {
+        console.warn("ATTENZIONE: Mesh 'SpawnPoint_Popcorn' non trovata. Uso la prima mesh come fallback.");
         popcornSpawnPoint = firstMeshFallback;
     }
 
@@ -751,8 +754,10 @@ const smallerGeometry = new THREE.BoxGeometry(newSize.x, newSize.y, newSize.z);
         scene.add(smallerContainerHelper);
         finalContainer = smallerContainerHelper;
 
+        console.log("✅ Creato helper di contenimento più piccolo e VISIBILE.");
 
     } else {
+        console.warn("ATTENZIONE: Mesh contenitore 'Box002_09_-_Default_0' non trovata!");
     }
 
     if (popcornSpawnPoint) {
@@ -762,6 +767,7 @@ const smallerGeometry = new THREE.BoxGeometry(newSize.x, newSize.y, newSize.z);
             containerMesh: finalContainer,
             count: 100
         });
+        console.log(`✅ Popcorn Manager Inizializzato usando '${popcornSpawnPoint.name}' come spawn.`);
     } else {
         console.error("❌ ERRORE CRITICO: Nessuna mesh trovata nel modello popcorn_machine.glb.");
     }
@@ -821,6 +827,7 @@ function setupCompatibilityReferences() {
     finalPrizeHelper = components.finalPrizeHelper;
     candyMachine = components.candyMachine;
     
+    console.log("🔗 Compatibility references set up");
 }
 
 // 🆕 GAME START LOGIC (now using HomepageManager)
@@ -876,12 +883,14 @@ function onZoneEnter(zone) {
     currentZone = zone;
     roomSetupManager.setCurrentZone(zone);
     showInteractionPrompt(zone.machineType);
+    console.log(`🎮 Entered ${zone.machineType} zone`);
 }
 
 function onZoneExit(zone) {
     currentZone = null;
     roomSetupManager.setCurrentZone(null);
     hideInteractionPrompt();
+    console.log(`🚶 Exited ${zone.machineType} zone`);
 }
 
 // 🆕 UI MANAGEMENT FUNCTIONS
@@ -926,6 +935,7 @@ function updateModeIndicator(mode) {
 
 function setupPhysicsAndObjects() {
     if (!clawTopBox || !physicsEngine) return;
+    console.log('Setting up physics and objects...');
     const margin = 0.15;
     const floorOffset = 0.10; 
     
@@ -944,6 +954,7 @@ function setupPhysicsAndObjects() {
         clawTopBox.max.z - margin
     );
     
+    console.log("🌍 World bounds set from:", expandedMin, "to:", expandedMax);
     physicsEngine.setWorldBounds(expandedMin, expandedMax);
     
     // Load multiple objects
@@ -1085,6 +1096,7 @@ function animate() {
               // Check game over for claw machine
               if (coins <= 0 && clawController && !clawController.isAnimating && !isGameOver) {
                   isGameOver = true;
+                  console.log("GAME OVER. Final score:", clawController.getDeliveredStars());
               }
               
               // Check claw-specific triggers
@@ -1141,6 +1153,7 @@ window.applyLightPreset = function(presetName) {
             }
         }
     } else {
+        console.warn("⚠️ LightingManager not initialized");
     }
 };
 
