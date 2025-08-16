@@ -53,6 +53,11 @@ let lightShowActive = false;
 let lightShowTimer = 0;
 let originalLightColors = {};
 
+// 🎉 DISCO LIGHT MODE VARIABLES
+let discoMode = false;
+let discoTimer = 0;
+let discoOriginalColors = {};
+
 // 🆕 CLAW CAMERA MODE TRACKING
 let clawCameraMode = 'normal'; // 'normal', 'top_down'
 let normalCameraPosition = null;
@@ -233,6 +238,104 @@ function stopLightShow() {
     }
     
     console.log("✨ Light show ended - lights restored to original colors");
+}
+
+// 🎉 DISCO LIGHT MODE FUNCTIONS
+window.toggleDiscoMode = function() {
+    discoMode = !discoMode;
+    if (discoMode) {
+        console.log("🎉 DISCO MODE ACTIVATED! Party lights engaged!");
+        updateModeIndicator('disco');
+        startDiscoLights();
+    } else {
+        console.log("🎉 DISCO MODE DEACTIVATED!");
+        updateModeIndicator('exploration');
+        stopDiscoLights();
+    }
+};
+
+function startDiscoLights() {
+    if (!lightingManager || discoMode === false) return;
+    
+    discoTimer = 0;
+    
+    // Store original light colors
+    const lightRefs = lightingManager.getLightReferences();
+    if (lightRefs) {
+        discoOriginalColors = {
+            ambientLight: lightRefs.ambientLight ? lightRefs.ambientLight.color.clone() : null,
+            clawLight: lightRefs.clawLight ? lightRefs.clawLight.color.clone() : null,
+            candyLight: lightRefs.candyLight ? lightRefs.candyLight.color.clone() : null,
+            sideLight: lightRefs.sideLight ? lightRefs.sideLight.color.clone() : null,
+            centerLight: lightRefs.centerLight ? lightRefs.centerLight.color.clone() : null
+        };
+    }
+    
+    console.log("🎉 DISCO LIGHTS STARTED! Let's party!");
+}
+
+function updateDiscoLights(deltaTime) {
+    if (!discoMode || !lightingManager) return;
+    
+    discoTimer += deltaTime;
+    
+    // Different speed patterns for each light
+    const speed1 = 4; // Fast flashing
+    const speed2 = 3; // Medium flashing  
+    const speed3 = 2; // Slow flashing
+    const speed4 = 5; // Very fast flashing
+    
+    // Generate different colors using different sine wave frequencies
+    const red = Math.abs(Math.sin(discoTimer * speed1));
+    const green = Math.abs(Math.sin(discoTimer * speed2 + 2));
+    const blue = Math.abs(Math.sin(discoTimer * speed3 + 4));
+    const purple = Math.abs(Math.sin(discoTimer * speed4 + 1));
+    
+    // Create vibrant disco colors (boosted intensity)
+    const discoColor1 = new THREE.Color(red * 2, 0, blue * 2); // Red-Blue
+    const discoColor2 = new THREE.Color(0, green * 2, purple * 2); // Green-Purple
+    const discoColor3 = new THREE.Color(red * 2, green * 2, 0); // Red-Green
+    const discoColor4 = new THREE.Color(purple * 2, 0, green * 2); // Purple-Green
+    const discoColor5 = new THREE.Color(blue * 2, red * 2, purple * 2); // Blue-Red-Purple
+    
+    // Apply different colors to different lights for variety
+    const lightRefs = lightingManager.getLightReferences();
+    if (lightRefs) {
+        if (lightRefs.ambientLight) lightRefs.ambientLight.color.copy(discoColor5);
+        if (lightRefs.clawLight) lightRefs.clawLight.color.copy(discoColor1);
+        if (lightRefs.candyLight) lightRefs.candyLight.color.copy(discoColor2);
+        if (lightRefs.sideLight) lightRefs.sideLight.color.copy(discoColor3);
+        if (lightRefs.centerLight) lightRefs.centerLight.color.copy(discoColor4);
+    }
+}
+
+function stopDiscoLights() {
+    if (!lightingManager) return;
+    
+    discoMode = false;
+    discoTimer = 0;
+    
+    // Restore original light colors
+    const lightRefs = lightingManager.getLightReferences();
+    if (lightRefs && discoOriginalColors) {
+        if (lightRefs.ambientLight && discoOriginalColors.ambientLight) {
+            lightRefs.ambientLight.color.copy(discoOriginalColors.ambientLight);
+        }
+        if (lightRefs.clawLight && discoOriginalColors.clawLight) {
+            lightRefs.clawLight.color.copy(discoOriginalColors.clawLight);
+        }
+        if (lightRefs.candyLight && discoOriginalColors.candyLight) {
+            lightRefs.candyLight.color.copy(discoOriginalColors.candyLight);
+        }
+        if (lightRefs.sideLight && discoOriginalColors.sideLight) {
+            lightRefs.sideLight.color.copy(discoOriginalColors.sideLight);
+        }
+        if (lightRefs.centerLight && discoOriginalColors.centerLight) {
+            lightRefs.centerLight.color.copy(discoOriginalColors.centerLight);
+        }
+    }
+    
+    console.log("🎉 Disco lights stopped - back to normal lighting");
 }
 
 
@@ -1081,6 +1184,10 @@ function updateModeIndicator(mode) {
             indicator.textContent = 'POPCORN MODE ACTIVE - X to toggle popcorn rain, WASD to move';
             indicator.style.background = 'rgba(255,215,0,0.8)';
             break;
+        case 'disco':
+            indicator.textContent = 'DISCO MODE ACTIVE - L to toggle party lights, WASD to move';
+            indicator.style.background = 'rgba(255,0,255,0.8)';
+            break;
     }
 }
 
@@ -1217,6 +1324,11 @@ function animate() {
       // ✨ UPDATE LIGHT SHOW (victory yellow flashing)
       if (lightShowActive) {
           updateLightShow(deltaTime);
+      }
+      
+      // 🎉 UPDATE DISCO LIGHTS (party mode)
+      if (discoMode) {
+          updateDiscoLights(deltaTime);
       }
 
       if (popcornManager) {

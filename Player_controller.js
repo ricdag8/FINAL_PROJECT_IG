@@ -577,7 +577,7 @@ export class PlayerInputHandler {
         if (!this.playerController) return;
         
         // Prevent default for movement keys
-        if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyE', 'Escape', 'KeyT', 'KeyX'].includes(e.code)) {
+        if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyE', 'Escape', 'KeyT', 'KeyX', 'KeyL'].includes(e.code)) {
             e.preventDefault();
         }
         
@@ -607,6 +607,12 @@ export class PlayerInputHandler {
                     this.togglePopcornMode();
                 }
                 break;
+            case 'KeyL':
+                if (!e.repeat && this.gameStateManager.currentZone === null) {
+                    // 🎉 Only activate disco mode when not near machines
+                    this.toggleDiscoMode();
+                }
+                break;
         }
     }
     
@@ -633,6 +639,16 @@ export class PlayerInputHandler {
             window.togglePopcornMode();
         } else {
             console.log("🍿 Popcorn mode not available yet");
+        }
+    }
+    
+    // 🎉 TOGGLE DISCO MODE
+    toggleDiscoMode() {
+        // Call global function to toggle disco mode
+        if (window.toggleDiscoMode) {
+            window.toggleDiscoMode();
+        } else {
+            console.log("🎉 Disco mode not available yet");
         }
     }
 }
