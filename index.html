@@ -1,0 +1,207 @@
+<!-- 💡 Versione con fisica realistica e caricamento corretto della claw -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Claw Machine with Rigid Body Physics</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- 🆕 LOADING SCREEN -->
+<div id="loadingScreen" class="overlay-screen">
+    <h1>Caricamento...</h1>
+    <div class="spinner"></div>
+</div>
+
+<!-- 🆕 CHARACTER SELECTION SCREEN -->
+<div id="characterSelectionScreen" class="overlay-screen" style="display: none; flex-direction: column; justify-content: space-between;">
+    <h2 style="margin-top: 60px; margin-bottom: 0; font-size: 3em;">Select a Character</h2>
+    <!-- Qui viene renderizzata la scena 3D dei personaggi -->
+    <div style="flex: 1;"></div>
+    <button id="startGameBtn" class="start-game-button" style="margin-bottom: 60px;">Start Game</button>
+</div>
+
+<!-- 🆕 PAUSE MENU -->
+<div id="pauseMenu" class="overlay-screen" style="display: none;">
+    <h1>Pausa</h1>
+    <div class="menu-buttons">
+        <button id="changeCharacterBtn">Cambia Personaggio</button>
+        <button id="returnToMainMenuBtn">Torna al Menu Principale</button>
+        <button id="resumeBtn">Riprendi</button>
+    </div>
+</div>
+
+<div id="controls" style="display: none;">
+  <strong>Claw Machine</strong><br>
+  
+  <div style="margin: 8px 0; display: flex; align-items: center; gap: 15px;">
+    <div style="color: #ffd700;">
+        🪙 Coins: <span id="coinCounter">5</span>
+    </div>
+    <div style="color: #ffdd00;">
+        ⭐ Stars: <span id="starCounter">0</span>
+    </div>
+  </div>
+
+  <button onclick="newGame()">✨ New Game</button>
+  
+  <div id="gameOverMessage" style="display: none; color: #ff4757; margin-top: 15px; text-align: center;">
+    <h2>GAME OVER</h2>
+    <p>You won <span id="finalScore">0</span> stars!</p>
+  </div>
+</div>
+
+<!-- 🆕 INTERACTION PROMPT UI -->
+<div id="interactionPrompt" style="
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 15px 25px;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: bold;
+  border: 2px solid #ffd700;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  display: none;
+  z-index: 1000;
+  text-align: center;
+">
+  Press <span style="color: #ffd700;">E</span> to interact
+</div>
+
+<!-- 🆕 MODE INDICATOR -->
+<div id="modeIndicator" style="
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 15px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 1000;
+  display: none;
+">
+  Exploration Mode - WASD to move
+</div>
+
+<!-- 🆕 PULSANTE PER TOGGLE CONTROLLI LUCE -->
+<button id="toggleLightControls" style="display: none;">🎨 Lights</button>
+
+<!-- 🆕 PANNELLO CONTROLLI MIGLIORATO CON SCROLL -->
+<div id="lightControls" style="display: none;">
+  <h3 style="margin-top: 0; position: sticky; top: 0; background: rgba(0,0,0,0.9); padding-bottom: 10px; z-index: 10;">🎨 Light Controls</h3>
+  
+  <!-- 🆕 CONTROLLO AMBIENT LIGHT -->
+  <div class="light-control">
+    <div class="light-name">
+      <div class="light-preview" id="ambientLightPreview" style="background-color: #ffffff;"></div>
+      Ambient Light
+    </div>
+    <input type="color" id="ambientLightColor" value="#ffffff">
+    <div class="intensity-control">
+      <label>Intensity: <span id="ambientIntensityValue">0.2</span></label>
+      <input type="range" id="ambientLightIntensity" min="0" max="1" step="0.05" value="0.2">
+    </div>
+    <div style="margin-top: 8px;">
+      <label>
+        <input type="checkbox" id="ambientLightToggle" checked> Enable Ambient Light
+      </label>
+    </div>
+  </div>
+  
+  <div class="light-control">
+    <div class="light-name">
+      <div class="light-preview" id="clawLightPreview" style="background-color: #ff4444;"></div>
+      Claw Machine Area
+    </div>
+    <input type="color" id="clawLightColor" value="#ff4444">
+    <div class="intensity-control">
+      <label>Intensity: <span id="clawIntensityValue">1.5</span></label>
+      <input type="range" id="clawLightIntensity" min="0" max="3" step="0.1" value="1.5">
+    </div>
+  </div>
+  
+  <div class="light-control">
+    <div class="light-name">
+      <div class="light-preview" id="candyLightPreview" style="background-color: #4444ff;"></div>
+      Candy Machine Area
+    </div>
+    <input type="color" id="candyLightColor" value="#4444ff">
+    <div class="intensity-control">
+      <label>Intensity: <span id="candyIntensityValue">1.5</span></label>
+      <input type="range" id="candyLightIntensity" min="0" max="3" step="0.1" value="1.5">
+    </div>
+  </div>
+  
+  <div class="light-control">
+    <div class="light-name">
+      <div class="light-preview" id="sideLightPreview" style="background-color: #44ff44;"></div>
+      Room Atmosphere
+    </div>
+    <input type="color" id="sideLightColor" value="#44ff44">
+    <div class="intensity-control">
+      <label>Intensity: <span id="sideIntensityValue">1.0</span></label>
+      <input type="range" id="sideLightIntensity" min="0" max="2" step="0.1" value="1.0">
+    </div>
+  </div>
+  
+  <div class="light-control">
+    <div class="light-name">
+      <div class="light-preview" id="centerLightPreview" style="background-color: #ffffff;"></div>
+      Ceiling Lights
+    </div>
+    <input type="color" id="centerLightColor" value="#ffffff">
+    <div class="intensity-control">
+      <label>Intensity: <span id="centerIntensityValue">10.0</span></label>
+      <input type="range" id="centerLightIntensity" min="0" max="15" step="0.1" value="10.0">
+    </div>
+  </div>
+  
+  <!-- 🆕 CONTROLLO LUCI QUADRI -->
+  <div class="light-control">
+    <div class="light-name">
+      <div class="light-preview" id="paintingsLightPreview" style="background-color: #ffffff;"></div>
+      Painting Spotlights
+    </div>
+    <input type="color" id="paintingsLightColor" value="#ffffff">
+    <div class="intensity-control">
+      <label>Intensity: <span id="paintingsIntensityValue">1.5</span></label>
+      <input type="range" id="paintingsLightIntensity" min="0" max="5" step="0.1" value="1.5">
+    </div>
+  </div>
+
+  <!-- 🆕 PRESET BUTTONS CON NUOVI STILI -->
+  <div class="preset-buttons">
+    <strong>Presets:</strong><br>
+    <button onclick="applyLightPreset('arcade')" style="background: #e74c3c;">🕹️ Arcade</button>
+    <button onclick="applyLightPreset('neon')" style="background: #9b59b6;">🌈 Neon</button>
+    <button onclick="applyLightPreset('warm')" style="background: #f39c12;">🔥 Warm</button>
+    <button onclick="applyLightPreset('cool')" style="background: #3498db;">❄️ Cool</button>
+    <button onclick="applyLightPreset('dark')" style="background: #2c3e50;">🌙 Dark</button>
+  </div>
+  
+  <!-- 🆕 INDICATORE SCROLL -->
+  <div class="scroll-indicator">
+    💡 Scroll for more options
+  </div>
+</div>
+
+<script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+    }
+  }
+</script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
