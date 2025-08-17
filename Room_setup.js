@@ -61,6 +61,8 @@ export class RoomSetupManager {
         this.buttonMesh = null;
         this.joystickPivot = null;
         this.candyMachine = null;
+        this.triggerVolume = null;
+        this.finalPrizeHelper = null;
         
         // Callbacks for machine loading completion
         this.onMachineLoadCallbacks = {
@@ -394,6 +396,31 @@ export class RoomSetupManager {
         model.add(physicsChuteMesh);
         this.physicsEngine.addStaticCollider(physicsChuteMesh);
 
+        // Create trigger volume for chute detection
+        const triggerGeometry = new THREE.BoxGeometry(size.x * 1.2, size.y * 0.5, size.z * 1.2);
+        const triggerMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00ff00, 
+            transparent: true, 
+            opacity: 0.3,
+            visible: true 
+        });
+        this.triggerVolume = new THREE.Mesh(triggerGeometry, triggerMaterial);
+        this.triggerVolume.position.copy(center);
+        this.triggerVolume.position.y = center.y; // Position at chute center, not above it
+        model.add(this.triggerVolume);
+
+        // Create final prize helper for prize collection detection
+        const finalPrizeGeometry = new THREE.BoxGeometry(size.x * 0.8, size.y * 0.4, size.z * 0.8);
+        const finalPrizeMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xff0000, 
+            transparent: true, 
+            opacity: 0.3,
+            visible: true 
+        });
+        this.finalPrizeHelper = new THREE.Mesh(finalPrizeGeometry, finalPrizeMaterial);
+        this.finalPrizeHelper.position.copy(center);
+        this.finalPrizeHelper.position.y = center.y - size.y * 1.2; // Lowered even more to catch stars after they fall through
+        model.add(this.finalPrizeHelper);
 
     }
     
@@ -658,7 +685,9 @@ export class RoomSetupManager {
             buttonMesh: this.buttonMesh,
             joystickPivot: this.joystickPivot,
             candyMachine: this.candyMachine,
-            clawLoaded: this.clawLoaded
+            clawLoaded: this.clawLoaded,
+            triggerVolume: this.triggerVolume,
+            finalPrizeHelper: this.finalPrizeHelper
         };
     }
     

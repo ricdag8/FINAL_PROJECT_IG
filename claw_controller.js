@@ -42,6 +42,7 @@ export class ClawController {
         this.dropZoneIndicator = null;
         this.deliveredStars =10;
         this.initialTransforms = {};
+        this.releasingObjectStartTime = 0;
 
 
         this.joystickPivot = joystickPivot; // Rinominiamo la proprietà per chiarezza
@@ -339,22 +340,40 @@ closeClaw() {
 // in claw_controller.js
 
 openClaw() {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
         // --- SIMPLIFIED: This function no longer manages the grabbed object's state. ---
         
-        const openSteps = 30;
-        let currentStep = 0;
-    
-        const startRotations = {
-            A: this.clawBones.A.rotation.z,
-            B: this.clawBones.B.rotation.z,
-            C: this.clawBones.C.rotation.z
-        };
-        const targetRotations = {
-            A: this.initialTransforms[this.clawBones.A.name].rotation.z,
-            B: this.initialTransforms[this.clawBones.B.name].rotation.z,
-            C: this.initialTransforms[this.clawBones.C.name].rotation.z
-        };
+        try {
+            const openSteps = 30;
+            let currentStep = 0;
+        
+            // Check if required objects exist
+            if (!this.clawBones.A || !this.clawBones.B || !this.clawBones.C) {
+                console.error('ClawController: Missing claw bones for openClaw()');
+                reject(new Error('Missing claw bones'));
+                return;
+            }
+
+            const startRotations = {
+                A: this.clawBones.A.rotation.z,
+                B: this.clawBones.B.rotation.z,
+                C: this.clawBones.C.rotation.z
+            };
+            
+            // Check if initial transforms exist
+            if (!this.initialTransforms[this.clawBones.A.name] || 
+                !this.initialTransforms[this.clawBones.B.name] || 
+                !this.initialTransforms[this.clawBones.C.name]) {
+                console.error('ClawController: Missing initial transforms for openClaw()');
+                reject(new Error('Missing initial transforms'));
+                return;
+            }
+
+            const targetRotations = {
+                A: this.initialTransforms[this.clawBones.A.name].rotation.z,
+                B: this.initialTransforms[this.clawBones.B.name].rotation.z,
+                C: this.initialTransforms[this.clawBones.C.name].rotation.z
+            };
     
         const openInterval = setInterval(() => {
             currentStep++;
@@ -370,8 +389,39 @@ openClaw() {
                 resolve(); // The Promise is resolved
             }
         }, 30);
+        
+        } catch (error) {
+            console.error('ClawController: Error in openClaw():', error);
+            reject(error);
+        }
     });
 }
+
+    // Debug method to check and reset claw state
+    resetClawState() {
+        console.log('ClawController: Forcing reset to MANUAL_HORIZONTAL state');
+        this.automationState = 'MANUAL_HORIZONTAL';
+        this.isAnimating = false;
+        this.isGrabbing = false;
+        this.grabbedObject = null;
+        if (this.isClosed) {
+            this.openClaw().catch(error => {
+                console.error('Error opening claw during reset:', error);
+            });
+        }
+    }
+
+    // Debug method to get current state
+    getDebugState() {
+        return {
+            automationState: this.automationState,
+            isAnimating: this.isAnimating,
+            isGrabbing: this.isGrabbing,
+            isClosed: this.isClosed,
+            hasGrabbedObject: !!this.grabbedObject
+        };
+    }
+
     applyDirectLink(deltaTime) {
         if (!this.isGrabbing || !this.grabbedObject) {
             return;
@@ -582,7 +632,12 @@ openClaw() {
                         this.automationState = 'DELIVERING_MOVE_X';
                     } else {
                         this.automationState = 'RELEASING_OBJECT';
+                        this.releasingObjectStartTime = Date.now();
                         this.openClaw().then(() => {
+                            this.automationState = 'MANUAL_HORIZONTAL';
+                            this.isAnimating = false;
+                        }).catch(() => {
+                            // Fallback in case openClaw() fails
                             this.automationState = 'MANUAL_HORIZONTAL';
                             this.isAnimating = false;
                         });
@@ -624,6 +679,12 @@ openClaw() {
             }
                 
             case 'RELEASING_OBJECT': {
+                // Safety timeout in case the openClaw() promise doesn't resolve
+                if (Date.now() - this.releasingObjectStartTime > 3000) {
+                    console.warn('RELEASING_OBJECT timeout - forcing reset to MANUAL_HORIZONTAL');
+                    this.automationState = 'MANUAL_HORIZONTAL';
+                    this.isAnimating = false;
+                }
                 break;
             }
 

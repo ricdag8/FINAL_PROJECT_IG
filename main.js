@@ -79,6 +79,7 @@ let allClawCylinders = [];
 let clawTopBox, chuteMesh;
 let candyMachine;
 let joystickMesh, buttonMesh, joystickPivot;
+let triggerVolume, finalPrizeHelper;
 let interactionZones = [];
 let machineOffset, candyMachineOffset;
 
@@ -90,6 +91,45 @@ let popcornSpawnPoint;
 
 // --- Make newGame function available globally ---
 window.newGame = newGame;
+
+// --- Debug functions for claw controller ---
+window.debugClaw = function() {
+    if (clawController) {
+        console.log('Claw Debug State:', clawController.getDebugState());
+    } else {
+        console.log('ClawController not initialized');
+    }
+};
+
+window.resetClaw = function() {
+    if (clawController) {
+        clawController.resetClawState();
+        console.log('Claw state reset');
+    } else {
+        console.log('ClawController not initialized');
+    }
+};
+
+// Debug function to manually test trigger detection
+window.debugTriggers = function() {
+    console.log('=== TRIGGER DEBUG ===');
+    if (triggerVolume) {
+        console.log('TriggerVolume position:', triggerVolume.position);
+        const triggerBox = new THREE.Box3().setFromObject(triggerVolume);
+        console.log('TriggerVolume bounds:', triggerBox.min, triggerBox.max);
+    }
+    if (finalPrizeHelper) {
+        console.log('FinalPrizeHelper position:', finalPrizeHelper.position);
+        const helperBox = new THREE.Box3().setFromObject(finalPrizeHelper);
+        console.log('FinalPrizeHelper bounds:', helperBox.min, helperBox.max);
+    }
+    if (grabbableObjects) {
+        console.log('Number of grabbable objects:', grabbableObjects.length);
+        grabbableObjects.forEach((obj, i) => {
+            console.log(`Star ${i}:`, obj.body.mesh.position, `canFallThrough: ${obj.body.canFallThrough}`);
+        });
+    }
+};
 
 // 🍿 POPCORN MODE TOGGLE FUNCTION
 window.togglePopcornMode = function() {
@@ -673,17 +713,37 @@ function checkChuteTrigger() {
     }
 
     const triggerBox = new THREE.Box3().setFromObject(triggerVolume);
+    
+    // Only log when there are active objects to check
+    let activeObjects = grabbableObjects.filter(obj => obj.body && !obj.body.canFallThrough);
+    
+    if (activeObjects.length > 0) {
+        console.log('checkChuteTrigger: checking', activeObjects.length, 'active objects');
+        console.log('triggerBox bounds:', triggerBox.min, triggerBox.max);
+    }
 
-    grabbableObjects.forEach(objData => {
+    let foundCollisions = 0;
+    grabbableObjects.forEach((objData, index) => {
         const body = objData.body;
 
         // Controlla solo gli oggetti che non sono già stati autorizzati a cadere
         if (body && !body.canFallThrough) {
             const bodyBox = new THREE.Box3().setFromObject(body.mesh);
+            
+            // Only log star positions if they're near the trigger area
+            const starPos = body.mesh.position;
+            const triggerCenter = triggerVolume.position;
+            const distance = starPos.distanceTo(triggerCenter);
+            
+            if (distance < 3.0) { // Only log if star is within 3 units of trigger
+                console.log(`Star ${index} near trigger - pos:`, starPos, 'distance:', distance.toFixed(2));
+            }
 
             // Se la bounding box della stella interseca quella dell'helper...
             if (triggerBox.intersectsBox(bodyBox)) {
+                console.log(`🟢 TRIGGER HIT: Star ${index} hit triggerVolume!`, starPos);
                 body.canFallThrough = true; // ...imposta il flag per farla cadere.
+                foundCollisions++;
             }
         }
     });
@@ -1061,6 +1121,8 @@ function setupCompatibilityReferences() {
     buttonMesh = components.buttonMesh;
     joystickPivot = components.joystickPivot;
     candyMachine = components.candyMachine;
+    triggerVolume = components.triggerVolume;
+    finalPrizeHelper = components.finalPrizeHelper;
     
 }
 
