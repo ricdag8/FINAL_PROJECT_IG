@@ -131,6 +131,106 @@ window.debugTriggers = function() {
     }
 };
 
+// 🆕 WALL AND CEILING COLOR FUNCTIONS
+window.updateWallColor = function(hexColor) {
+    if (roomSetupManager) {
+        const roomMaterials = roomSetupManager.getRoomMaterials();
+        
+        // Update both walls and ceiling
+        if (roomMaterials.wall) {
+            roomMaterials.wall.color.set(hexColor);
+            console.log('Wall color updated to:', hexColor);
+        }
+        if (roomMaterials.ceiling) {
+            roomMaterials.ceiling.color.set(hexColor);
+            console.log('Ceiling color updated to:', hexColor);
+        }
+        
+        // Update the preview in the UI
+        const preview = document.getElementById('wallColorPreview');
+        if (preview) {
+            preview.style.backgroundColor = hexColor;
+        }
+    }
+};
+
+window.resetWallColor = function() {
+    const defaultColor = '#3a3a3a';
+    window.updateWallColor(defaultColor);
+    
+    // Reset the color picker
+    const colorPicker = document.getElementById('wallColorPicker');
+    if (colorPicker) {
+        colorPicker.value = defaultColor;
+    }
+};
+
+// 🆕 FLOOR COLOR FUNCTIONS
+window.updateFloorColor = function(hexColor) {
+    if (roomSetupManager) {
+        const roomMaterials = roomSetupManager.getRoomMaterials();
+        if (roomMaterials.floor) {
+            roomMaterials.floor.color.set(hexColor);
+            console.log('Floor color updated to:', hexColor);
+            
+            // Update the preview in the UI
+            const preview = document.getElementById('floorColorPreview');
+            if (preview) {
+                preview.style.backgroundColor = hexColor;
+            }
+        }
+    }
+};
+
+window.resetFloorColor = function() {
+    const defaultColor = '#2c2c2c';
+    window.updateFloorColor(defaultColor);
+    
+    // Reset the color picker
+    const colorPicker = document.getElementById('floorColorPicker');
+    if (colorPicker) {
+        colorPicker.value = defaultColor;
+    }
+};
+
+// Test function for wall and floor colors
+window.testWallColors = function() {
+    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+    let index = 0;
+    
+    const interval = setInterval(() => {
+        window.updateWallColor(colors[index]);
+        index++;
+        if (index >= colors.length) {
+            clearInterval(interval);
+            setTimeout(() => window.resetWallColor(), 1000);
+        }
+    }, 1000);
+};
+
+window.testFloorColors = function() {
+    const colors = ['#8B4513', '#654321', '#228B22', '#4B0082', '#800080', '#006400'];
+    let index = 0;
+    
+    const interval = setInterval(() => {
+        window.updateFloorColor(colors[index]);
+        index++;
+        if (index >= colors.length) {
+            clearInterval(interval);
+            setTimeout(() => window.resetFloorColor(), 1000);
+        }
+    }, 1000);
+};
+
+window.testAllColors = function() {
+    console.log('Testing wall colors...');
+    window.testWallColors();
+    setTimeout(() => {
+        console.log('Testing floor colors...');
+        window.testFloorColors();
+    }, 7000);
+};
+
 // 🍿 POPCORN MODE TOGGLE FUNCTION
 window.togglePopcornMode = function() {
     popcornMode = !popcornMode;

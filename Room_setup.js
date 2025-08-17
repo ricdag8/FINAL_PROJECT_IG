@@ -164,9 +164,10 @@ export class RoomSetupManager {
         rightWall.receiveShadow = true;
         this.scene.add(rightWall);
         
-        // FRONT WALL (the missing one)
+        // FRONT WALL (fixed orientation)
         const frontWallGeometry = new THREE.PlaneGeometry(roomSize.width, roomSize.height);
         const frontWall = new THREE.Mesh(frontWallGeometry, this.wallMaterial);
+        frontWall.rotation.y = Math.PI; // Rotate 180 degrees to face inward
         frontWall.position.set(0, roomSize.height / 2, roomSize.depth / 2);
         frontWall.receiveShadow = true;
         this.scene.add(frontWall);

@@ -424,6 +424,8 @@ export class LightingManager {
         this.setupColorControls();
         this.setupIntensityControls();
         this.setupLedSpeedControls();
+        this.setupWallColorControls();
+        this.setupFloorColorControls();
         
     }
     
@@ -506,6 +508,32 @@ export class LightingManager {
                 this.ledSpeed = parseFloat(e.target.value);
                 if (ledSpeedValue) {
                     ledSpeedValue.textContent = e.target.value;
+                }
+            });
+        }
+    }
+    
+    setupWallColorControls() {
+        const wallColorPicker = document.getElementById('wallColorPicker');
+        
+        if (wallColorPicker) {
+            wallColorPicker.addEventListener('input', (e) => {
+                const color = e.target.value;
+                if (window.updateWallColor) {
+                    window.updateWallColor(color);
+                }
+            });
+        }
+    }
+    
+    setupFloorColorControls() {
+        const floorColorPicker = document.getElementById('floorColorPicker');
+        
+        if (floorColorPicker) {
+            floorColorPicker.addEventListener('input', (e) => {
+                const color = e.target.value;
+                if (window.updateFloorColor) {
+                    window.updateFloorColor(color);
                 }
             });
         }
