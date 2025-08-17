@@ -231,6 +231,7 @@ window.testAllColors = function() {
     }, 7000);
 };
 
+
 // 🍿 POPCORN MODE TOGGLE FUNCTION
 window.togglePopcornMode = function() {
     popcornMode = !popcornMode;

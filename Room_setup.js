@@ -173,7 +173,7 @@ export class RoomSetupManager {
         this.scene.add(frontWall);
         
         // ADD DECORATIVE ELEMENTS
-        this.createDecorativePanels(roomSize);
+        // this.createDecorativePanels(roomSize); // Disabled - removed green panels
         this.createWallPaintings(roomSize);
         
     }
