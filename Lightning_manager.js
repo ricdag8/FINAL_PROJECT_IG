@@ -24,19 +24,21 @@ export class LightingManager {
             paintingSpotlights: [] // 🆕 Aggiungi questo
         };
         
+        // 🆕 LED Speed control
+        this.ledSpeed = 1.0;
+        
         this.roomMaterials = null;
         this.presets = {};
 
         this.definePresets();
         
-        console.log("💡 Lighting Manager initialized");
     }
     
     update(deltaTime) {
         this.time += deltaTime;
         
         this.lightReferences.ledStrips.forEach((led, index) => {
-            const hue = (this.time * 0.2 + index * 0.02) % 1.0;
+            const hue = (this.time * 0.2 * this.ledSpeed + index * 0.02) % 1.0;
             const saturation = 1.0;
             const lightness = 0.5;
             
@@ -50,17 +52,14 @@ export class LightingManager {
         this.machineOffset = machineOffset;
         this.candyMachineOffset = candyMachineOffset;
         
-        console.log("⚡ Lighting Manager initialized with scene and positions");
     }
     
     addPaintingLights(lights) {
         this.lightReferences.paintingSpotlights = lights;
-        console.log(`🖼️  Aggiunti ${lights.length} faretti per quadri al gestore.`);
     }
     
     setRoomMaterials(materials) {
         this.roomMaterials = materials;
-        console.log("🎨 Room materials linked to LightingManager.");
     }
 
     definePresets() {
@@ -136,11 +135,9 @@ export class LightingManager {
     applyLightPreset(presetName) {
         const preset = this.presets[presetName];
         if (!preset) {
-            console.warn(`⚠️ Light preset '${presetName}' not found`);
             return;
         }
         
-        console.log(`🎨 Applying '${presetName}' lighting preset...`);
 
         Object.keys(preset).forEach(type => {
             if (type === 'room') return;
@@ -164,13 +161,11 @@ export class LightingManager {
             if (wall) wall.color.setHex(preset.room.wall);
             if (floor) floor.color.setHex(preset.room.floor);
             if (ceiling) ceiling.color.setHex(preset.room.ceiling);
-            console.log("✅ Room colors updated.");
         }
     }
     
     setupLighting() {
         if (!this.scene) {
-            console.error("❌ Scene not initialized! Call initialize() first.");
             return;
         }
         
@@ -266,7 +261,6 @@ export class LightingManager {
         this.createLedPaths();
         this.createWallLeds();
         
-        console.log("🌈 Enhanced diffused lighting system created");
     }
 
     setupCeilingLights() {
@@ -314,7 +308,6 @@ export class LightingManager {
                 createLight(light2Mesh);
             });
             
-            console.log(`✅ Created ${this.lightReferences.ceilingLeds.length} ceiling lights from glbmodels/led_light.glb.`);
 
         }, undefined, (error) => {
             console.error("❌ Failed to load glbmodels/led_light.glb for ceiling", error);
@@ -366,7 +359,6 @@ export class LightingManager {
                 this.lightReferences.ledStrips.push(led);
             }
         });
-        console.log(`✨ Created ${this.lightReferences.ledStrips.length} LEDs for floor paths.`);
     }
 
     createWallLeds() {
@@ -413,7 +405,6 @@ export class LightingManager {
             }
         }
         
-        console.log(`✨ Created dynamic wave LED pattern on walls. Total LEDs: ${this.lightReferences.ledStrips.length}`);
     }
     
     setupLightControls() {
@@ -432,8 +423,8 @@ export class LightingManager {
         this.setupAmbientLightControls();
         this.setupColorControls();
         this.setupIntensityControls();
+        this.setupLedSpeedControls();
         
-        console.log("🎛️ Light controls initialized");
     }
     
     setupAmbientLightControls() {
@@ -504,6 +495,20 @@ export class LightingManager {
                 });
             }
         });
+    }
+    
+    setupLedSpeedControls() {
+        const ledSpeedControl = document.getElementById('ledSpeedControl');
+        const ledSpeedValue = document.getElementById('ledSpeedValue');
+        
+        if (ledSpeedControl) {
+            ledSpeedControl.addEventListener('input', (e) => {
+                this.ledSpeed = parseFloat(e.target.value);
+                if (ledSpeedValue) {
+                    ledSpeedValue.textContent = e.target.value;
+                }
+            });
+        }
     }
     
     updatePreview(previewId, color) {
@@ -590,7 +595,15 @@ export class LightingManager {
     setupShadows(renderer) {
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        console.log("🌓 Shadow system enabled");
+    }
+    
+    setLedSpeed(speed) {
+        this.ledSpeed = speed;
+        const ledSpeedValue = document.getElementById('ledSpeedValue');
+        const ledSpeedControl = document.getElementById('ledSpeedControl');
+        
+        if (ledSpeedValue) ledSpeedValue.textContent = speed.toFixed(1);
+        if (ledSpeedControl) ledSpeedControl.value = speed;
     }
     
     getLightReferences() {

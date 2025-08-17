@@ -7,23 +7,19 @@ export class AudioManager {
         this.camera = null;
         this.currentBGM = null; // To track the current background music
 
-        console.log("🔊 AudioManager initialized");
     }
 
     initialize(camera) {
         if (!camera) {
-            console.error("❌ AudioManager requires a camera to initialize.");
             return;
         }
         this.camera = camera;
         this.audioListener = new THREE.AudioListener();
         this.camera.add(this.audioListener);
-        console.log("🎧 AudioListener attached to camera.");
     }
 
     loadSound(name, path, volume = 0.5, loop = false) {
         if (!this.audioListener) {
-            console.error("❌ AudioListener not initialized. Call initialize() first.");
             return;
         }
 
@@ -47,11 +43,9 @@ export class AudioManager {
                     this.sounds.set(name, sound);
                 }
 
-                console.log(`✅ Sound for group '${name}' loaded from ${path}`);
             },
             undefined, // onProgress
             (error) => {
-                console.error(`❌ Failed to load sound for group '${name}' from ${path}:`, error);
             }
         );
     }
@@ -59,7 +53,6 @@ export class AudioManager {
     playSound(name) {
         const soundOrGroup = this.sounds.get(name);
         if (!soundOrGroup) {
-            console.warn(`⚠️ Sound or group '${name}' not found or not loaded yet.`);
             return;
         }
 
@@ -91,26 +84,22 @@ export class AudioManager {
 
         const soundToPlay = this.sounds.get(name);
         if (!soundToPlay) {
-            console.warn(`BGM '${name}' not found.`);
             this.currentBGM = null;
             return;
         }
 
         if (Array.isArray(soundToPlay)) {
-            console.error(`Cannot play BGM for '${name}' as it's a sound group. BGMs must be unique sounds.`);
             this.currentBGM = null;
             return;
         }
 
         soundToPlay.play();
         this.currentBGM = { name, sound: soundToPlay };
-        console.log(`🎵 Now playing BGM: ${name}`);
     }
 
     stopAllBGM() {
         if (this.currentBGM && this.currentBGM.sound.isPlaying) {
             this.currentBGM.sound.stop();
-            console.log(`🎵 Stopped BGM: ${this.currentBGM.name}`);
         }
         this.currentBGM = null;
     }
@@ -127,7 +116,6 @@ export class AudioManager {
         if (sound) {
             sound.setVolume(volume);
         } else {
-            console.warn(`⚠️ Sound '${name}' not found. Cannot set volume.`);
         }
     }
 } 

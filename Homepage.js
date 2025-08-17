@@ -196,7 +196,6 @@ export class HomepageManager {
                 this.onCharacterSelectedCallback();
             })
             .catch(err => {
-                console.error("Failed to start game after character selection:", err);
                 this.onCharacterSelectedCallback();
             });
     }

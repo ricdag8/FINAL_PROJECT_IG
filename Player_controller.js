@@ -31,7 +31,6 @@ export class PlayerController {
         // Create/load player character
         // REMOVED: this.loadCharacter();
         
-        console.log("🚶 Player controller created, awaiting character load.");
     }
     
     loadCharacter(modelUrl, characterName) {
@@ -40,17 +39,14 @@ export class PlayerController {
             const loader = new GLTFLoader();
             loader.load(modelUrl, 
                 (gltf) => {
-                    console.log(`🎭 Character model ${modelUrl} loaded successfully`);
                     // 🆕 Use the provided name directly, this is more robust
                     this.characterName = characterName;
                     this.setupCharacterModel(gltf);
                     resolve();
                 },
                 (progress) => {
-                    console.log("📦 Character loading progress:", progress);
                 },
                 (error) => {
-                    console.warn(`⚠️ Could not load ${modelUrl}, using fallback:`, error);
                     this.createFallbackMesh();
                     reject(error);
                 }
@@ -93,21 +89,17 @@ export class PlayerController {
                 loadedAnimationNames.push(cleanName);
             });
             
-            console.log(`✅ Animations processed. Available animations: ${loadedAnimationNames.join(', ')}`);
             
             // Start with idle animation if available
             if (this.animations.idle) {
                 this.currentAnimation = this.animations.idle;
                 this.currentAnimation.play();
-                console.log("▶️ Started with IDLE animation");
             } else {
-                console.log("⚠️ No 'idle' animation found after cleanup");
             }
         }
         
         this.scene.add(this.mesh);
         this.isLoaded = true;
-        console.log("✅ Character setup complete");
     }
     
     createFallbackMesh() {
@@ -126,9 +118,7 @@ export class PlayerController {
         // Create BVH tree for collision detection
         try {
             geometry.boundsTree = new MeshBVH(geometry);
-            console.log("✅ Player BVH tree created successfully");
         } catch (error) {
-            console.error("❌ Error creating player BVH tree:", error);
         }
         
         this.mesh = new THREE.Mesh(geometry, material);
@@ -138,7 +128,6 @@ export class PlayerController {
         this.scene.add(this.mesh);
         this.isLoaded = true;
         
-        console.log("🤖 Fallback character mesh created");
     }
     
     setMoving(direction, state) {
@@ -152,22 +141,18 @@ export class PlayerController {
         
         // 🆕 DEBUG - Log movement changes (will be reduced after testing)
         if (this.debugEnabled) {
-            console.log(`🎮 Movement Debug: ${direction} = ${state}`);
             const isPressingAnyKey = this.moveForward || this.moveLeft || this.moveRight;
-            console.log(`🚶 Is pressing a key: ${isPressingAnyKey}`);
         }
     }
     
     switchToAnimation(animationName) {
         if (!this.animations || !this.mixer) {
-            console.log("❌ Cannot switch animation - missing animations or mixer");
             return;
         }
         
         const targetAnimation = this.animations[animationName.toLowerCase()];
         
         if (!targetAnimation) {
-            console.log(`❌ Animation '${animationName}' not found in available animations:`, Object.keys(this.animations));
             return;
         }
         
@@ -181,7 +166,6 @@ export class PlayerController {
         this.currentAnimation = targetAnimation;
         
         if (this.debugEnabled) {
-            console.log(`🎭 Switched to animation: ${animationName}`);
         }
     }
     
@@ -257,14 +241,12 @@ export class PlayerController {
         return new Promise((resolve, reject) => {
             const animation = this.animations[animationName.toLowerCase()];
             if (!animation) {
-                console.error(`❌ Animation '${animationName}' not found!`);
                 reject(`Animation not found: ${animationName}`);
                 return;
             }
 
             const clip = animation.getClip();
             if (clip.duration === 0) {
-                console.warn(`⚠️ Animation '${animationName}' has 0 duration.`);
                 resolve();
                 return;
             }
@@ -433,12 +415,10 @@ export class PlayerController {
     // 🆕 DEBUG AND TESTING METHODS
     enableDebug() {
         this.debugEnabled = true;
-        console.log("🔍 Player debug logging enabled");
     }
     
     disableDebug() {
         this.debugEnabled = false;
-        console.log("🔇 Player debug logging disabled");
     }
     
     debugAnimationState() {
@@ -447,19 +427,7 @@ export class PlayerController {
             return;
         }
         
-        console.log("🎭 ANIMATION DEBUG STATE:");
         console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        console.log(`📦 Model loaded: ${this.isLoaded}`);
-        console.log(`🎬 Mixer active: ${this.mixer !== null}`);
-        console.log(`📚 Available animations:`, Object.keys(this.animations));
-        console.log(`▶️ Current animation: ${this.currentAnimation ? this.currentAnimation.getClip().name : 'None'}`);
-        console.log(`🚶 Movement state:`, {
-            forward: this.moveForward,
-            left: this.moveLeft,
-            right: this.moveRight
-        });
-        console.log(`📍 Position:`, this.mesh.position);
-        console.log(`🧭 Rotation:`, this.mesh.rotation);
     }
     
     listAvailableAnimations() {
@@ -533,7 +501,6 @@ export class PlayerController {
         console.log(`👤 Character loaded: ${this.isLoaded}`);
         console.log(`🎬 Animation mixer: ${!!this.mixer}`);
         console.log(`📚 Available animations: ${Object.keys(this.animations)}`);
-        console.log(`▶️ Current animation: ${this.currentAnimation ? this.currentAnimation.getClip().name : 'None'}`);
         console.log(`🎮 Movement states:`);
         console.log(`   Forward: ${this.moveForward}`);
         console.log(`   Left: ${this.moveLeft}`);

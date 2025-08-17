@@ -21,7 +21,6 @@ export class ThirdPersonCamera {
         this.startOffset = new THREE.Vector3();
         this.endOffset = new THREE.Vector3();
         
-        console.log("📷 Third person camera created");
     }
     
     update(deltaTime) {
@@ -125,12 +124,10 @@ export class ThirdPersonCamera {
     // Utility methods for runtime adjustment
     setDistance(distance) {
         this.distance = distance;
-        console.log(`📷 Camera distance set to: ${distance}`);
     }
     
     setHeight(height) {
         this.height = height;
-        console.log(`📷 Camera height set to: ${height}`);
     }
     
     getDebugInfo() {
@@ -183,7 +180,6 @@ export class CameraTransition {
         this.isTransitioning = true;
         this.onComplete = onComplete;
         
-        console.log("🎬 Camera transition started");
     }
     
     update(deltaTime) {
@@ -196,7 +192,6 @@ export class CameraTransition {
             this.progress = 1.0;
             this.isTransitioning = false;
             
-            console.log("✅ Camera transition completed!");
             
             if (this.onComplete) {
                 this.onComplete();
@@ -220,7 +215,6 @@ export class CameraTransition {
     
     setDuration(duration) {
         this.duration = duration;
-        console.log(`🎬 Camera transition duration set to: ${duration}s`);
     }
 }
 
@@ -242,19 +236,16 @@ export class CameraManager {
             candy_machine: null
         };
         
-        console.log("🎥 Camera manager created");
     }
     
     // 🆕 INITIALIZE WITH SCENE REFERENCE
     initialize(scene) {
         this.scene = scene;
-        console.log("🎬 Camera manager initialized with scene reference");
     }
     
     initThirdPersonCamera(target) {
         // 🔧 INITIALIZE CAMERA TRANSITION FIRST
         this.cameraTransition = new CameraTransition(this.camera);
-        console.log("🎬 Camera transition system initialized");
         
         this.thirdPersonCamera = new ThirdPersonCamera(this.camera, target);
         
@@ -266,7 +257,6 @@ export class CameraManager {
         // Set initial camera state
         // REMOVED: Properties for smooth following are no longer needed for a fixed camera.
         
-        console.log("📷 Third person camera initialized with transition system");
     }
     
     update(deltaTime) {
@@ -282,23 +272,19 @@ export class CameraManager {
     
     switchToMachineMode(machineType, machineOffset, onComplete = null) {
         if (!this.cameraTransition) {
-            console.error("❌ Camera transition system not initialized!");
             return;
         }
         
         if (this.cameraTransition.isTransitioning) {
-            console.warn("⚠️ Camera transition already in progress, ignoring request");
             return;
         }
         
-        console.log(`🎮 Switching camera to ${machineType} FIRST PERSON mode`);
         this.currentMode = machineType;
         
         // Use first person positions
         const firstPersonData = this.firstPersonPositions[machineType];
         
         if (!firstPersonData) {
-            console.error(`❌ First person position not set for ${machineType}`);
             return;
         }
         
@@ -314,7 +300,6 @@ export class CameraManager {
     switchToExplorationMode(target, onComplete = null) {
         if (!this.cameraTransition || this.cameraTransition.isTransitioning) return;
         
-        console.log(`🚶 Switching camera to exploration mode`);
         this.currentMode = 'exploration';
         
         // Get current player position for camera transition
@@ -350,7 +335,6 @@ export class CameraManager {
      */
     setFirstPersonReference(machineType, referenceMesh, machineCenter, machineSize = 3) {
         if (!referenceMesh) {
-            console.error(`❌ Reference mesh not provided for ${machineType}`);
             return;
         }
         
@@ -359,12 +343,9 @@ export class CameraManager {
         const referenceWorldPos = new THREE.Vector3();
         referenceMesh.getWorldPosition(referenceWorldPos);
         
-        console.log(`🎯 Reference mesh for ${machineType} at: (${referenceWorldPos.x.toFixed(2)}, ${referenceWorldPos.y.toFixed(2)}, ${referenceWorldPos.z.toFixed(2)})`);
-        console.log(`🏭 Machine center: (${machineCenter.x.toFixed(2)}, ${machineCenter.y.toFixed(2)}, ${machineCenter.z.toFixed(2)})`);
         
         // Calculate which side of the machine the reference mesh is on
         const sideInfo = this.calculateMachineSide(referenceWorldPos, machineCenter, machineSize);
-        console.log(`📍 Reference mesh is on the ${sideInfo.side} side of the machine`);
         
         // 🆕 SPECIAL HANDLING FOR CANDY MACHINE
         if (machineType === 'candy_machine') {
@@ -372,7 +353,6 @@ export class CameraManager {
             sideInfo.side = 'front';
             sideInfo.direction = 'front';
             sideInfo.offset = new THREE.Vector3(0, 0, 1.5); // 🍬 Extra Z offset to ensure we're well outside
-            console.log(`🍬 Forced candy machine camera to FRONT side with extra Z offset`);
         }
         
         // Calculate first person camera position
@@ -380,10 +360,6 @@ export class CameraManager {
         
         this.firstPersonPositions[machineType] = fpData;
         
-        console.log(`📷 First person position for ${machineType}:`);
-        console.log(`   Camera: (${fpData.position.x.toFixed(2)}, ${fpData.position.y.toFixed(2)}, ${fpData.position.z.toFixed(2)})`);
-        console.log(`   Target: (${fpData.target.x.toFixed(2)}, ${fpData.target.y.toFixed(2)}, ${fpData.target.z.toFixed(2)})`);
-        console.log(`   👁️ FIRST PERSON HEIGHT: ${fpData.position.y.toFixed(1)}m`);
     }
     
     /**
@@ -426,10 +402,8 @@ export class CameraManager {
         
         if (machineType === 'candy_machine') {
             extraDistance = 1.5; // 🍬 Much more distance for candy machine to avoid being inside
-            console.log(`🍬 Using candy machine SAFE distance: ${extraDistance}m`);
         } else if (machineType === 'claw_machine') {
             extraDistance = 1.0; // 🤖 Standard distance for claw machine
-            console.log(`🤖 Using claw machine standard distance: ${extraDistance}m`);
         }
         
         const distanceFromMachine = baseDistance + extraDistance;
@@ -443,7 +417,6 @@ export class CameraManager {
         const cameraTarget = machineCenter.clone();
         cameraTarget.y = playerHeight * 0.7; // Standard target for first person view
         
-        console.log(`📐 Final distance for ${machineType}: ${distanceFromMachine.toFixed(2)}m (base: ${baseDistance.toFixed(2)} + extra: ${extraDistance})`);
         
         return {
             position: cameraPos,
@@ -462,192 +435,16 @@ export class CameraManager {
     
     // 🆕 DEBUG AND TESTING METHODS
     
-    /**
-     * Show visual helpers for first person camera positions
-     */
-    showFirstPersonHelpers() {
-        if (!this.scene) {
-            console.log("❌ Scene not available in camera manager");
-            return;
-        }
-        
-        // Remove existing helpers first
-        this.scene.children.forEach(child => {
-            if (child.name && child.name.includes('FirstPersonHelper')) {
-                this.scene.remove(child);
-            }
-        });
-        
-        // Create helpers for both machines
-        Object.keys(this.firstPersonPositions).forEach(machineType => {
-            const fpData = this.firstPersonPositions[machineType];
-            if (!fpData) return;
-            
-            // Camera position helper (red sphere)
-            const cameraPosGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-            const cameraPosMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const cameraPosHelper = new THREE.Mesh(cameraPosGeometry, cameraPosMaterial);
-            cameraPosHelper.position.copy(fpData.position);
-            cameraPosHelper.name = `${machineType}FirstPersonHelperCamera`;
-            this.scene.add(cameraPosHelper);
-            
-            // Target helper (green sphere)
-            const targetGeometry = new THREE.SphereGeometry(0.08, 16, 16);
-            const targetMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-            const targetHelper = new THREE.Mesh(targetGeometry, targetMaterial);
-            targetHelper.position.copy(fpData.target);
-            targetHelper.name = `${machineType}FirstPersonHelperTarget`;
-            this.scene.add(targetHelper);
-            
-            // Line connecting camera to target
-            const lineGeometry = new THREE.BufferGeometry().setFromPoints([fpData.position, fpData.target]);
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
-            const line = new THREE.Line(lineGeometry, lineMaterial);
-            line.name = `${machineType}FirstPersonHelperLine`;
-            this.scene.add(line);
-            
-            console.log(`📍 Added first person helpers for ${machineType}`);
-        });
-        
-        console.log("👁️ First person helpers visible - Red: camera, Green: target, White: direction");
-    }
     
-    /**
-     * Hide all first person visual helpers
-     */
-    hideFirstPersonHelpers() {
-        if (!this.scene) return;
-        
-        let removed = 0;
-        this.scene.children.forEach(child => {
-            if (child.name && child.name.includes('FirstPersonHelper')) {
-                this.scene.remove(child);
-                removed++;
-            }
-        });
-        console.log(`🙈 Removed ${removed} first person helpers`);
-    }
     
-    /**
-     * Test first person camera transition for a specific machine
-     */
-    testFirstPersonTransition(machineType = 'claw_machine', machineOffset) {
-        console.log(`🧪 Testing first person transition for ${machineType}`);
-        
-        if (!machineOffset) {
-            console.error("❌ Machine offset not provided for transition test");
-            return;
-        }
-        
-        // Simulate entering machine mode
-        this.switchToMachineMode(machineType, machineOffset, () => {
-            console.log(`✅ Test transition to ${machineType} completed!`);
-            
-            // Auto-return to exploration mode after 3 seconds
-            setTimeout(() => {
-                // For testing, we need a mock player controller
-                const mockPlayerController = {
-                    getPosition: () => new THREE.Vector3(0, 0, 0),
-                    getForwardDirection: () => new THREE.Vector3(0, 0, -1)
-                };
-                
-                this.switchToExplorationMode(mockPlayerController, () => {
-                    console.log("✅ Test transition back to exploration completed!");
-                });
-            }, 3000);
-        });
-    }
     
-    /**
-     * Test candy machine position specifically
-     */
-    testCandyMachinePosition(candyMachineOffset) {
-        console.log("🧪 Quick test: Candy machine first person position");
-        
-        // Show helpers first
-        this.showFirstPersonHelpers();
-        
-        // Wait a bit then test transition
-        setTimeout(() => {
-            this.testFirstPersonTransition('candy_machine', candyMachineOffset);
-        }, 1000);
-        
-        console.log("👁️ Visual helpers shown, transition will start in 1 second");
-    }
     
-    /**
-     * Test multiple realistic camera heights
-     */
-    testRealisticHeights(machineOffset) {
-        console.log("👁️ Testing realistic camera heights...");
-        
-        const heights = [2.8, 3.8, 4.5, 5.2, 6.5];
-        let currentIndex = 0;
-        
-        const testNextHeight = () => {
-            if (currentIndex >= heights.length) {
-                console.log("✅ All height tests completed!");
-                this.setFirstPersonHeightNormal(); // Return to normal
-                return;
-            }
-            
-            const height = heights[currentIndex];
-            console.log(`📏 Testing height: ${height}m`);
-            this.setFirstPersonHeight(height);
-            
-            // Show current position
-            this.showFirstPersonHelpers();
-            
-            // Test transition
-            setTimeout(() => {
-                this.testFirstPersonTransition('claw_machine', machineOffset);
-                
-                // Move to next height after 3 seconds
-                setTimeout(() => {
-                    this.hideFirstPersonHelpers();
-                    currentIndex++;
-                    testNextHeight();
-                }, 3000);
-            }, 1000);
-        };
-        
-        testNextHeight();
-    }
     
-    /**
-     * Quick test of new default height (3.8m)
-     */
-    testNewHeight(machineOffset, candyMachineOffset) {
-        console.log("👁️ Testing new default height (3.8m)...");
-        
-        // Set to new default height
-        this.setFirstPersonHeightNormal();
-        
-        // Show helpers
-        this.showFirstPersonHelpers();
-        
-        // Test both machines quickly
-        setTimeout(() => {
-            console.log("🤖 Testing claw machine...");
-            this.testFirstPersonTransition('claw_machine', machineOffset);
-            
-            setTimeout(() => {
-                console.log("🍬 Testing candy machine...");
-                this.testFirstPersonTransition('candy_machine', candyMachineOffset);
-                
-                setTimeout(() => {
-                    this.hideFirstPersonHelpers();
-                    console.log("✅ New height test completed!");
-                }, 3000);
-            }, 4000);
-        }, 1000);
-    }
     
     /**
      * Set first person camera height for all machines
      */
     setFirstPersonHeight(height) {
-        console.log(`🔧 Adjusting first person camera height to: ${height}`);
         
         // For each machine, recalculate positions if they exist
         Object.keys(this.firstPersonPositions).forEach(machineType => {
@@ -658,11 +455,9 @@ export class CameraManager {
                 // Update target height (slightly lower)
                 fpData.target.y = height * 0.75;
                 
-                console.log(`📷 Updated ${machineType} camera height to ${height}m`);
             }
         });
         
-        console.log("✅ First person heights updated for all machines");
     }
     
     // Height presets
@@ -676,20 +471,15 @@ export class CameraManager {
      * Force recalculation of first person positions
      */
     recalculateFirstPersonPositions() {
-        console.log("🔄 Forcing recalculation of first person positions...");
         
         // Get current positions and machine types
         const machines = Object.keys(this.firstPersonPositions);
         machines.forEach(machineType => {
             const fpData = this.firstPersonPositions[machineType];
             if (fpData) {
-                console.log(`🔄 Recalculating ${machineType} position...`);
-                console.log(`   Current: (${fpData.position.x.toFixed(2)}, ${fpData.position.y.toFixed(2)}, ${fpData.position.z.toFixed(2)})`);
             }
         });
         
-        console.log("💡 Use setFirstPersonHeight() to adjust heights");
-        console.log("💡 Reload page to completely recalculate positions");
     }
     
     // Utility methods
@@ -752,7 +542,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setThirdPersonDistance(distance);
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -760,7 +549,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setThirdPersonHeight(height);
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -770,38 +558,26 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setTransitionDuration(duration);
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
         window.debugCamera = () => {
             if (cameraManager) {
                 const info = cameraManager.getDebugInfo();
-                console.log("🎥 Camera Debug Info:");
-                console.log(`📋 Current mode: ${info.currentMode}`);
-                console.log(`📷 Camera position: (${info.cameraPosition.x.toFixed(2)}, ${info.cameraPosition.y.toFixed(2)}, ${info.cameraPosition.z.toFixed(2)})`);
-                console.log(`🎬 Is transitioning: ${info.isTransitioning}`);
                 
                 if (info.thirdPerson) {
                     const tp = info.thirdPerson;
-                    console.log(`👤 Player position: (${tp.playerPosition.x.toFixed(2)}, ${tp.playerPosition.y.toFixed(2)}, ${tp.playerPosition.z.toFixed(2)})`);
                     const pfd = tp.playerForwardDirection;
-                    console.log(`🎯 Player forward: (${pfd.x.toFixed(2)}, ${pfd.y.toFixed(2)}, ${pfd.z.toFixed(2)})`);
-                    console.log(`📏 Distance: ${tp.distance}, Height: ${tp.height}`);
                 }
                 
                 // 🆕 FIRST PERSON DEBUG INFO
-                console.log(`🔫 First person ready: ${cameraManager.isFirstPersonReady()}`);
                 if (cameraManager.firstPersonPositions.claw_machine) {
                     const fp = cameraManager.firstPersonPositions.claw_machine;
-                    console.log(`🤖 Claw FP: Pos(${fp.position.x.toFixed(2)}, ${fp.position.y.toFixed(2)}, ${fp.position.z.toFixed(2)}) Side: ${fp.side}`);
                 }
                 if (cameraManager.firstPersonPositions.candy_machine) {
                     const fp = cameraManager.firstPersonPositions.candy_machine;
-                    console.log(`🍬 Candy FP: Pos(${fp.position.x.toFixed(2)}, ${fp.position.y.toFixed(2)}, ${fp.position.z.toFixed(2)}) Side: ${fp.side}`);
                 }
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -811,9 +587,7 @@ export const CameraUtils = {
                 const fp = cameraManager.firstPersonPositions.claw_machine;
                 cameraManager.camera.position.copy(fp.position);
                 cameraManager.camera.lookAt(fp.target);
-                console.log("📷 Camera moved to claw machine first person position");
             } else {
-                console.log("❌ Claw machine first person position not set");
             }
         };
         
@@ -822,9 +596,7 @@ export const CameraUtils = {
                 const fp = cameraManager.firstPersonPositions.candy_machine;
                 cameraManager.camera.position.copy(fp.position);
                 cameraManager.camera.lookAt(fp.target);
-                console.log("📷 Camera moved to candy machine first person position");
             } else {
-                console.log("❌ Candy machine first person position not set");
             }
         };
         
@@ -833,7 +605,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.showFirstPersonHelpers();
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -841,7 +612,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.hideFirstPersonHelpers();
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -854,7 +624,6 @@ export const CameraUtils = {
                 const targetOffset = machineType === 'claw_machine' ? machineOffset : candyMachineOffset;
                 cameraManager.testFirstPersonTransition(machineType, targetOffset);
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -863,7 +632,6 @@ export const CameraUtils = {
                 const candyMachineOffset = new THREE.Vector3(-7, 0, 0);
                 cameraManager.testCandyMachinePosition(candyMachineOffset);
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -872,7 +640,6 @@ export const CameraUtils = {
                 const machineOffset = new THREE.Vector3(7, 0, 0);
                 cameraManager.testRealisticHeights(machineOffset);
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -882,7 +649,6 @@ export const CameraUtils = {
                 const candyMachineOffset = new THREE.Vector3(-7, 0, 0);
                 cameraManager.testNewHeight(machineOffset, candyMachineOffset);
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -891,7 +657,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setFirstPersonHeight(height);
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -900,7 +665,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setFirstPersonHeightLow();
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -908,7 +672,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setFirstPersonHeightNormal();
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -916,7 +679,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setFirstPersonHeightHigh();
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -924,7 +686,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setFirstPersonHeightTall();
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -932,7 +693,6 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.setFirstPersonHeightGiant();
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
@@ -941,16 +701,8 @@ export const CameraUtils = {
             if (cameraManager) {
                 cameraManager.recalculateFirstPersonPositions();
             } else {
-                console.log("❌ Camera manager not found");
             }
         };
         
-        console.log("🎛️ Global camera controls initialized");
-        console.log("Available commands: setCameraDistance(), setCameraHeight(), setTransitionDuration(), debugCamera()");
-        console.log("🔫 First person commands: testFirstPersonClaw(), testFirstPersonCandy(), testFirstPersonTransition()");
-        console.log("🍬 Quick tests: testCandyMachinePosition(), testRealisticHeights(), testNewHeight()");
-        console.log("📏 First person settings: setFirstPersonHeight(height), recalculateFirstPersonPositions()");
-        console.log("📐 Height presets: setFirstPersonHeightLow(), setFirstPersonHeightNormal(), setFirstPersonHeightHigh(), setFirstPersonHeightTall(), setFirstPersonHeightGiant()");
-        console.log("👁️ Visual helpers: showFirstPersonHelpers(), hideFirstPersonHelpers()");
     }
 }; 

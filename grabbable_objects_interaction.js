@@ -16,12 +16,10 @@ export class GrabbableObjectsInteraction {
             mesh: body.mesh,
             name: name
         });
-        console.log(`Added grabbable object: ${name}`);
     }
 
     removeGrabbableObject(name) {
         this.objects = this.objects.filter(obj => obj.name !== name);
-        console.log(`Removed grabbable object: ${name}`);
     } 
 
     update() {
@@ -47,7 +45,6 @@ export class GrabbableObjectsInteraction {
         const objectBVH = objectMesh.geometry.boundsTree;
         
         if (!objectBVH) {
-            console.warn(`BVH not available for object: ${obj.name}`);
             return;
         }
         
@@ -56,7 +53,6 @@ export class GrabbableObjectsInteraction {
         this.cylinders.forEach(fingerMesh => {
             const fingerBVH = fingerMesh.geometry.boundsTree;
             if (!fingerBVH) {
-                console.warn('Finger BVH not available for:', fingerMesh.name);
                 return;
             }
             
@@ -74,7 +70,6 @@ export class GrabbableObjectsInteraction {
                     if (fingerName) {
                         this.collisions[fingerName] = true;
                         this.collisionDetails[fingerName] = obj; // Store which object is being touched
-                        console.log(`BVH intersection detected: finger ${fingerName} with ${obj.name}`);
                     }
 
                     // Calculate contact point and resolve collision
@@ -85,7 +80,6 @@ export class GrabbableObjectsInteraction {
                     }
                 }
             } catch (error) {
-                console.error(`Error in BVH intersection check for ${obj.name}:`, error);
             }
         });
     }
@@ -133,7 +127,6 @@ export class GrabbableObjectsInteraction {
             penetrationDepth = Math.max(0.005, fingerRadius * 0.5 - actualDistance + 0.01);
             
         } catch (error) {
-            console.warn('BVH closest point calculation failed, using fallback:', error);
             // Use geometric approach as fallback
             penetrationDepth = Math.max(0.005, 0.15 - distance);
         }
@@ -189,7 +182,6 @@ export class GrabbableObjectsInteraction {
     hasCollisions() {
         const result = this.collisions.A || this.collisions.B || this.collisions.C;
         if (result) {
-            console.log(`Collisions detected: A=${this.collisions.A}, B=${this.collisions.B}, C=${this.collisions.C}`);
         }
         return result;
     }
@@ -220,7 +212,6 @@ export class GrabbableObjectsInteraction {
         // Find the first object that meets the threshold
         for (const [name, count] of touchCounts) {
             if (count >= fingerThreshold) {
-                console.log(`GRABBABLE CANDIDATE: ${name} is touched by ${count} fingers.`);
                 return touchedObjects.get(name);
             }
         }

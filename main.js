@@ -78,8 +78,7 @@ let clawGroup, clawLoaded = false, clawBones = {}, cylinders = {};
 let allClawCylinders = [];
 let clawTopBox, chuteMesh;
 let candyMachine;
-let joystickMesh, buttonMesh, joystickPivot, triggerVolume;
-let finalPrizeHelper;
+let joystickMesh, buttonMesh, joystickPivot;
 let interactionZones = [];
 let machineOffset, candyMachineOffset;
 
@@ -96,11 +95,9 @@ window.newGame = newGame;
 window.togglePopcornMode = function() {
     popcornMode = !popcornMode;
     if (popcornMode) {
-        console.log("🍿 Popcorn mode ACTIVATED! Popcorn will fall from the ceiling!");
         updateModeIndicator('popcorn');
         startCeilingPopcorn();
     } else {
-        console.log("🍿 Popcorn mode DEACTIVATED!");
         updateModeIndicator('exploration');
         stopCeilingPopcorn();
     }
@@ -144,7 +141,6 @@ function startCeilingPopcorn() {
         burstInterval: 200 // Much more frequent bursts (every 0.2 seconds)
     });
     
-    console.log("🍿 Ceiling popcorn system started with", staticColliders.length, "colliders");
 }
 
 function stopCeilingPopcorn() {
@@ -154,7 +150,6 @@ function stopCeilingPopcorn() {
             scene.remove(particle.mesh);
         });
         ceilingPopcornManager = null;
-        console.log("🍿 Ceiling popcorn system stopped");
     }
 }
 
@@ -177,7 +172,6 @@ function startLightShow() {
         };
     }
     
-    console.log("✨ LIGHT SHOW STARTED! Yellow victory lights activated!");
 }
 
 function updateLightShow(deltaTime) {
@@ -237,18 +231,15 @@ function stopLightShow() {
         }
     }
     
-    console.log("✨ Light show ended - lights restored to original colors");
 }
 
 // 🎉 DISCO LIGHT MODE FUNCTIONS
 window.toggleDiscoMode = function() {
     discoMode = !discoMode;
     if (discoMode) {
-        console.log("🎉 DISCO MODE ACTIVATED! Party lights engaged!");
         updateModeIndicator('disco');
         startDiscoLights();
     } else {
-        console.log("🎉 DISCO MODE DEACTIVATED!");
         updateModeIndicator('exploration');
         stopDiscoLights();
     }
@@ -271,7 +262,6 @@ function startDiscoLights() {
         };
     }
     
-    console.log("🎉 DISCO LIGHTS STARTED! Let's party!");
 }
 
 function updateDiscoLights(deltaTime) {
@@ -335,7 +325,6 @@ function stopDiscoLights() {
         }
     }
     
-    console.log("🎉 Disco lights stopped - back to normal lighting");
 }
 
 
@@ -998,19 +987,13 @@ newSize.y *= 0.5; // Esempio: imposta l'altezza al 50% dell'originale
 originalCenter.y += 0.37;
 const smallerGeometry = new THREE.BoxGeometry(newSize.x, newSize.y, newSize.z);
 
-        // --- MODIFICA QUI ---
-        // 1. Crea un materiale verde e wireframe per rendere visibile l'helper
-        const helperMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00ff00, // Verde
-            wireframe: true
-        });
-        const smallerContainerHelper = new THREE.Mesh(smallerGeometry, helperMaterial);
-        // --- FINE MODIFICA ---
+        // Create invisible container for physics bounds only
+        const invisibleMaterial = new THREE.MeshBasicMaterial({ visible: false });
+        const smallerContainerHelper = new THREE.Mesh(smallerGeometry, invisibleMaterial);
 
         smallerContainerHelper.position.copy(originalCenter);
         smallerContainerHelper.quaternion.copy(popcornContainerMesh.quaternion);
         
-        // Non è più necessario `visible = false`
         scene.add(smallerContainerHelper);
         finalContainer = smallerContainerHelper;
 
@@ -1026,11 +1009,9 @@ const smallerGeometry = new THREE.BoxGeometry(newSize.x, newSize.y, newSize.z);
             count: 100
         });
     } else {
-        console.error("❌ ERRORE CRITICO: Nessuna mesh trovata nel modello glbmodels/popcorn_machine.glb.");
     }
 
 }, undefined, (error) => {
-    console.error("❌ Errore nel caricamento della macchina per popcorn!", error);
 });
 // ======================================================================================
 
@@ -1050,7 +1031,6 @@ const smallerGeometry = new THREE.BoxGeometry(newSize.x, newSize.y, newSize.z);
        homepageManager.showCharacterSelection();
 
    }).catch((error) => {
-       console.error("❌ Failed to load machines:", error);
    });
   window.addEventListener('resize', onWindowResize);
   
@@ -1080,8 +1060,6 @@ function setupCompatibilityReferences() {
     joystickMesh = components.joystickMesh;
     buttonMesh = components.buttonMesh;
     joystickPivot = components.joystickPivot;
-    triggerVolume = components.triggerVolume;
-    finalPrizeHelper = components.finalPrizeHelper;
     candyMachine = components.candyMachine;
     
 }
@@ -1234,7 +1212,7 @@ let starMesh;
 gltf.scene.traverse(node => {
     if (node.isMesh && node.name.toLowerCase().includes('star')) starMesh = node;
 });
-if (!starMesh) { console.error('no star mesh'); return; }
+if (!starMesh) { return; }
 
 /* 1. prepara BVH e bounding box sulla mesh originale */
 starMesh.geometry.computeVertexNormals();
@@ -1268,7 +1246,7 @@ objectsInteraction?.addGrabbableObject(body, mesh.name);
 /* 3. posiziona e sveglia tutto */
 resetObjects();
 tryInitializeClawController();
-}, undefined, err => console.error(err));
+}, undefined, err => {});
 
     
 
@@ -1685,7 +1663,5 @@ function togglePauseMenu() {
     }
 }
 
-// --- NEW: Function to start a new game ---
 
-// 🆕 PLAYER TEST FUNCTIONS (using PlayerTestUtils)
 

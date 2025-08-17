@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MeshBVH, MeshBVHHelper } from 'https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js';
+import { MeshBVH } from 'https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js';
 import { CandyMachine } from './candy_machine.js';
 
 // 🆕 INTERACTION ZONE CLASS
@@ -60,8 +60,6 @@ export class RoomSetupManager {
         this.joystickMesh = null;
         this.buttonMesh = null;
         this.joystickPivot = null;
-        this.triggerVolume = null;
-        this.finalPrizeHelper = null;
         this.candyMachine = null;
         
         // Callbacks for machine loading completion
@@ -71,7 +69,6 @@ export class RoomSetupManager {
             candyMachine: []
         };
         
-        console.log("🏗️ Room Setup Manager initialized");
     }
     
     // 🆕 INITIALIZE WITH DEPENDENCIES
@@ -80,7 +77,6 @@ export class RoomSetupManager {
         this.physicsEngine = physicsEngine;
         this.cameraManager = cameraManager;
         
-        console.log("⚡ Room Setup Manager initialized with dependencies");
     }
     
     // 🆕 GET MACHINE POSITIONS
@@ -177,7 +173,6 @@ export class RoomSetupManager {
         this.createDecorativePanels(roomSize);
         this.createWallPaintings(roomSize);
         
-        console.log("🏛️ Game room created with enhanced lighting");
     }
     
     // 🆕 CREATE DECORATIVE PANELS
@@ -282,22 +277,18 @@ export class RoomSetupManager {
                 this.paintingSpotlights.push(spotlight);
 
             }, undefined, (error) => {
-                console.error(`❌ Impossibile caricare il modello del quadro: ${p.file}`, error);
             });
         });
 
-        console.log('🖼️  Quadri .glb e faretti aggiunti alle pareti.');
     }
     
     // 🆕 LOAD CLAW MACHINE
     loadMachine() {
         const loader = new GLTFLoader();
-        console.log('🎰 Loading claw machine...');
         
         return new Promise((resolve, reject) => {
             loader.load('glbmodels/claw_no_obj.glb', 
                 (gltf) => {
-                    console.log('✅ Claw machine loaded successfully');
                     const model = gltf.scene;
                     model.position.copy(this.machineOffset);
                     
@@ -323,7 +314,6 @@ export class RoomSetupManager {
 
                         if (child.isMesh && child.name === 'Joystick') {
                             this.joystickMesh = child;
-                            console.log('🕹️ Found Joystick mesh.');
                             
                             // Set first person camera reference for claw machine
                             if (this.cameraManager) {
@@ -338,11 +328,9 @@ export class RoomSetupManager {
                         
                         if (child.isMesh && child.name === 'Button') {
                             this.buttonMesh = child;
-                            console.log('🔴 Found Button mesh.');
                         }
                         
                         if (child.isMesh && child.name === 'polySurface42_blinn4_0') {
-                            console.log('🎯 Found chute mesh:', child.name);
                             localChuteMesh = child;
                             this.setupChuteHelpers(child, model);
                         }
@@ -352,16 +340,10 @@ export class RoomSetupManager {
                     this.setupJoystickPivot();
                     
                     if (!foundMachineBox) {
-                        console.error('❌ Could not find polySurface24_lambert11_0 mesh!');
-                        model.traverse(child => { 
-                            if (child.isMesh) console.log('  - Mesh name:', child.name); 
-                        });
                         reject(new Error('Machine box not found'));
                         return;
                     }
 
-                    const boxHelper = new THREE.Box3Helper(this.clawTopBox, 0x00ff00);
-                    this.scene.add(boxHelper);
                     
                     this.chuteMesh = localChuteMesh;
                     if (this.chuteMesh) {
@@ -377,14 +359,11 @@ export class RoomSetupManager {
                         chuteMesh: this.chuteMesh,
                         joystickMesh: this.joystickMesh,
                         buttonMesh: this.buttonMesh,
-                        joystickPivot: this.joystickPivot,
-                        triggerVolume: this.triggerVolume,
-                        finalPrizeHelper: this.finalPrizeHelper
+                        joystickPivot: this.joystickPivot
                     });
                 }, 
                 undefined, 
                 (error) => {
-                    console.error('❌ Error loading claw machine:', error);
                     reject(error);
                 }
             );
@@ -399,38 +378,6 @@ export class RoomSetupManager {
         const center = new THREE.Vector3();
         chuteBox.getCenter(center);
 
-        // Create trigger volume (large helper)
-        const triggerGeometry = new THREE.BoxGeometry(size.x * 0.5, size.y * 0.5, size.z * 0.5);
-        const triggerMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0x00ffff, 
-            wireframe: true, 
-            transparent: true, 
-            opacity: 0.4 
-        });
-        this.triggerVolume = new THREE.Mesh(triggerGeometry, triggerMaterial);
-        this.triggerVolume.position.copy(center);
-        model.add(this.triggerVolume);
-        console.log("✅ Trigger volume created and positioned.");
-
-        // Create final prize helper (small helper below)
-        const finalHelperSize = new THREE.Vector3(size.x * 0.5, size.y * 0.2, size.z * 0.5);
-        const finalHelperGeometry = new THREE.BoxGeometry(finalHelperSize.x, finalHelperSize.y, finalHelperSize.z);
-        const finalHelperMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xffa500, 
-            wireframe: true, 
-            transparent: true, 
-            opacity: 0.5 
-        });
-        this.finalPrizeHelper = new THREE.Mesh(finalHelperGeometry, finalHelperMaterial);
-
-        // Calculate position below the trigger volume
-        const finalPosition = new THREE.Vector3().copy(center);
-        const extraOffset = 0.3;
-        finalPosition.y -= (size.y / 2) + (finalHelperSize.y / 2) + extraOffset;
-
-        this.finalPrizeHelper.position.copy(finalPosition);
-        model.add(this.finalPrizeHelper);
-        console.log("✅ Final prize helper positioned lower.");
 
         // Create physics collider for chute
         const physicsChuteGeometry = new THREE.BoxGeometry(size.x, size.y, size.z);
@@ -447,18 +394,13 @@ export class RoomSetupManager {
         model.add(physicsChuteMesh);
         this.physicsEngine.addStaticCollider(physicsChuteMesh);
 
-        // Add BVH helper for visualization
-        const bvhHelper = new MeshBVHHelper(physicsChuteMesh);
-        this.scene.add(bvhHelper);
 
-        console.log("✅ Invisible collider created and added correctly");
     }
     
     // 🆕 SETUP JOYSTICK PIVOT
     setupJoystickPivot() {
         if (!this.joystickMesh) return;
         
-        console.log('🎮 Setting up joystick pivot...');
 
         // Calculate joystick base position in global coordinates
         this.joystickMesh.geometry.computeBoundingBox();
@@ -480,18 +422,15 @@ export class RoomSetupManager {
         // Attach joystick to pivot
         this.joystickPivot.attach(this.joystickMesh);
 
-        console.log("✅ Joystick pivot configured and added to scene.");
     }
     
     // 🆕 LOAD CLAW
     loadClaw() {
         const loader = new GLTFLoader();
-        console.log('🦾 Loading claw...');
         
         return new Promise((resolve, reject) => {
             loader.load('glbmodels/claw_collider.glb', 
                 (gltf) => {
-                    console.log('✅ Claw loaded successfully');
                     this.clawGroup = gltf.scene;
                     this.clawGroup.scale.setScalar(1.2);
 
@@ -509,34 +448,28 @@ export class RoomSetupManager {
                         if (/^Claw_([ABC])_0_DEF$/.test(obj.name)) {
                             const letter = obj.name.charAt(5);
                             this.clawBones[letter] = obj;
-                            console.log('🦴 Found claw bone:', letter, obj.name);
                         }
                         
                         // Check if the object is any cylinder
                         if (obj.isMesh && obj.name.startsWith('Cylinder')) {
                             this.allClawCylinders.push(obj);
-                            console.log(`🛞 Found and registered cylinder: ${obj.name}`);
 
                             // Check if it's one of the specific finger cylinders
                             if (fingerCylinderMap[obj.name]) {
                                 const letter = fingerCylinderMap[obj.name];
                                 this.cylinders[letter] = obj;
-                                console.log('👆 Mapped as finger cylinder:', letter, obj.name);
                             }
 
                             // Ensure bounding box is computed before creating BVH
                             obj.geometry.computeBoundingBox();
                             try {
                                 obj.geometry.boundsTree = new MeshBVH(obj.geometry);
-                                console.log(`🌳 BVH created for cylinder: ${obj.name}`);
                             } catch (error) {
-                                console.error(`❌ Error creating BVH for cylinder: ${obj.name}`, error);
                             }
                         }
                     });
                     
                     this.clawLoaded = true;
-                    console.log('📊 Claw loaded, total cylinders found:', this.allClawCylinders.length);
                     
                     this.scene.add(this.clawGroup);
                     
@@ -552,7 +485,6 @@ export class RoomSetupManager {
                 }, 
                 undefined, 
                 (error) => {
-                    console.error('❌ Error loading claw:', error);
                     reject(error);
                 }
             );
@@ -562,12 +494,10 @@ export class RoomSetupManager {
     // 🆕 LOAD CANDY MACHINE
     loadCandyMachine() {
         const loader = new GLTFLoader();
-        console.log('🍬 Loading candy machine...');
         
         return new Promise((resolve, reject) => {
             loader.load('glbmodels/candy_machine_con_gate5.glb', 
                 (gltf) => { 
-                    console.log("✅ Candy machine model loaded successfully.");
                     const model = gltf.scene;
                     model.scale.setScalar(0.5);
                     model.position.copy(this.candyMachineOffset);
@@ -611,7 +541,6 @@ export class RoomSetupManager {
 
                             if (child.name === 'Object_3') {
                                 releaseDoorMesh = child;
-                                console.log("🚪 Found release door mesh: Object_3");
                             }
                         }
                     });
@@ -630,7 +559,6 @@ export class RoomSetupManager {
                     if (candyContainerMesh) {
                         this.candyMachine.populate(candyContainerMesh, 20, candyGeometry, this.scene);
                     } else {
-                        console.error("❌ ERROR: Container part 'Object_2' not found in model.");
                     }
                     
                     // Trigger callbacks
@@ -645,7 +573,6 @@ export class RoomSetupManager {
                 },
                 undefined,
                 (error) => {
-                    console.error("❌ CRITICAL ERROR: Cannot load 'glbmodels/candy_machine_con_gate5.glb'.", error);
                     reject(error);
                 }
             );
@@ -674,31 +601,9 @@ export class RoomSetupManager {
         
         this.interactionZones = [clawZone, candyZone];
         
-        // Create visual indicators for zones (optional debug)
-        this.createZoneVisualizers();
-        
-        console.log("🎯 Interaction zones created");
         return this.interactionZones;
     }
     
-    // 🆕 CREATE VISUAL ZONE INDICATORS
-    createZoneVisualizers() {
-        this.interactionZones.forEach(zone => {
-            const geometry = new THREE.RingGeometry(zone.radius - 0.1, zone.radius + 0.1, 32);
-            const material = new THREE.MeshBasicMaterial({ 
-                color: zone.machineType === 'claw_machine' ? 0xff4444 : 0x4444ff,
-                transparent: true,
-                opacity: 0.3,
-                side: THREE.DoubleSide
-            });
-            
-            const ring = new THREE.Mesh(geometry, material);
-            ring.rotation.x = -Math.PI / 2; // Flat on ground
-            ring.position.copy(zone.position);
-            ring.position.y = 0.05; // Slightly above ground
-            this.scene.add(ring);
-        });
-    }
     
     // 🆕 CHECK INTERACTION ZONES
     checkInteractionZones(playerController) {
@@ -713,7 +618,6 @@ export class RoomSetupManager {
     // 🆕 LOAD ALL MACHINES SEQUENTIALLY
     async loadAllMachines() {
         try {
-            console.log("🚀 Starting machine loading sequence...");
             
             // Load machines in parallel for better performance
             const machinePromises = [
@@ -724,14 +628,12 @@ export class RoomSetupManager {
             
             const results = await Promise.all(machinePromises);
             
-            console.log("✅ All machines loaded successfully!");
             return {
                 clawMachine: results[0],
                 claw: results[1],
                 candyMachine: results[2]
             };
         } catch (error) {
-            console.error("❌ Error loading machines:", error);
             throw error;
         }
     }
@@ -755,8 +657,6 @@ export class RoomSetupManager {
             joystickMesh: this.joystickMesh,
             buttonMesh: this.buttonMesh,
             joystickPivot: this.joystickPivot,
-            triggerVolume: this.triggerVolume,
-            finalPrizeHelper: this.finalPrizeHelper,
             candyMachine: this.candyMachine,
             clawLoaded: this.clawLoaded
         };

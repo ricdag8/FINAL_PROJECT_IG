@@ -87,13 +87,6 @@ this.coinIsFlying = false;
         this.candyDescentTargetPos.copy(this.candyWorldTargetPos); // Keep X/Z from the upper target point
         this.candyDescentTargetPos.y = this.releaseDoorPivot.position.y - 0.9; // Use the correct Y from the door pivot and lower it slightly
 
-        // Also create the visual helper for this point
-        const descentHelperGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-        const descentHelperMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Cyan
-        const descentHelperSphere = new THREE.Mesh(descentHelperGeometry, descentHelperMaterial);
-        descentHelperSphere.position.copy(this.candyDescentTargetPos);
-        this.scene.add(descentHelperSphere);
-        console.log(`🎯 DESCENT TARGET (re-calculated): Y=${this.candyDescentTargetPos.y.toFixed(2)}`);
 
 
         // --- Define the intermediate and final exit positions ---
@@ -113,22 +106,8 @@ this.coinIsFlying = false;
             pivotPos.z + 0.5 // MODIFICATO: Usa un offset Z indipendente per renderlo spostabile autonomamente
         );
 
-        // Add helper sphere for intermediate point (red)
-        const intermediateHelperGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-        const intermediateHelperMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 }); // Red
-        const intermediateHelperSphere = new THREE.Mesh(intermediateHelperGeometry, intermediateHelperMaterial);
-        intermediateHelperSphere.position.copy(this.candyIntermediateExitPos);
-        this.scene.add(intermediateHelperSphere);
-
-        // Add helper sphere for final point (blue)
-        const finalHelperGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-        const finalHelperMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // Blue
-        const finalHelperSphere = new THREE.Mesh(finalHelperGeometry, finalHelperMaterial);
-        finalHelperSphere.position.copy(this.candyFinalExitPos);
-        this.scene.add(finalHelperSphere);
 
 
-        console.log("🚪 Release door configured with pivot for rotation.");
     }
 
     /**
@@ -147,7 +126,6 @@ this.coinIsFlying = false;
 });
 
         this.coinMesh.visible = false; // Initially hidden
-        console.log("🪙 Coin mesh created for candy machine.");
     }
     
     /**
@@ -156,7 +134,6 @@ this.coinIsFlying = false;
      */
     setClawController(controller) {
         this.clawController = controller;
-        console.log("Candy machine is now linked to the claw controller.");
     }
 
     /**
@@ -175,11 +152,9 @@ this.coinIsFlying = false;
 
 insertCoin() {
     if (this.hasCoinInserted || this.isAnimating) {
-        console.log("Cannot insert a coin right now. A sequence is already in progress.");
         return;
     }
     if (!this.clawController) {
-        console.error("Claw controller not linked to candy machine.");
         return;
     }
 
@@ -214,7 +189,6 @@ insertCoin() {
             this.coinIsFlying = true;
             this.coinHasReachedKnob = false;
             this.coinDisappearTimer = 0;
-            console.log("🪙 Coin is flying towards the knob.");
         }
     }
 }
@@ -222,12 +196,10 @@ insertCoin() {
         const gateMeshes = []; // Collect all gate-related meshes
         const allMeshNames = []; // Debug: collect all mesh names
         
-        console.log("🔍 ============ DEBUGGING MESH DISCOVERY ============");
         
         this.model.traverse(child => {
             if (child.isMesh) {
                 allMeshNames.push(child.name);
-                console.log(`🔍 Found mesh: "${child.name}"`);
             }
             if (child.isMesh && child.name === 'Object_6') {
     this.knob = child;
@@ -246,14 +218,12 @@ insertCoin() {
     this.knob.position.add(transformedOffset);
 
     this.knob.rotation.y += Math.PI; // ← AGGIUNTO: ruota la manopola di 180°
-    console.log("✅ Knob 'Object_6' pivot corrected and rotated 180°.");
 }
 
             // Find the Release Mechanism mesh - REMOVED because it was incorrect
             /* if (child.isMesh && child.name === 'Object_6') {
                 child.updateWorldMatrix(true, false);
                 child.getWorldPosition(this.releaseMechanismPosition);
-                console.log(`🔧 Release mechanism 'Object_6' found at world Y: ${this.releaseMechanismPosition.y.toFixed(3)}`);
             } */
 
             // Find the Gate mesh for dispensing
@@ -263,7 +233,6 @@ insertCoin() {
                 // Calculate gate lowering position (move down by 0.5 units)
                 this.gateTargetPosition = child.position.clone();
                 this.gateTargetPosition.y -= 0.5;
-                console.log("🚪 Gate mesh found and configured for dispensing");
             }
 
             // Aggiunto: Trova i plane laterali da muovere con il gate
@@ -275,7 +244,6 @@ insertCoin() {
                 const targetPos = originalPos.clone();
                 targetPos.y -= 0.5; // Abbassa dello stesso valore del gate
                 this.gateSidePlanesTargetPositions.push(targetPos);
-                console.log(`🚪 Plane laterale '${child.name}' configurato per muoversi con il gate.`);
             }
 
             // Collect gate area meshes to calculate dispensing center
@@ -295,7 +263,6 @@ insertCoin() {
      * Calculate the center of the gate area for candy targeting
      */
     _calculateDispenseCenter(gateMeshes) {
-        console.log("🎯 =============== DEBUGGING TARGET POSITION ===============");
         
         const bounds = new THREE.Box3();
         gateMeshes.forEach((mesh) => {
@@ -309,40 +276,15 @@ insertCoin() {
         
         // --- The lower target position is now calculated in setReleaseDoor ---
         
-        console.log(`🎯 CANDY TARGET (world coordinates): (${this.candyWorldTargetPos.x.toFixed(2)}, ${this.candyWorldTargetPos.y.toFixed(2)}, ${this.candyWorldTargetPos.z.toFixed(2)})`);
         
-        // Create a visible helper sphere to show the target point
-        this._createTargetAreaHelper();
     }
 
-    /**
-     * Create a visible helper sphere to show the dispensing target point
-     */
-    _createTargetAreaHelper() {
-        // 🎯 ADD A TARGET SPHERE TO SHOW EXACT CANDY DESTINATION
-        const targetSphereGeometry = new THREE.SphereGeometry(0.1, 16, 16);
-        const targetSphereMaterial = new THREE.MeshBasicMaterial({
-            color: 0x00ff00,  // Bright green
-        });
-        
-        // Create sphere in world space at the exact target position
-        this.targetSphere = new THREE.Mesh(targetSphereGeometry, targetSphereMaterial);
-        this.targetSphere.position.copy(this.candyWorldTargetPos);
-        this.scene.add(this.targetSphere);
-        
-        // --- The helper for the descent target is now created in setReleaseDoor ---
-        
-        console.log("🟢 TARGET SPHERE created at EXACT candy destination:");
-        console.log(`   Position: (${this.candyWorldTargetPos.x.toFixed(3)}, ${this.candyWorldTargetPos.y.toFixed(3)}, ${this.candyWorldTargetPos.z.toFixed(3)})`);
-    }
 
     populate(containerMesh, count, candyGeometry, scene) {
         if (!containerMesh) {
-            console.error("Container mesh not provided to populate.");
             return;
         }
 
-        console.log("🍬 Starting candy population...");
 
         // --- AGGIUNTO: Definisci una lista di possibili colori per le caramelle ---
         const candyColors = [
@@ -408,7 +350,6 @@ insertCoin() {
             }
             
             if (!positionIsValid) {
-                console.warn(`Could not find a safe spawn position for candy ${i} after ${maxAttempts} attempts. Spawning anyway.`);
             }
 
             // --- MODIFICATO: Crea un materiale unico con un colore casuale per ogni caramella ---
@@ -440,16 +381,12 @@ insertCoin() {
             this.candiesInMachine.push(body);
         }
 
-        console.log(`✅ ${count} candies created inside container.`);
         
         // Define the physics boundaries for the candies using the container's box
         const candyBoundsMin = new Vec3(containerWorldBox.min.x, containerWorldBox.min.y, containerWorldBox.min.z);
         const candyBoundsMax = new Vec3(containerWorldBox.max.x, containerWorldBox.max.y, containerWorldBox.max.z);
         this.physicsEngine.setCandyBounds(candyBoundsMin, candyBoundsMax);
         
-        // Add a visual helper to see the spawn area
-        const helper = new THREE.Box3Helper(containerWorldBox, 0x00ff00);
-        scene.add(helper);
     }
 
 
@@ -458,21 +395,17 @@ insertCoin() {
      */
     startCandyDispensing() {
         if (!this.hasCoinInserted) {
-            console.log("💰 Please insert a coin first (win a star and press 'C')!");
             return;
         }
         
         if (this.isDispensing || this.isAnimating) {
-            console.log("Cannot dispense: a sequence is already in progress.");
             return;
         }
         
         if (this.candiesInMachine.length === 0) {
-            console.warn("Candy machine is empty!");
             return;
         }
         
-        console.log("🍬 Starting candy dispensing sequence...");
         
         // START BOTH dispensing AND knob animation
         this.isDispensing = true;
@@ -730,7 +663,6 @@ insertCoin() {
         if (this.coinMesh && this.coinMesh.parent === this.knob) {
                 this.knob.remove(this.coinMesh);
         }
-        console.log("✅ Candy dispensing sequence AND knob animation completed.");
     }
 
     update(deltaTime) {
@@ -752,7 +684,6 @@ insertCoin() {
             this.coinMesh.position.set(-0.1, 0.5, -0.8);
             this.coinMesh.rotation.set(0, Math.PI / 2, 0);
 
-            console.log("🪙 Coin attached to knob. Ready to turn.");
         }
     }
 
@@ -775,7 +706,6 @@ insertCoin() {
             this.coinDisappearTimer += deltaTime;
             if (this.coinDisappearTimer >= 0.3 && this.coinMesh.visible) {
                 this.coinMesh.visible = false;
-                console.log("👻 Coin disappeared into the machine.");
             }
         }
 

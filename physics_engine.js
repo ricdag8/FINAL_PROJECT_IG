@@ -103,10 +103,8 @@
 //         // Assicurati che abbia un BVH
 //         if (mesh.geometry.boundsTree) {
 //             this.staticColliders.push(mesh);
-//             console.log(`Added static collider: ${mesh.name}`);
-//         } else {
-//             console.warn(`Attempted to add static collider '${mesh.name}' without a BVH.`);
-//         }
+// //         } else {
+// //         }
 //     }
     
 //     update(deltaTime) {
@@ -146,8 +144,7 @@
     
 //             // Se ha toccato per 2 frame consecutivi → fermalo
 //             if (!body.hasTouchedClaw && body.touchedFrameCount > 1) {
-//                 console.log(`${body.mesh.name} ha toccato la claw. Fermato.`);
-//                 body.linearVelocity.set(0, 0, 0);
+// //                 body.linearVelocity.set(0, 0, 0);
 //                 body.angularVelocity.set(0, 0, 0);
 //                 body.isSleeping = true;
 //                 body.hasTouchedClaw = true;
@@ -281,11 +278,9 @@
 // spendStarAsCoin() {
 //     if (this.deliveredStars > 0) {
 //         this.deliveredStars--;
-//         console.log(`🪙 Star spent! Remaining stars: ${this.deliveredStars}`);
-//         return true;
+// //         return true;
 //     } else {
-//         console.warn("Not enough stars to insert a coin.");
-//         return false;
+// //         return false;
 //     }
 // }
 
@@ -349,8 +344,7 @@
 
 //                 // ⚠️ Se molto incastrato → forzatura
 //                 if (penetrationDepth > body.boundingRadius * 0.9) {
-//                     console.warn(`${body.mesh.name} profondamente incastrato nella staticMesh ${staticMesh.name}`);
-//                     body.linearVelocity.set(0, -2, 0); // spinta in giù
+// //                     body.linearVelocity.set(0, -2, 0); // spinta in giù
 //                     body.angularVelocity.set(0, 0, 0);
 //                 }
 
@@ -497,12 +491,10 @@ export class PhysicsEngine {
             min: new Vec3(box3.min.x + margin, box3.min.y + margin, box3.min.z + margin), 
             max: new Vec3(box3.max.x - margin, box3.max.y - margin, box3.max.z - margin) 
         };
-        console.log("🏆 Prize container bounds set.");
     }
     
     setCandyBounds(minVec, maxVec) {
         this.candyBounds = { min: minVec, max: maxVec };
-        console.log("🍬 Candy bounds set:", minVec, "to", maxVec);
     }
 
     setDispenserSafetyZone(center, radius) {
@@ -520,9 +512,7 @@ export class PhysicsEngine {
         // Assicurati che abbia un BVH
         if (mesh.geometry.boundsTree) {
             this.staticColliders.push(mesh);
-            console.log(`Added static collider: ${mesh.name}`);
         } else {
-            console.warn(`Attempted to add static collider '${mesh.name}' without a BVH.`);
         }
     }
     
@@ -579,7 +569,6 @@ export class PhysicsEngine {
                 
                 // Safety check: if release time is invalid, reset immediately
                 if (timeSinceRelease < 0 || timeSinceRelease > cleanReleaseTimeout * 2) {
-                    console.warn(`⚠️ Invalid release time for ${body.mesh.name}, resetting`);
                     body.ignoreClawCollision = false;
                     body.isBeingReleased = false;
                     body.releaseStartTime = null;
@@ -593,13 +582,11 @@ export class PhysicsEngine {
                     body.isBeingReleased = false;
                     body.releaseStartTime = null;
                     
-                    console.log(`✅ CLEAN RELEASE COMPLETE: ${body.mesh.name} (${(timeSinceRelease/1000).toFixed(1)}s)`);
                 }
                 
                 // Debug logging only if enabled
                 if (window.cleanReleaseDebug && Math.floor(timeSinceRelease / 300) > Math.floor((timeSinceRelease - 16) / 300)) {
                     const progress = Math.min(100, (timeSinceRelease / cleanReleaseTimeout) * 100);
-                    console.log(`🕐 Clean release: ${body.mesh.name} ${progress.toFixed(0)}%`);
                 }
             }
         });
@@ -634,7 +621,6 @@ export class PhysicsEngine {
     
             // Se ha toccato per 2 frame consecutivi → fermalo
             if (!body.hasTouchedClaw && body.touchedFrameCount > 1) {
-                console.log(`${body.mesh.name} ha toccato la claw. Fermato.`);
                 body.linearVelocity.set(0, 0, 0);
                 body.angularVelocity.set(0, 0, 0);
                 body.isSleeping = true;
@@ -817,10 +803,8 @@ resolveBodyCollisions() {
 spendStarAsCoin() {
     if (this.deliveredStars > 0) {
         this.deliveredStars--;
-        console.log(`🪙 Star spent! Remaining stars: ${this.deliveredStars}`);
         return true;
     } else {
-        console.warn("Not enough stars to insert a coin.");
         return false;
     }
 }
@@ -892,7 +876,6 @@ spendStarAsCoin() {
 
                 // ⚠️ Se molto incastrato → forzatura
                 if (penetrationDepth > body.boundingRadius * 0.9) {
-                    console.warn(`${body.mesh.name} profondamente incastrato nella staticMesh ${staticMesh.name}`);
                     body.linearVelocity.set(0, -2, 0); // spinta in giù
                     body.angularVelocity.set(0, 0, 0);
                 }

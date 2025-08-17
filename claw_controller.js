@@ -115,7 +115,6 @@ export class ClawController {
         const checkInterval = setInterval(() => {
             if (this.stopStatus.A && this.stopStatus.B && this.stopStatus.C) {
                 clearInterval(checkInterval);
-                console.log("Tutte le dita hanno colliso almeno una volta. Avvio apertura.");
                 callback();
             }
         }, 50);
@@ -139,7 +138,6 @@ export class ClawController {
                     const box2 = new THREE.Box3().setFromObject(c2);
     
                     if (box1.intersectsBox(box2)) {
-                        console.log(`Collisione tra dita ${f1} e ${f2}`);
                         this.stopStatus[f1] = true;
                         this.stopStatus[f2] = true;
                     }
@@ -150,10 +148,8 @@ export class ClawController {
     spendStarAsCoin() {
     if (this.deliveredStars > 0) {
         this.deliveredStars--;
-        console.log(`🪙 Star spent! Remaining stars: ${this.deliveredStars}`);
         return true;
     } else {
-        console.warn("Not enough stars to insert a coin.");
         return false;
     }
 }
@@ -165,7 +161,6 @@ calculateAndSetDropHeight() {
     // Fallback 1: L'array di oggetti non esiste o è vuoto.
     if (!this.grabbableObjects || this.grabbableObjects.length === 0) {
         this.dropTargetY = fallbackHeight;
-        console.warn(`Nessun oggetto afferrabile trovato. Uso altezza di fallback: ${this.dropTargetY.toFixed(2)}`);
         return;
     }
 
@@ -182,7 +177,6 @@ calculateAndSetDropHeight() {
     // Fallback 2: Gli oggetti esistono, ma nessuno ha fornito una coordinata Y valida.
     if (highestY === -Infinity) {
         this.dropTargetY = fallbackHeight;
-        console.error(`Impossibile determinare l'altezza delle stelle! Uso altezza di fallback: ${this.dropTargetY.toFixed(2)}`);
         return;
     }
 
@@ -191,11 +185,9 @@ calculateAndSetDropHeight() {
 
     // Controllo di sicurezza finale: assicurati che il target non sia sotto il pavimento della macchina
     if (this.machineBox && this.dropTargetY < this.machineBox.min.y) {
-        console.warn(`L'altezza calcolata (${this.dropTargetY.toFixed(2)}) è sotto il pavimento. La imposto al livello minimo.`);
         this.dropTargetY = this.machineBox.min.y + 0.1;
     }
 
-    console.log(`Altezza di discesa calcolata: ${this.dropTargetY.toFixed(2)} (penetrando di ${penetrationOffset} dalla stella più alta a ${highestY.toFixed(2)})`);
 }
 
 
@@ -228,7 +220,6 @@ startDropSequence() {
             clawPos.z <= (chuteBounds.max.z + safeMarginZ);
 
         if (isOverChute) {
-            console.warn("🚫 Discesa bloccata: la claw è troppo vicina all'area di scarico.");
             return; // Esce dalla funzione, impedendo l'avvio della sequenza.
         }
     }
@@ -236,7 +227,6 @@ startDropSequence() {
 
     // Il resto della funzione originale viene eseguito solo se il controllo precedente passa
     if (this.automationState === 'MANUAL_HORIZONTAL' && !this.isAnimating) { //
-        console.log("▶️ Avvio sequenza di discesa..."); //
         
         if (this.button) { //
             this.buttonPressTime = Date.now(); //
@@ -252,14 +242,12 @@ startDropSequence() {
 // --- NUOVO CICLO DI PRESA ASINCRONO ---
 async runCloseSequence() {
     this.automationState = 'OPERATING';
-    console.log("Attempting to grab...");
 
     await this.closeClaw(); // Chiudi la claw
     
     // Pausa per stabilizzare la presa (se c'è)
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    console.log("Grab attempt finished. Ascending.");
     // Passa subito allo stato di risalita, SENZA aprire la claw
     this.automationState = 'ASCENDING';
 }
@@ -273,7 +261,6 @@ async runReleaseAndReturnSequence() {
     // This is now the *only* place where the object's state transitions from "held" to "released".
     if (this.isGrabbing && this.grabbedObject) {
         this.deliveredStars++;
-        console.log(`%c🌟 DELIVERY SUCCESS! Total Stars: ${this.deliveredStars}`, 'color: gold; font-weight: bold;');
 
         const body = this.grabbedObject.body;
         
@@ -294,23 +281,19 @@ async runReleaseAndReturnSequence() {
         body.torque.set(0, 0, 0);
         body.isSleeping = false;
         
-        console.log(`🚀 CLEAN RELEASE: ${body.mesh.name} released from kinematic lock.`);
     }
     // --- END NEW LOGIC ---
 
-    console.log("Opening claw to complete release...");
     
     await this.openClaw();
     await new Promise(resolve => setTimeout(resolve, 500)); 
     
-    console.log("Returning to spawn point...");
     // The state transition to begin returning to the start position
     this.automationState = 'RETURNING_ASCEND';
 }
 // --- closeClaw E openClaw MODIFICATI PER RESTITUIRE PROMISES ---
 closeClaw() {
     return new Promise(resolve => {
-        console.log("Closing claw...");
         this.isClosing = true;
         // Resetta lo stato di stop all'inizio di ogni chiusura
         this.stopStatus = { A: false, B: false, C: false };
@@ -346,7 +329,6 @@ closeClaw() {
                 this.isClosed = true;
                 this.isClosing = false;
                 const reason = allFingersCollided ? "finger collision" : "timeout";
-                console.log(`Claw closed (${reason}).`);
                 resolve(); // La Promise è risolta
             }
         }, 50);
@@ -360,7 +342,6 @@ openClaw() {
     return new Promise(resolve => {
         // --- SIMPLIFIED: This function no longer manages the grabbed object's state. ---
         
-        console.log("Opening claw animation...");
         const openSteps = 30;
         let currentStep = 0;
     
@@ -386,7 +367,6 @@ openClaw() {
             if (currentStep >= openSteps) {
                 clearInterval(openInterval);
                 this.isClosed = false;
-                console.log("Claw opened.");
                 resolve(); // The Promise is resolved
             }
         }, 30);
@@ -448,11 +428,9 @@ openClaw() {
             return;
         }
         
-        console.log(`%cAUTO-DROP: Releasing ${this.grabbedObject.name} into chute!`, 'color: orange; font-weight: bold;');
         
         // Increment delivered counter
         this.deliveredStars++;
-        console.log(`%c🌟 DELIVERY SUCCESS! Stars delivered: ${this.deliveredStars}`, 'color: gold; font-weight: bold;');
         
         // Release the object
         this.grabbedObject.body.isHeld = false;
@@ -476,54 +454,11 @@ openClaw() {
     }
     
     createDropZoneIndicator() {
-        if (!this.chuteBox || !this.scene) return;
-        
-        // Create a subtle wireframe box above the chute
-        const geometry = new THREE.BoxGeometry(
-            this.chuteBox.max.x - this.chuteBox.min.x,
-            this.dropZoneThreshold,
-            this.chuteBox.max.z - this.chuteBox.min.z
-        );
-        
-        const material = new THREE.MeshBasicMaterial({
-            color: 0x00ff00,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.3
-        });
-        
-        this.dropZoneIndicator = new THREE.Mesh(geometry, material);
-        
-        // Position it above the chute
-        const center = this.chuteBox.getCenter(new THREE.Vector3());
-        this.dropZoneIndicator.position.set(
-            center.x,
-            this.chuteBox.max.y + this.dropZoneThreshold / 2,
-            center.z
-        );
-        
-        this.dropZoneIndicator.visible = false; // Hidden by default
-        this.scene.add(this.dropZoneIndicator);
+        // No visual indicator needed - functionality is purely logical
     }
     
     updateDropZoneIndicator() {
-        if (!this.dropZoneIndicator) return;
-        
-        // Show indicator only when grabbing an object and near drop zone
-        const shouldShow = this.isGrabbing && this.isInDropZone();
-        
-        if (shouldShow && !this.dropZoneIndicator.visible) {
-            this.dropZoneIndicator.visible = true;
-            this.dropZoneIndicator.material.color.setHex(0x00ff00); // Green when ready to drop
-        } else if (!shouldShow && this.dropZoneIndicator.visible) {
-            this.dropZoneIndicator.visible = false;
-        }
-        
-        // Add pulsing effect when in drop zone
-        if (shouldShow) {
-            const time = Date.now() * 0.01;
-            this.dropZoneIndicator.material.opacity = 0.3 + 0.2 * Math.sin(time);
-        }
+        // No visual indicator needed - functionality is purely logical
     }
 
         // NUOVO: Metodo per animare il pulsante
@@ -584,14 +519,12 @@ openClaw() {
             if (potentialObject) {
                 // 🆕 SAFETY CHECK: Don't grab objects that are being released
                 if (potentialObject.body.isBeingReleased) {
-                    console.log(`⚠️ Skipping grab of ${potentialObject.name} - object is in clean release mode`);
                     return;
                 }
                 
                 this.isGrabbing = true;
                 this.grabbedObject = potentialObject;
                 this.grabbedObject.body.isHeld = true;
-                console.log(`%cGRAB SUCCESS: Holding ${potentialObject.name}!`, 'color: lightgreen; font-weight: bold;');
             }
         }
         if (this.isGrabbing) {
@@ -644,13 +577,10 @@ openClaw() {
                     this.clawGroup.position.y += this.moveSpeed * deltaTime;
                 } else {
                     this.clawGroup.position.y = this.returnYPosition;
-                    console.log(`Arrivato in cima. Stato di grabbing: ${this.isGrabbing}, Oggetto: ${this.grabbedObject?.name || 'nessuno'}`);
     
                     if (this.isGrabbing && this.grabbedObject) {
-                        console.log("Prize acquired! Starting delivery sequence.");
                         this.automationState = 'DELIVERING_MOVE_X';
                     } else {
-                        console.log("Grab failed, opening claw for next turn.");
                         this.automationState = 'RELEASING_OBJECT';
                         this.openClaw().then(() => {
                             this.automationState = 'MANUAL_HORIZONTAL';
@@ -667,7 +597,6 @@ openClaw() {
                 this.clawGroup.position.x = THREE.MathUtils.lerp(currentX, targetX, 0.05);
                 if (Math.abs(currentX - targetX) < 0.01) {
                     this.clawGroup.position.x = targetX;
-                    console.log("X movement complete. Starting Z movement.");
                     this.automationState = 'DELIVERING_MOVE_Z';
                 }
                 break;
@@ -679,7 +608,6 @@ openClaw() {
                 this.clawGroup.position.z = THREE.MathUtils.lerp(currentZ, targetZ, 0.05);
                 if (Math.abs(currentZ - targetZ) < 0.01) {
                     this.clawGroup.position.z = targetZ;
-                    console.log("Z movement complete. Arrived at drop-off point.");
                     this.automationState = 'DELIVERING_DESCEND';
                 }
                 break;
@@ -704,7 +632,6 @@ openClaw() {
                     this.clawGroup.position.y += this.moveSpeed * deltaTime;
                 } else {
                     this.clawGroup.position.y = this.returnYPosition;
-                    console.log("Ascend complete. Returning on Z-axis.");
                     this.automationState = 'RETURNING_MOVE_Z';
                 }
                 break;
@@ -716,7 +643,6 @@ openClaw() {
                 this.clawGroup.position.z = THREE.MathUtils.lerp(currentZ, spawnZ, 0.05);
                 if (Math.abs(currentZ - spawnZ) < 0.01) {
                     this.clawGroup.position.z = spawnZ;
-                    console.log("Z-axis return complete. Returning on X-axis.");
                     this.automationState = 'RETURNING_MOVE_X';
                 }
                 break;
@@ -727,7 +653,6 @@ openClaw() {
                 const currentX = this.clawGroup.position.x;
                 this.clawGroup.position.x = THREE.MathUtils.lerp(currentX, spawnX, 0.05);
                 if (Math.abs(currentX - spawnX) < 0.01) {
-                    console.log("✅ Sequence complete. Ready for manual control.");
                     this.clawGroup.position.copy(this.spawnPosition);
                     this.automationState = 'MANUAL_HORIZONTAL';
                     this.isAnimating = false;
@@ -787,6 +712,5 @@ openClaw() {
     
     resetScore() {
         this.deliveredStars = 0;
-        console.log('Score reset to 0');
     }
 } 

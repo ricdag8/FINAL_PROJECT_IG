@@ -230,7 +230,6 @@ export class PopcornManager {
         
         // Applichiamo il nuovo margine proporzionale
         containerBounds.expandByScalar(-margin); 
-        console.log(`📦 Contenitore popcorn impostato con un margine di sicurezza di: ${margin.toFixed(4)}`);
         // =================================================================================
     }
 
