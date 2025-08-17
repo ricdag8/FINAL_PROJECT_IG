@@ -71,9 +71,9 @@ class PhysicsStar {
     constructor() {
         this.gravity = new Vec3(0, -1.5, 0);
         this.particleMass = 0.1;
-        this.stiffness = 80;
-        this.damping = 0.9;
-        this.restitution = 0.4;
+        this.stiffness = 40; // RIDOTTO: da 80 per deformazioni più morbide
+        this.damping = 1.2; // AUMENTATO: da 0.9 per maggiore smorzamento
+        this.restitution = 0.2; // RIDOTTO: da 0.4 per rimbalzi più delicati
         this.timer = undefined;
         this.isSettling = false;
     }
@@ -221,7 +221,7 @@ function simTimeStep(dt, positions, velocities, springs, stiffness, damping, par
         forces[p1].inc(springForce);
         forces[p2].dec(springForce);
         const dVel = velocities[p2].sub(velocities[p1]);
-        const dampingForce = dVel.mul(damping);
+        const dampingForce = dVel.mul(damping * 0.7); // Applica damping ridotto per movimento più fluido
         forces[p1].inc(dampingForce);
         forces[p2].dec(dampingForce);
     }

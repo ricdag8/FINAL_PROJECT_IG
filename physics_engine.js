@@ -449,8 +449,8 @@ this.boundingRadius = bb.getSize(new THREE.Vector3()).length() * 0.5;
             this.orientation.normalize();
             this.force.set(0,0,0); this.torque.set(0,0,0);
             
-            this.linearVelocity.multiplyScalar(0.92);
-            this.angularVelocity.multiplyScalar(0.90);
+            this.linearVelocity.multiplyScalar(0.95); // RIDOTTO damping: da 0.92 per movimento più fluido
+            this.angularVelocity.multiplyScalar(0.93); // RIDOTTO damping: da 0.90 per rotazione più fluida
 
             const kineticEnergy = 0.5 * this.mass * this.linearVelocity.lengthSq() + 0.5 * this.angularVelocity.lengthSq();
             if (kineticEnergy < this.SLEEP_THRESHOLD) {
@@ -679,7 +679,7 @@ export class PhysicsEngine {
         const limit = dir > 0 ? bounds.max[axis] : bounds.min[axis];
         if ((dir > 0 && vertex[axis] > limit) || (dir < 0 && vertex[axis] < limit)) {
             const penetration = limit - vertex[axis];
-            body.position[axis] += penetration * 1.01;
+            body.position[axis] += penetration * 0.8; // RIDOTTO: da 1.01 per correzione più dolce
             
             const relativePos = new Vec3().copy(vertex).sub(body.position);
             const contactVelocity = new Vec3().copy(body.linearVelocity).add(body.angularVelocity.cross(relativePos));
@@ -691,8 +691,8 @@ export class PhysicsEngine {
             const impulseMag = -closingSpeed;
             const normalImpulse = new Vec3();
             normalImpulse[axis] = impulseMag * dir;
-            if (closingSpeed > 0.1) {
-                const bounceImpulseMag = -closingSpeed * body.restitution;
+            if (closingSpeed > 0.05) { // RIDOTTO: soglia più bassa per rimbalzi più delicati
+                const bounceImpulseMag = -closingSpeed * body.restitution * 0.6; // RIDOTTO: moltiplicatore per rimbalzi più morbidi
                 const bounceImpulse = new Vec3();
                 bounceImpulse[axis] = bounceImpulseMag * dir;
                 normalImpulse.add(bounceImpulse);
@@ -743,11 +743,11 @@ resolveBodyCollisions() {
 
     // --- MODIFICATO: Fattori di correzione differenziati ---
     // Fattore di correzione per collisioni tra oggetti dinamici (basso per stabilità)
-    const dynamicCorrectionFactor = 0.05; // RIDOTTO: da 0.1 per interazioni più morbide
+    const dynamicCorrectionFactor = 0.02; // ULTERIORMENTE RIDOTTO: per interazioni ancora più morbide
     // Fattore di correzione quando un oggetto cinematico ne spinge uno dinamico (alto per effetto "aratro")
-    const kinematicCorrectionFactor = 0.8;
+    const kinematicCorrectionFactor = 0.4; // RIDOTTO: da 0.8 per spinte più delicate
     // Tolleranza (slop): una piccolissima sovrapposizione permessa per evitare instabilità.
-    const slop = 0.001; 
+    const slop = 0.005; // AUMENTATO: da 0.001 per permettere sovrapposizioni maggiori e interazioni più dolci 
 
     pairs.forEach(([A, B]) => {
         const matAB = new THREE.Matrix4()
@@ -794,7 +794,7 @@ resolveBodyCollisions() {
         // --- NUOVA MODIFICA: Smorzamento per Contatti Leggeri ---
         // Se gli oggetti si toccano delicatamente, annulliamo la "restituzione" (il rimbalzo)
         // per farli assestare più dolcemente, invece di farli continuare a tremare.
-        const velocityRestitutionThreshold = 0.1;
+        const velocityRestitutionThreshold = 0.2; // AUMENTATO: soglia più alta per contatti più gentili
         if (Math.abs(velAlongNormal) < velocityRestitutionThreshold) {
             e = 0;
         }
@@ -898,8 +898,8 @@ spendStarAsCoin() {
                 }
 
                 // Applica forze di risposta morbide
-                const springStiffness = 1000;
-                const dampingFactor = 0.9;
+                const springStiffness = 500; // RIDOTTO: da 1000 per forze più delicate
+                const dampingFactor = 1.2; // AUMENTATO: da 0.9 per maggiore smorzamento
 
                 const penaltyForceMag = penetrationDepth * springStiffness;
                 const penaltyForce = normal.clone().multiplyScalar(penaltyForceMag);
@@ -942,15 +942,17 @@ spendStarAsCoin() {
                 const pushoutX = dx / distance;
                 const pushoutZ = dz / distance;
 
-                // Sposta la caramella sul bordo della zona
-                body.position.x += pushoutX * overlap;
-                body.position.z += pushoutZ * overlap;
+                // Sposta la caramella sul bordo della zona PIÙ DOLCEMENTE
+                const gentleFactor = 0.3; // Fattore per movimento più graduale
+                body.position.x += pushoutX * overlap * gentleFactor;
+                body.position.z += pushoutZ * overlap * gentleFactor;
 
-                // Annulla la componente di velocità che punta verso il centro
+                // Riduce dolcemente la velocità verso il centro invece di annullarla
                 const dot = body.linearVelocity.x * pushoutX + body.linearVelocity.z * pushoutZ;
                 if (dot < 0) {
-                    body.linearVelocity.x -= dot * pushoutX;
-                    body.linearVelocity.z -= dot * pushoutZ;
+                    const dampingFactor = 0.7; // Riduzione graduale invece di azzeramento
+                    body.linearVelocity.x -= dot * pushoutX * dampingFactor;
+                    body.linearVelocity.z -= dot * pushoutZ * dampingFactor;
                 }
             }
         }
