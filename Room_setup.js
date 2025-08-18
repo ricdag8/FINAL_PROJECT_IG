@@ -104,7 +104,7 @@ export class RoomSetupManager {
         };
     }
     
-    // 🆕 CREATE GAME ROOM WITH ENHANCED MATERIALS
+    //  CREATE GAME ROOM WITH ENHANCED MATERIALS
     createGameRoom() {
         const roomSize = { width: 40, height: 8, depth: 20 };
         

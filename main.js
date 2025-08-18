@@ -14,6 +14,7 @@ import { RoomSetupManager, InteractionZone } from './Room_setup.js';
 import { HomepageManager } from './Homepage.js';
 import { AudioManager } from './AudioManager.js';
 import { PopcornManager } from './popcorn.js';
+import { initializeExtras, getExtrasState, togglePopcornMode, updateCeilingPopcorn, startLightShow, updateLightShow, toggleDiscoMode, updateDiscoLights } from './extras.js';
 
 // 🆕 ROOM SETUP AND MACHINE LOADING NOW MOVED TO Room_setup.js
 
@@ -33,47 +34,35 @@ let playerController = null;
 let playerInputHandler = null;
 let homepageManager = null;
 
-// 🆕 CAMERA SYSTEM VARIABLES
+// CAMERA SYSTEM VARIABLES
 let cameraManager = null;
-let isGamePaused = true; // CRITICAL: Start in a paused state
+let isGamePaused = true; //the game starts in a pause condition
 
-// 🆕 ROOM AND MACHINE SETUP MANAGER
+// ROOM AND MACHINE SETUP MANAGER
 let roomSetupManager = null;
 
-// 🆕 GAME STATE VARIABLES
+//  GAME STATE VARIABLES
 let gameMode = 'exploration'; // 'exploration', 'claw_machine', 'candy_machine'
 let currentZone = null;
 
-// 🍿 POPCORN MODE VARIABLES
-let popcornMode = false;
-let ceilingPopcornManager = null;
+// Note: Popcorn mode, light show, and disco variables now handled by extras.js
 
-// ✨ LIGHT SHOW VARIABLES
-let lightShowActive = false;
-let lightShowTimer = 0;
-let originalLightColors = {};
-
-// 🎉 DISCO LIGHT MODE VARIABLES
-let discoMode = false;
-let discoTimer = 0;
-let discoOriginalColors = {};
-
-// 🆕 CLAW CAMERA MODE TRACKING
+//  CLAW CAMERA MODE TRACKING
 let clawCameraMode = 'normal'; // 'normal', 'top_down'
 let normalCameraPosition = null;
 let normalCameraTarget = null;
 
-// 🆕 UI ELEMENTS
+//  UI ELEMENTS
 let interactionPrompt = null;
 
-// 🆕 AUDIO - NOW MANAGED BY AudioManager
+// AUDIO - NOW MANAGED BY AudioManager
 let audioManager = null;
 
-// 🆕 LIGHTING SYSTEM - NOW MOVED TO Lightning_manager.js
+// LIGHTING SYSTEM - NOW MOVED TO Lightning_manager.js
 let lightingManager = null;
 let lightReferences = null; // Will reference lightingManager.lightReferences
 
-// 🆕 COMPATIBILITY REFERENCES (will point to roomSetupManager properties)
+// COMPATIBILITY REFERENCES (will point to roomSetupManager properties)
 let clawGroup, clawLoaded = false, clawBones = {}, cylinders = {};
 let allClawCylinders = [];
 let clawTopBox, chuteMesh;
@@ -92,46 +81,8 @@ let popcornSpawnPoint;
 // --- Make newGame function available globally ---
 window.newGame = newGame;
 
-// --- Debug functions for claw controller ---
-window.debugClaw = function() {
-    if (clawController) {
-        console.log('Claw Debug State:', clawController.getDebugState());
-    } else {
-        console.log('ClawController not initialized');
-    }
-};
 
-window.resetClaw = function() {
-    if (clawController) {
-        clawController.resetClawState();
-        console.log('Claw state reset');
-    } else {
-        console.log('ClawController not initialized');
-    }
-};
-
-// Debug function to manually test trigger detection
-window.debugTriggers = function() {
-    console.log('=== TRIGGER DEBUG ===');
-    if (triggerVolume) {
-        console.log('TriggerVolume position:', triggerVolume.position);
-        const triggerBox = new THREE.Box3().setFromObject(triggerVolume);
-        console.log('TriggerVolume bounds:', triggerBox.min, triggerBox.max);
-    }
-    if (finalPrizeHelper) {
-        console.log('FinalPrizeHelper position:', finalPrizeHelper.position);
-        const helperBox = new THREE.Box3().setFromObject(finalPrizeHelper);
-        console.log('FinalPrizeHelper bounds:', helperBox.min, helperBox.max);
-    }
-    if (grabbableObjects) {
-        console.log('Number of grabbable objects:', grabbableObjects.length);
-        grabbableObjects.forEach((obj, i) => {
-            console.log(`Star ${i}:`, obj.body.mesh.position, `canFallThrough: ${obj.body.canFallThrough}`);
-        });
-    }
-};
-
-// 🆕 WALL AND CEILING COLOR FUNCTIONS
+// WALL AND CEILING COLOR FUNCTIONS
 window.updateWallColor = function(hexColor) {
     if (roomSetupManager) {
         const roomMaterials = roomSetupManager.getRoomMaterials();
@@ -165,7 +116,7 @@ window.resetWallColor = function() {
     }
 };
 
-// 🆕 FLOOR COLOR FUNCTIONS
+// FLOOR COLOR FUNCTIONS
 window.updateFloorColor = function(hexColor) {
     if (roomSetupManager) {
         const roomMaterials = roomSetupManager.getRoomMaterials();
@@ -193,283 +144,13 @@ window.resetFloorColor = function() {
     }
 };
 
-// Test function for wall and floor colors
-window.testWallColors = function() {
-    const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-    let index = 0;
-    
-    const interval = setInterval(() => {
-        window.updateWallColor(colors[index]);
-        index++;
-        if (index >= colors.length) {
-            clearInterval(interval);
-            setTimeout(() => window.resetWallColor(), 1000);
-        }
-    }, 1000);
-};
-
-window.testFloorColors = function() {
-    const colors = ['#8B4513', '#654321', '#228B22', '#4B0082', '#800080', '#006400'];
-    let index = 0;
-    
-    const interval = setInterval(() => {
-        window.updateFloorColor(colors[index]);
-        index++;
-        if (index >= colors.length) {
-            clearInterval(interval);
-            setTimeout(() => window.resetFloorColor(), 1000);
-        }
-    }, 1000);
-};
-
-window.testAllColors = function() {
-    console.log('Testing wall colors...');
-    window.testWallColors();
-    setTimeout(() => {
-        console.log('Testing floor colors...');
-        window.testFloorColors();
-    }, 7000);
-};
 
 
-// 🍿 POPCORN MODE TOGGLE FUNCTION
-window.togglePopcornMode = function() {
-    popcornMode = !popcornMode;
-    if (popcornMode) {
-        updateModeIndicator('popcorn');
-        startCeilingPopcorn();
-    } else {
-        updateModeIndicator('exploration');
-        stopCeilingPopcorn();
-    }
-};
-
-// 🍿 CEILING POPCORN FUNCTIONS
-function startCeilingPopcorn() {
-    if (!scene) return;
-    
-    // Create a ceiling spawn area across the whole room
-    const ceilingHeight = 5.0; // Height above the room
-    const roomBounds = {
-        minX: -20, maxX: 20,
-        minZ: -10, maxZ: 10
-    };
-    
-    // Create virtual ceiling spawn mesh
-    const ceilingGeometry = new THREE.PlaneGeometry(
-        roomBounds.maxX - roomBounds.minX, 
-        roomBounds.maxZ - roomBounds.minZ
-    );
-    const ceilingMaterial = new THREE.MeshBasicMaterial({ visible: false });
-    const ceilingSpawnMesh = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
-    ceilingSpawnMesh.position.set(0, ceilingHeight, 0);
-    ceilingSpawnMesh.rotation.x = -Math.PI / 2; // Face down
-    scene.add(ceilingSpawnMesh);
-    
-    // Get all static colliders for popcorn collision
-    const staticColliders = physicsEngine.staticColliders || [];
-    
-    // Create ceiling popcorn manager
-    ceilingPopcornManager = new PopcornManager({
-        scene: scene,
-        spawnMesh: ceilingSpawnMesh,
-        containerMesh: null, // No container - they fall to the floor
-        count: 5000, // Much more popcorn for intense rain effect
-        gravity: 0.5, // Much stronger gravity for faster falling
-        baseScale: 0.08, // Slightly smaller for more realistic look
-        colliders: staticColliders, // Pass all static colliders for collision
-        burstSize: 10, // Much larger bursts for heavy rain
-        burstInterval: 200 // Much more frequent bursts (every 0.2 seconds)
-    });
-    
-}
-
-function stopCeilingPopcorn() {
-    if (ceilingPopcornManager) {
-        // Clean up all popcorn particles
-        ceilingPopcornManager.particles.forEach(particle => {
-            scene.remove(particle.mesh);
-        });
-        ceilingPopcornManager = null;
-    }
-}
-
-// ✨ LIGHT SHOW FUNCTIONS
-function startLightShow() {
-    if (!lightingManager || lightShowActive) return;
-    
-    lightShowActive = true;
-    lightShowTimer = 0;
-    
-    // Store original light colors
-    const lightRefs = lightingManager.getLightReferences();
-    if (lightRefs) {
-        originalLightColors = {
-            ambientLight: lightRefs.ambientLight ? lightRefs.ambientLight.color.clone() : null,
-            clawLight: lightRefs.clawLight ? lightRefs.clawLight.color.clone() : null,
-            candyLight: lightRefs.candyLight ? lightRefs.candyLight.color.clone() : null,
-            sideLight: lightRefs.sideLight ? lightRefs.sideLight.color.clone() : null,
-            centerLight: lightRefs.centerLight ? lightRefs.centerLight.color.clone() : null
-        };
-    }
-    
-}
-
-function updateLightShow(deltaTime) {
-    if (!lightShowActive || !lightingManager) return;
-    
-    lightShowTimer += deltaTime;
-    const flashSpeed = 8; // Flashes per second
-    const showDuration = 3.0; // 3 seconds total
-    
-    // Calculate flash intensity using sine wave
-    const flashIntensity = Math.abs(Math.sin(lightShowTimer * flashSpeed * Math.PI));
-    const yellowIntensity = 0.5 + flashIntensity * 1.5; // Flash between 0.5 and 2.0 (much brighter!)
-    
-    // Much brighter yellow colors for the light show
-    const brightYellow = new THREE.Color(2, 2, 0); // Super bright yellow (over 1.0 values)
-    const dimYellow = new THREE.Color(yellowIntensity, yellowIntensity, 0);
-    
-    // Apply much brighter yellow flashing to all lights
-    const lightRefs = lightingManager.getLightReferences();
-    if (lightRefs) {
-        if (lightRefs.ambientLight) lightRefs.ambientLight.color.copy(dimYellow);
-        if (lightRefs.clawLight) lightRefs.clawLight.color.copy(brightYellow);
-        if (lightRefs.candyLight) lightRefs.candyLight.color.copy(brightYellow);
-        if (lightRefs.sideLight) lightRefs.sideLight.color.copy(brightYellow);
-        if (lightRefs.centerLight) lightRefs.centerLight.color.copy(brightYellow);
-    }
-    
-    // End light show after duration
-    if (lightShowTimer >= showDuration) {
-        stopLightShow();
-    }
-}
-
-function stopLightShow() {
-    if (!lightShowActive || !lightingManager) return;
-    
-    lightShowActive = false;
-    lightShowTimer = 0;
-    
-    // Restore original light colors
-    const lightRefs = lightingManager.getLightReferences();
-    if (lightRefs && originalLightColors) {
-        if (lightRefs.ambientLight && originalLightColors.ambientLight) {
-            lightRefs.ambientLight.color.copy(originalLightColors.ambientLight);
-        }
-        if (lightRefs.clawLight && originalLightColors.clawLight) {
-            lightRefs.clawLight.color.copy(originalLightColors.clawLight);
-        }
-        if (lightRefs.candyLight && originalLightColors.candyLight) {
-            lightRefs.candyLight.color.copy(originalLightColors.candyLight);
-        }
-        if (lightRefs.sideLight && originalLightColors.sideLight) {
-            lightRefs.sideLight.color.copy(originalLightColors.sideLight);
-        }
-        if (lightRefs.centerLight && originalLightColors.centerLight) {
-            lightRefs.centerLight.color.copy(originalLightColors.centerLight);
-        }
-    }
-    
-}
-
-// 🎉 DISCO LIGHT MODE FUNCTIONS
-window.toggleDiscoMode = function() {
-    discoMode = !discoMode;
-    if (discoMode) {
-        updateModeIndicator('disco');
-        startDiscoLights();
-    } else {
-        updateModeIndicator('exploration');
-        stopDiscoLights();
-    }
-};
-
-function startDiscoLights() {
-    if (!lightingManager || discoMode === false) return;
-    
-    discoTimer = 0;
-    
-    // Store original light colors
-    const lightRefs = lightingManager.getLightReferences();
-    if (lightRefs) {
-        discoOriginalColors = {
-            ambientLight: lightRefs.ambientLight ? lightRefs.ambientLight.color.clone() : null,
-            clawLight: lightRefs.clawLight ? lightRefs.clawLight.color.clone() : null,
-            candyLight: lightRefs.candyLight ? lightRefs.candyLight.color.clone() : null,
-            sideLight: lightRefs.sideLight ? lightRefs.sideLight.color.clone() : null,
-            centerLight: lightRefs.centerLight ? lightRefs.centerLight.color.clone() : null
-        };
-    }
-    
-}
-
-function updateDiscoLights(deltaTime) {
-    if (!discoMode || !lightingManager) return;
-    
-    discoTimer += deltaTime;
-    
-    // Different speed patterns for each light
-    const speed1 = 4; // Fast flashing
-    const speed2 = 3; // Medium flashing  
-    const speed3 = 2; // Slow flashing
-    const speed4 = 5; // Very fast flashing
-    
-    // Generate different colors using different sine wave frequencies
-    const red = Math.abs(Math.sin(discoTimer * speed1));
-    const green = Math.abs(Math.sin(discoTimer * speed2 + 2));
-    const blue = Math.abs(Math.sin(discoTimer * speed3 + 4));
-    const purple = Math.abs(Math.sin(discoTimer * speed4 + 1));
-    
-    // Create vibrant disco colors (boosted intensity)
-    const discoColor1 = new THREE.Color(red * 2, 0, blue * 2); // Red-Blue
-    const discoColor2 = new THREE.Color(0, green * 2, purple * 2); // Green-Purple
-    const discoColor3 = new THREE.Color(red * 2, green * 2, 0); // Red-Green
-    const discoColor4 = new THREE.Color(purple * 2, 0, green * 2); // Purple-Green
-    const discoColor5 = new THREE.Color(blue * 2, red * 2, purple * 2); // Blue-Red-Purple
-    
-    // Apply different colors to different lights for variety
-    const lightRefs = lightingManager.getLightReferences();
-    if (lightRefs) {
-        if (lightRefs.ambientLight) lightRefs.ambientLight.color.copy(discoColor5);
-        if (lightRefs.clawLight) lightRefs.clawLight.color.copy(discoColor1);
-        if (lightRefs.candyLight) lightRefs.candyLight.color.copy(discoColor2);
-        if (lightRefs.sideLight) lightRefs.sideLight.color.copy(discoColor3);
-        if (lightRefs.centerLight) lightRefs.centerLight.color.copy(discoColor4);
-    }
-}
-
-function stopDiscoLights() {
-    if (!lightingManager) return;
-    
-    discoMode = false;
-    discoTimer = 0;
-    
-    // Restore original light colors
-    const lightRefs = lightingManager.getLightReferences();
-    if (lightRefs && discoOriginalColors) {
-        if (lightRefs.ambientLight && discoOriginalColors.ambientLight) {
-            lightRefs.ambientLight.color.copy(discoOriginalColors.ambientLight);
-        }
-        if (lightRefs.clawLight && discoOriginalColors.clawLight) {
-            lightRefs.clawLight.color.copy(discoOriginalColors.clawLight);
-        }
-        if (lightRefs.candyLight && discoOriginalColors.candyLight) {
-            lightRefs.candyLight.color.copy(discoOriginalColors.candyLight);
-        }
-        if (lightRefs.sideLight && discoOriginalColors.sideLight) {
-            lightRefs.sideLight.color.copy(discoOriginalColors.sideLight);
-        }
-        if (lightRefs.centerLight && discoOriginalColors.centerLight) {
-            lightRefs.centerLight.color.copy(discoOriginalColors.centerLight);
-        }
-    }
-    
-}
 
 
-// ... (keep existing init() function)
+
+
+
 
 init();
 // --- NEW: Function to start a new game ---
@@ -510,10 +191,6 @@ function updateGameUI() {
     }
 }
 
-// in bbox.html
-
-
-// in bbox.html
 
 // Funzione per creare un sistema di particelle per l'esplosione
 function createExplosion(position, color = new THREE.Color(0xffdd00)) {
@@ -596,20 +273,20 @@ function updateExplosions(deltaTime) {
 
 function startPrizeAnimation(body) {
     
-    // 🆕 Riproduci il suono di vittoria tramite AudioManager
+
     audioManager.playSound('prizeWin');
 
-    // ✨ TRIGGER YELLOW LIGHT SHOW FOR STAR COLLECTION!
+
     startLightShow();
 
-    // Aggiunge la stella alla lista delle animazioni da eseguire
+
     animatingPrizes.push({
         body: body,
         state: 'moving_out', // Stato iniziale: uscita dalla macchina
     });
 }
 
-// SOSTITUISCI la vecchia funzione updatePrizeAnimations con questa versione
+
 function updatePrizeAnimations(deltaTime) {
     if (!clawTopBox) return;
 
@@ -675,94 +352,94 @@ function updatePrizeAnimations(deltaTime) {
         }
     });
 
-    // Filter the list to remove completed animations
+    //once the animation is completed, we remove it from the list
     animatingPrizes = animatingPrizes.filter(p => p.state !== 'disappeared');
 }
 
-// --- AGGIUNTO: Nuove funzioni per l'animazione delle caramelle ---
 
-// Funzione per avviare l'animazione di scomparsa di una caramella
+
 function startCandyDisappearanceAnimation(candyBody) {
-    // 1. Rimuovi la caramella dal motore fisico
+ //gotta disable the candy phisics in order to make it do the animation 
     physicsEngine.removeBody(candyBody);
 
-    // 2. Scegli casualmente un'animazione
+    //as before, we just choose one animation out of the ones available 
     const animations = ['confetti', 'ribbons'];
     const choice = animations[Math.floor(Math.random() * animations.length)];
     
 
-    // 3. Aggiungi la caramella alla lista delle animazioni da eseguire
+   //we add the candy to the list of actions that need to be executed
     animatingCandies.push({
         body: candyBody,
         state: choice,
         lifetime: 0,
-        // Altre proprietà verranno aggiunte dinamicamente
+       
     });
 }
 
-// Funzione per aggiornare le animazioni delle caramelle ogni frame
+//for each frame, we update the behaviour of the candy animations
 function updateCandyAnimations(deltaTime) {
-    const gravity = 3.0; // Gravità più leggera per un effetto fluttuante
+    const gravity = 3.0; 
 
     for (let i = animatingCandies.length - 1; i >= 0; i--) {
         const candyAnim = animatingCandies[i];
         candyAnim.lifetime += deltaTime;
-
+            //we added tha candy to the list of animations, and now we have to execute it
         switch (candyAnim.state) {
             case 'confetti':
-                // Usa la funzione esistente 'createExplosion' passando il colore della caramella
+                //we pass the candy color and then we create the explosion
                 createExplosion(candyAnim.body.mesh.position, candyAnim.body.mesh.material.color);
                 scene.remove(candyAnim.body.mesh);
-                animatingCandies.splice(i, 1); // Rimuovi subito, l'esplosione è istantanea
+                animatingCandies.splice(i, 1); // then we remove the candy from the list
+                
                 break;
 
             case 'ribbons':
                 if (!candyAnim.ribbons) {
-                    // --- Creazione iniziale dei nastri ---
+                    // if this animation is chosen, then we create ribbons, it is a particle animation of course
                     candyAnim.ribbons = [];
                     const count = 15;
                     for (let j = 0; j < count; j++) {
                         const ribbonGeo = new THREE.BoxGeometry(0.02, 0.4, 0.02);
-                        const ribbonMat = candyAnim.body.mesh.material.clone();
+                        const ribbonMat = candyAnim.body.mesh.material.clone(); //we also clone the original material in order to have the same effects
                         ribbonMat.transparent = true;
 
                         const ribbon = new THREE.Mesh(ribbonGeo, ribbonMat);
-                        ribbon.position.copy(candyAnim.body.mesh.position);
+                        ribbon.position.copy(candyAnim.body.mesh.position); //the ribbons start at the candy position
                         
-                        // Dagli una velocità iniziale casuale verso l'alto e verso l'esterno
+
                         const velocity = new THREE.Vector3(
                             (Math.random() - 0.5) * 2,
                             Math.random() * 2 + 1,
                             (Math.random() - 0.5) * 2
-                        );
+                        ); //we give to the ribbon an initial velocity going up, and in particular the velocity is different for each ribbon
                         ribbon.userData.velocity = velocity;
                         ribbon.userData.angularVelocity = new THREE.Vector3(Math.random()*4-2, Math.random()*4-2, Math.random()*4-2);
 
                         candyAnim.ribbons.push(ribbon);
-                        scene.add(ribbon);
+                        scene.add(ribbon); //then we push back the ribbons inside a vector and then we add them to the scene
                     }
                     scene.remove(candyAnim.body.mesh); // Rimuovi la caramella originale
                 } else {
-                    // --- Aggiornamento dei nastri esistenti ---
+
                     let allFaded = true;
                     candyAnim.ribbons.forEach(ribbon => {
-                        // Applica fisica semplice
+                        // after the ribbons are created, this function runs at each iteration 
                         ribbon.userData.velocity.y -= gravity * deltaTime;
                         ribbon.position.add(ribbon.userData.velocity.clone().multiplyScalar(deltaTime));
                         
-                        // Applica rotazione
+                        // we apply a linear and angular velocity to make the ribbons move
                         ribbon.rotation.x += ribbon.userData.angularVelocity.x * deltaTime;
                         ribbon.rotation.y += ribbon.userData.angularVelocity.y * deltaTime;
                         ribbon.rotation.z += ribbon.userData.angularVelocity.z * deltaTime;
 
-                        // Dissolvenza
+                        // and then they dissolve
                         if (ribbon.material.opacity > 0) {
                             ribbon.material.opacity -= deltaTime * 0.5;
                             allFaded = false;
                         }
                     });
 
-                    // Se tutti i nastri sono scomparsi, rimuovi l'animazione
+                    // once they are faded or after a short period of time, ribbons are removed
                     if (allFaded || candyAnim.lifetime > 3.0) {
                         candyAnim.ribbons.forEach(r => scene.remove(r));
                         animatingCandies.splice(i, 1);
@@ -774,7 +451,7 @@ function updateCandyAnimations(deltaTime) {
 }
 
 
-// Questa funzione controlla se una stella ha toccato l'helper finale.
+//we have two triggers, so we check for the second trigger to then trigger the whole animation
 function checkFinalPrizeTrigger() {
     if (!finalPrizeHelper || !grabbableObjects) return;
 
@@ -842,40 +519,12 @@ function checkChuteTrigger() {
 
             // Se la bounding box della stella interseca quella dell'helper...
             if (triggerBox.intersectsBox(bodyBox)) {
-                console.log(`🟢 TRIGGER HIT: Star ${index} hit triggerVolume!`, starPos);
+
                 body.canFallThrough = true; // ...imposta il flag per farla cadere.
                 foundCollisions++;
             }
         }
     });
-}
-// in bbox.html, aggiungi questa nuova funzione
-
-function tryInitializePopcornManager() {
-    if (!scene || !popcornSpawnPoint) return;
-
-    // Raccogli gli oggetti con cui i popcorn devono collidere
-    // Per ora, solo il pavimento della stanza
-    // const floor = scene.getObjectByName('Floor');
-    // if (floor) {
-    //     collidersForPopcorn.push(floor);
-    // }
-    // Aggiungiamo anche la macchina dei popcorn stessa
-    if (popcornMachineMesh) {
-        collidersForPopcorn.push(popcornMachineMesh);
-    }
-
-    // Passa i collisori al manager, che li passerà a ogni particella
-    popcornManager = new PopcornManager({
-        scene: scene,
-        spawnMesh: popcornSpawnPoint,
-        count: 20, // Un buon numero di popcorn
-        gravity: 0.02,
-        baseScale: 0.08,
-        // 🍿 Passiamo i collisori!
-        colliders: collidersForPopcorn
-    });
-
 }
 
 
@@ -903,7 +552,7 @@ function tryInitializeClawController() {
         }
     }
 }
-// in bbox.html
+
 function resetObjects() {
     if (!clawTopBox || grabbableObjects.length === 0) return;
 
@@ -997,22 +646,22 @@ function init() {
   scene.background = new THREE.Color(0x1a1a2e); // Colore più scuro per una sala giochi
   camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
   
-  // 🆕 INITIALIZE AUDIO MANAGER
+
   audioManager = new AudioManager();
   audioManager.initialize(camera);
-  // ⚠️ ASSICURATI DI AVERE I FILE AUDIO NELLA CARTELLA 'sounds/'
+
   audioManager.loadSound('prizeWin', 'sounds/success-1-6297.mp3');
   audioManager.loadSound('prizeWin', 'sounds/goodresult-82807.mp3');
   audioManager.loadSound('prizeWin', 'sounds/winner-bell-game-show-91932.mp3');
 
-  // 🆕 LOAD BACKGROUND MUSIC (loop = true)
+
   audioManager.loadSound('arcade', 'sounds/background music/bgm-arcade.mp3', 0.2, true);
   audioManager.loadSound('neon', 'sounds/background music/bgm-neon.mp3', 0.2, true);
   audioManager.loadSound('warm', 'sounds/background music/bgm-warm.mp3', 0.2, true);
   audioManager.loadSound('cool', 'sounds/background music/bgm-cool.mp3', 0.8, true);
   audioManager.loadSound('dark', 'sounds/background music/bgm-dark.mp3', 0.2, true);
   
-  // 🆕 LOAD CHARACTER-SPECIFIC SOUNDS
+
   audioManager.loadSound('Businessman_wave', 'sounds/character/businessman_hello.mp3', 0.8);
   audioManager.loadSound('Hoodie_wave', 'sounds/character/hoodie_hey.mp3', 0.8);
   audioManager.loadSound('Worker_wave', 'sounds/character/worker_hey.mp3', 0.8);
@@ -1062,6 +711,13 @@ function init() {
   lightingManager.setupShadows(renderer);
   lightingManager.setupLighting();
   lightingManager.setupLightControls();
+  
+  // 🆕 INITIALIZE EXTRAS SYSTEM
+  initializeExtras({
+    scene: scene,
+    lightingManager: lightingManager,
+    physicsEngine: physicsEngine
+  });
   
   // 🆕 SET GLOBAL REFERENCE FOR COMPATIBILITY
   lightReferences = lightingManager.getLightReferences();
@@ -1332,9 +988,9 @@ function updateModeIndicator(mode) {
     }
 }
 
-// 🆕 ROOM SETUP AND MACHINE LOADING NOW MOVED TO Room_setup.js
+// Make updateModeIndicator available globally for extras.js
+window.updateModeIndicator = updateModeIndicator;
 
-// 🆕 ROOM CREATION AND MACHINE LOADING NOW MOVED TO Room_setup.js
 
 function setupPhysicsAndObjects() {
     if (!clawTopBox || !physicsEngine) return;
@@ -1463,12 +1119,13 @@ function animate() {
       lightingManager?.update(deltaTime);
       
       // ✨ UPDATE LIGHT SHOW (victory yellow flashing)
-      if (lightShowActive) {
+      const extrasState = getExtrasState();
+      if (extrasState.lightShowActive) {
           updateLightShow(deltaTime);
       }
       
       // 🎉 UPDATE DISCO LIGHTS (party mode)
-      if (discoMode) {
+      if (extrasState.discoMode) {
           updateDiscoLights(deltaTime);
       }
 
@@ -1477,9 +1134,7 @@ function animate() {
       }
       
       // 🍿 UPDATE CEILING POPCORN WHEN IN POPCORN MODE
-      if (popcornMode && ceilingPopcornManager) {
-          ceilingPopcornManager.update(deltaTime);
-      }
+      updateCeilingPopcorn(deltaTime);
       
 
 
