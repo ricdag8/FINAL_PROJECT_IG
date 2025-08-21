@@ -638,3 +638,207 @@ export class LightingManager {
         return this.lightReferences;
     }
 } 
+
+/* 
+constructor()
+
+Inizializza lo stato interno: riferimenti alla scena e agli offset delle macchine, tempo per animazioni, raccolta di riferimenti alle varie luci (lightReferences), velocità animazione LED, materiali stanza e mappa dei preset.
+
+Chiama definePresets() per costruire i profili di illuminazione predefiniti.
+
+update(deltaTime)
+
+Avanza il tempo (this.time += deltaTime) e anima i LED contenuti in lightReferences.ledStrips variando l’hue in HSL in base al tempo, alla velocità (ledSpeed) e all’indice di ciascun LED.
+
+Aggiorna sia material.color che material.emissive, dando l’effetto di strisce LED che scorrono/cambiano colore continuamente.
+
+initialize(scene, machineOffset, candyMachineOffset)
+
+Registra i riferimenti fondamentali: la scene Three.js e le posizioni (offset) di due macchine (artiglio e caramelle) usate per posizionare correttamente i fari.
+
+addPaintingLights(lights)
+
+Salva un array di spot che illuminano quadri/pannelli in lightReferences.paintingSpotlights, così altre funzioni (preset/controlli) possono gestirli.
+
+setRoomMaterials(materials)
+
+Memorizza i materiali della stanza (tipicamente { wall, floor, ceiling }) per consentire ai preset di cambiare i colori delle superfici.
+
+definePresets()
+
+Costruisce this.presets con più profili (“arcade”, “neon”, “warm”, “cool”, “dark”), ognuno con colori/intensità per: ambient, claw, candy, side, center, paintings, e colori base delle superfici stanza (pareti/pavimento/soffitto).
+
+applyLightPreset(presetName)
+
+Recupera il preset; se non esiste esce.
+
+Per ogni tipo di luce del preset (tranne room): chiama updateLightColor, updateLightIntensity e sincronizza la UI con updateUIForPreset.
+
+Aggiorna il toggle della luce ambientale e la visibilità della luce ambientale in base all’intensità del preset.
+
+Se il preset ha la sezione room e sono stati registrati i materiali della stanza, ne imposta i colori .color.setHex(...).
+
+setupLighting()
+
+Prerequisito: this.scene deve essere già impostata (da initialize).
+
+Crea e aggiunge alla scena:
+
+AmbientLight di base.
+
+DirectionalLight principale con ombre (configura risoluzione mappa ombre e frustum della shadow camera).
+
+Due SpotLight per le macchine (artiglio e caramelle), con target puntato agli offset; abilita le ombre.
+
+Coppie di PointLight “supporto” per ciascuna macchina (bagliore laterale).
+
+Una griglia di “wall washers” (più SpotLight) lungo le pareti laterali e la parete di fondo per lavare le superfici con luce radente.
+
+Chiama setupCeilingLights() per caricare e posizionare elementi luminosi a soffitto.
+
+Aggiunge una DirectionalLight dall’alto (luce diretta dall’asse Y+).
+
+Salva nei riferimenti gli array dei supporti.
+
+Chiama createLedPaths() (LED a pavimento / linee) e createWallLeds() (LED sulle pareti).
+
+Popola lightReferences (ambient, spot, washers, ceiling, supporti, strips).
+
+setupCeilingLights()
+
+Carica asincronamente un modello GLB (glbmodels/led_light.glb) con GLTFLoader.
+
+Clona il template in più posizioni predefinite (diversi Vector3 a Y=7).
+
+Per ciascun modello a soffitto:
+
+Cerca light1 e light2 nel grafo, imposta un MeshStandardMaterial con emissive bianco (intensità iniziale 0.0).
+
+Crea PointLight posizionati come i mesh di luce e li aggiunge al modello.
+
+Inserisce in lightReferences.ceilingLeds oggetti { light, mesh } per gestire in seguito colore/intensità sia del punto luce che dell’emissive del pannello.
+
+Logga errore in caso di fallimento del caricamento.
+
+createLedPaths()
+
+Definisce piccoli piani (plane) rivolti verso l’alto (ruota la geometria) come tasselli LED.
+
+Costruisce uno o più segmenti dal “punto di partenza” verso gli offset delle macchine (artiglio e, se presente, caramelle), con un secondo segmento che prosegue in Z verso la macchina.
+
+Campiona i segmenti a passo ledSpacing e, per ogni campione, istanzia un Mesh con materiale emissivo (intensità 1.5), lo posiziona e lo aggiunge alla scena.
+
+Ogni LED creato viene pushato in lightReferences.ledStrips così update() potrà animarne il colore.
+
+createWallLeds()
+
+Disegna matrici/onde di piccoli LED sulle quattro pareti della stanza:
+
+Definisce dimensioni stanza, spaziatura e offset dalle pareti.
+
+Usa una sinusoide per modulare l’altezza dei LED (waveAmplitude/waveFrequency) creando un pattern ondeggiante.
+
+Crea piani rivolti verso l’interno (orientamento diverso per pareti X e Z).
+
+In anelli a diverse altezze (yBase a step di 2), popola le pareti davanti/dietro (ciclando su X) e sinistra/destra (ciclando su Z).
+
+Ogni LED viene aggiunto alla scena e anche a lightReferences.ledStrips, quindi partecipa all’animazione cromatica di update().
+
+setupLightControls()
+
+Collega la UI HTML (se presente) per mostrare/nascondere il pannello controlli (#toggleLightControls, #lightControls).
+
+Inizializza i vari gruppi di controlli: ambient, colore, intensità, velocità LED, colore pareti, colore pavimento, delegando ai metodi dedicati.
+
+Se gli elementi non esistono, logga un warning ma non interrompe l’esecuzione.
+
+setupAmbientLightControls()
+
+Aggancia gli input UI per colore (#ambientLightColor), intensità (#ambientLightIntensity) e toggle visibilità (#ambientLightToggle) della luce ambientale.
+
+Su input:
+
+Cambia il colore via updateLightColor('ambient', ...) e aggiorna un riquadro di preview.
+
+Cambia l’intensità via updateLightIntensity('ambient', ...) e aggiorna il valore testuale.
+
+Mostra/nasconde la AmbientLight impostandone .visible.
+
+setupColorControls()
+
+Aggancia una serie di color picker per tipi di luce: claw, candy, side, center, paintings.
+
+Ogni input invoca updateLightColor(tipo, colore) e aggiorna la relativa preview.
+
+setupIntensityControls()
+
+Aggancia slider di intensità per: claw, candy, side, center, paintings.
+
+Ogni input invoca updateLightIntensity(tipo, valore) e aggiorna il testo col valore corrente.
+
+setupLedSpeedControls()
+
+Collega lo slider #ledSpeedControl e l’etichetta #ledSpeedValue.
+
+Aggiorna this.ledSpeed in tempo reale per accelerare/rallentare l’animazione LED.
+
+setupWallColorControls()
+
+Collega #wallColorPicker; alla modifica chiama (se presente) window.updateWallColor(color) per demandare il cambio colore delle pareti a codice esterno.
+
+setupFloorColorControls()
+
+Collega #floorColorPicker; alla modifica chiama (se presente) window.updateFloorColor(color) per demandare il cambio colore del pavimento.
+
+updatePreview(previewId, color)
+
+Utility UI: imposta lo sfondo dell’elemento di preview (es. un quadratino) al colore scelto.
+
+updateLightColor(lightType, colorHex)
+
+Converte colorHex in THREE.Color e applica il colore a seconda del tipo:
+
+ambient: cambia .color della AmbientLight.
+
+claw/candy: cambia .color dello spotlight principale e di tutti i point light di supporto.
+
+side: aggiorna il colore di tutte le wall washers.
+
+center: per ogni elemento in ceilingLeds, imposta il colore della PointLight e l’emissive del mesh relativo.
+
+paintings: aggiorna il colore di tutti gli spot per i quadri.
+
+Effetto: sincronizza le componenti luminose “fisiche” (Point/Spot/Directional) e le superfici emissive dove previsto.
+
+updateLightIntensity(lightType, intensity)
+
+Applica la nuova intensità per tipo, con scaling specifici:
+
+ambient: intensità diretta.
+
+claw/candy: raddoppia per gli spot principali (* 2) e usa il valore “puro” per i point di supporto.
+
+side: aumenta del 50% per le wall washers (* 1.5) per un wash più evidente.
+
+center: riduce leggermente la PointLight (* 0.8) ma usa il valore pieno per l’emissive del pannello LED (mesh).
+
+paintings: applica direttamente sugli spot dei quadri.
+
+Garantisce coerenza tra luce reale e “bagliore” dei materiali emissivi.
+
+updateUIForPreset(lightType, color, intensity)
+
+Sincronizza i controlli UI (input colore, slider intensità, label valore, preview) con i valori imposti da un preset per il tipo di luce indicato.
+
+setupShadows(renderer)
+
+Abilita le ombre sul renderer e imposta il tipo PCFSoftShadowMap per bordi più morbidi.
+
+setLedSpeed(speed)
+
+Imposta programmaticamente la velocità degli effetti LED e aggiorna (se presenti) lo slider e la label della UI.
+
+getLightReferences()
+
+Ritorna l’oggetto lightReferences, utile per accedere dall’esterno alle luci create (per debug o personalizzazioni avanzate).
+*/

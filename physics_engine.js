@@ -1,389 +1,3 @@
-// import * as THREE from 'three';
-// import { Vec3 } from './physics_engine_vec3.js';
-
-// export class RigidBody {
-//     constructor(mesh, mass) {
-//         this.mesh = mesh;
-//         this.mass = mass;
-//         this.inverseMass = mass > 0 ? 1 / mass : 0;
-//         this.position = new Vec3().copy(mesh.position);
-//         this.linearVelocity = new Vec3();
-//         this.orientation = new THREE.Quaternion().copy(mesh.quaternion);
-//         this.angularVelocity = new Vec3();
-//         this.force = new Vec3();
-//         this.torque = new Vec3();
-//         this.restitution = 0;
-//         this.friction = 0.5;
-//         this.collisionEnabled = true;
-//         this.isHeld = false; // Flag to indicate if the object is being held by the claw
-//         this.justReleased = false; // Grace period flag after being released
-//         this.canFallThrough = false;
-//         // --- Sleep state ---
-//         this.isSleeping = false;
-//         this.sleepyTimer = 0;
-//         this.SLEEP_THRESHOLD = 0.1;   // ← da 0.04
-// this.FRAMES_TO_SLEEP = 30;    // ← da 60
-// this.isBlocked = false;
-
-//         this.hasTouchedClaw = false; 
-// // raggio bounding-sphere per il broad-phase
-// const bb = new THREE.Box3().setFromObject(mesh);
-// this.boundingRadius = bb.getSize(new THREE.Vector3()).length() * 0.5;
-
-
-//     }
-
-//     applyImpulse(impulse, point) {
-//         if (this.inverseMass === 0) return;
-//         this.isSleeping = false;
-//         this.sleepyTimer = 0;
-//         this.linearVelocity.add(impulse.clone().multiplyScalar(this.inverseMass));
-//         const relativePos = new Vec3().copy(point).sub(this.position);
-//         this.angularVelocity.add(relativePos.cross(impulse).multiplyScalar(this.inverseMass));
-//     }
-
-//     update(deltaTime) {
-//         if (this.inverseMass === 0 || this.isSleeping || this.isBlocked) return;
-        
-//         const linearAcceleration = new Vec3().copy(this.force).multiplyScalar(this.inverseMass);
-//         this.linearVelocity.add(linearAcceleration.multiplyScalar(deltaTime));
-//         this.angularVelocity.add(this.torque.multiplyScalar(deltaTime));
-        
-//         // ✅ Rimuovi il damping duplicato - tieni solo quello più forte
-//         // this.linearVelocity.multiplyScalar(0.97);
-//         // this.angularVelocity.multiplyScalar(0.97);
-
-//         this.position.add(new Vec3().copy(this.linearVelocity).multiplyScalar(deltaTime));
-//         const w = this.angularVelocity;
-//         const deltaRotation = new THREE.Quaternion(w.x*deltaTime*0.5, w.y*deltaTime*0.5, w.z*deltaTime*0.5, 0);
-//         deltaRotation.multiply(this.orientation);
-//         this.orientation.x+=deltaRotation.x; this.orientation.y+=deltaRotation.y; this.orientation.z+=deltaRotation.z; this.orientation.w+=deltaRotation.w;
-//         this.orientation.normalize();
-//         this.force.set(0,0,0); this.torque.set(0,0,0);
-        
-//         // ✅ Damping ancora più forte e graduale
-//         this.linearVelocity.multiplyScalar(0.92);    // ← ancora più damping
-//         this.angularVelocity.multiplyScalar(0.90);   // ← rotazione più smorzata
-
-//         const kineticEnergy = 0.5 * this.mass * this.linearVelocity.lengthSq() + 0.5 * this.angularVelocity.lengthSq();
-//         if (kineticEnergy < this.SLEEP_THRESHOLD) {
-//             this.sleepyTimer++;
-//             if (this.sleepyTimer >= this.FRAMES_TO_SLEEP) {
-//                 this.isSleeping = true;
-//                 this.linearVelocity.set(0, 0, 0);
-//                 this.angularVelocity.set(0, 0, 0);
-//             }
-//         } else {
-//             this.sleepyTimer = 0;
-//         }
-
-//         this.mesh.position.copy(this.position);
-//         this.mesh.quaternion.copy(this.orientation);
-//     }
-// }
-
-// export class PhysicsEngine {
-//     constructor() {
-//         this.bodies = [];
-//         this.staticColliders = []; // <-- NUOVO
-//         this.gravity = new Vec3(0, -9.81, 0);
-//         this.worldBounds = null;
-//     }
-    
-//     setWorldBounds(minVec, maxVec) { 
-//         this.worldBounds = { min: minVec, max: maxVec }; 
-//     }
-    
-//     addBody(body) { 
-//         this.bodies.push(body); 
-//     }
-
-//     // <-- NUOVO
-//     addStaticCollider(mesh) {
-//         // Assicurati che abbia un BVH
-//         if (mesh.geometry.boundsTree) {
-//             this.staticColliders.push(mesh);
-// //         } else {
-// //         }
-//     }
-    
-//     update(deltaTime) {
-//         /* 1. Applica la gravità */
-//         this.bodies.forEach(body => {
-//             if (body.inverseMass > 0 && !body.isSleeping)
-//                 body.force.add(this.gravity.clone().multiplyScalar(body.mass));
-//         });
-
-//         /* 2. Collisioni fra i premi - SOLO correzione posizionale */
-//         this.resolveBodyCollisions();
-
-//         /* NUOVO STEP */
-//         this.resolveStaticCollisions();
-
-//         /* 3. Collisioni con le pareti della macchina */
-//         if (this.worldBounds) this.handleCollisions();
-
-//         /* 4. Integrazione del moto */
-//         this.bodies.forEach(body => body.update(deltaTime));
-//     }
-    
-
-//     handleCollisions() {
-//         this.bodies.forEach(body => {
-//             if (body.inverseMass === 0 || body.isSleeping ) return;
-    
-//             // Calcola la bounding box del corpo
-//             const bodyBox = new THREE.Box3().setFromObject(body.mesh);
-    
-//             // ✅ CAMBIA: rileva solo se esce FUORI dalla macchina, non quando è dentro
-//             if (!body.hasTouchedClaw && this.worldBounds && !bodyBox.intersectsBox(this.worldBounds)) {
-//                 body.touchedFrameCount = (body.touchedFrameCount || 0) + 1;
-//             } else if (!body.hasTouchedClaw) {
-//                 body.touchedFrameCount = 0;
-//             }
-    
-//             // Se ha toccato per 2 frame consecutivi → fermalo
-//             if (!body.hasTouchedClaw && body.touchedFrameCount > 1) {
-// //                 body.linearVelocity.set(0, 0, 0);
-//                 body.angularVelocity.set(0, 0, 0);
-//                 body.isSleeping = true;
-//                 body.hasTouchedClaw = true;
-    
-//                 setTimeout(() => {
-//                     body.isSleeping = false;
-//                 }, 150);
-//             }
-    
-//             // Continua a gestire le collisioni per i bordi
-//             const geometry = body.mesh.geometry;
-//             const vertices = geometry.attributes.position.array;
-//             const scale = body.mesh.scale;
-    
-//             for (let i = 0; i < vertices.length; i += 3) {
-//                 const localVertex = new Vec3(
-//                     vertices[i] * scale.x,
-//                     vertices[i + 1] * scale.y,
-//                     vertices[i + 2] * scale.z
-//                 );
-//                 localVertex.applyQuaternion(body.orientation).add(body.position);
-    
-//                 ['x', 'y', 'z'].forEach(axis => {
-//                     [1, -1].forEach(dir => {
-//                         this.checkCollision(body, localVertex, axis, dir);
-//                     });
-//                 });
-//             }
-//         });
-//     }
-    
-    
-//     checkCollision(body, vertex, axis, dir) {
-//        // ✅ INIZIO MODIFICA: Aggiungi questa condizione all'inizio della funzione
-//         // Se il corpo può cadere e la collisione è con il pavimento (asse Y, direzione verso il basso),
-//         // allora ignora completamente questa collisione.
-//         if (body.canFallThrough && axis === 'y' && dir === -1) {
-//             return; // Salta il controllo di collisione con il pavimento
-//         }
-//         const bounds = this.worldBounds;
-//         const limit = dir > 0 ? bounds.max[axis] : bounds.min[axis];
-//         if ((dir > 0 && vertex[axis] > limit) || (dir < 0 && vertex[axis] < limit)) {
-//             const penetration = limit - vertex[axis];
-//             body.position[axis] += penetration * 1.01;
-            
-//             const relativePos = new Vec3().copy(vertex).sub(body.position);
-//             const contactVelocity = new Vec3().copy(body.linearVelocity).add(body.angularVelocity.cross(relativePos));
-            
-//             const closingSpeed = contactVelocity[axis] * dir;
-//             if (closingSpeed <= 0) return;
-//             if (closingSpeed < 0.01) return;
-
-//             const impulseMag = -closingSpeed;
-//             const normalImpulse = new Vec3();
-//             normalImpulse[axis] = impulseMag * dir;
-//             if (closingSpeed > 0.1) {
-//                 const bounceImpulseMag = -closingSpeed * body.restitution;
-//                 const bounceImpulse = new Vec3();
-//                 bounceImpulse[axis] = bounceImpulseMag * dir;
-//                 normalImpulse.add(bounceImpulse);
-//             }
-//             const tangentVel = new Vec3().copy(contactVelocity);
-//             tangentVel[axis] = 0;
-//             const maxFriction = Math.abs(impulseMag) * body.friction;
-//             const frictionImpulseMag = Math.min(tangentVel.length(), maxFriction);
-//             const frictionImpulse = tangentVel.normalize().multiplyScalar(-frictionImpulseMag);
-//             const totalImpulse = normalImpulse.add(frictionImpulse);
-//             body.applyImpulse(totalImpulse, vertex);
-//         }
-//     }
-
-
-
-//     getBodyPairsToCheck() {
-//         const pairs = [];
-//         for (let i = 0; i < this.bodies.length; i++) {
-//             const A = this.bodies[i];
-//             if (A.inverseMass === 0) continue;                // skip statici / presi
-    
-//             for (let j = i + 1; j < this.bodies.length; j++) {
-//                 const B = this.bodies[j];
-//                 if (B.inverseMass === 0) continue;
-    
-//                 // broad phase: sfera vs sfera
-//                 const maxDist = A.boundingRadius + B.boundingRadius;
-//                 if (A.position.clone().sub(B.position).lengthSq() < maxDist*maxDist)
-//                     pairs.push([A, B]);
-//             }
-//         }
-//         return pairs;
-//     }
-    
-//    resolveBodyCollisions() {
-//     const pairs = this.getBodyPairsToCheck();
-
-//     pairs.forEach(([A, B]) => {
-//         const matAB = new THREE.Matrix4()
-//             .copy(B.mesh.matrixWorld).invert()
-//             .multiply(A.mesh.matrixWorld);
-
-//         if (!A.mesh.geometry.boundsTree.intersectsGeometry(B.mesh.geometry, matAB)) return;
-
-//         const n = new Vec3().copy(B.position).sub(A.position);
-//         let dist = n.length();
-//         if (dist < 1e-6) {
-//             n.set(1, 0, 0);
-//             dist = 0.001;
-//         }
-//         const penetration = (A.boundingRadius + B.boundingRadius) - dist;
-//         if (penetration <= 0) return;
-
-//         n.normalize();
-
-//         // 🧩 Sposta i corpi per risolvere la penetrazione
-//         const correction = n.clone().multiplyScalar(penetration * 0.5); // metà ciascuno
-//         A.position.add(correction.clone().multiplyScalar(-1));
-//         B.position.add(correction);
-
-//         // 💥 Ferma entrambi per evitare oscillazioni
-//         A.linearVelocity.set(0, 0, 0);
-//         B.linearVelocity.set(0, 0, 0);
-//         A.angularVelocity.set(0, 0, 0);
-//         B.angularVelocity.set(0, 0, 0);
-
-//         // 😴 Optional: metti in sleep
-//         A.isSleeping = true;
-//         B.isSleeping = true;
-//     });
-// }
-
-// spendStarAsCoin() {
-//     if (this.deliveredStars > 0) {
-//         this.deliveredStars--;
-// //         return true;
-//     } else {
-// //         return false;
-//     }
-// }
-
-
-//     // physics_engine.js -> dentro la classe PhysicsEngine
-
-//     removeBody(bodyToRemove) {
-//         this.bodies = this.bodies.filter(body => body !== bodyToRemove);
-//     }
-
-
-//   resolveStaticCollisions() {
-//     if (this.staticColliders.length === 0) return;
-
-//     const bodyWorldPos = new THREE.Vector3();
-//     const bodyLocalPos = new THREE.Vector3();
-//     const closestPoint = new THREE.Vector3();
-//     const worldClosestPoint = new THREE.Vector3();
-//     const normal = new Vec3();
-//     const invStaticMatrix = new THREE.Matrix4();
-
-//     this.bodies.forEach(body => {
-//         if (body.inverseMass === 0 || body.isSleeping || body.isBlocked) return;
-
-//         bodyWorldPos.copy(body.position);
-
-//         this.staticColliders.forEach(staticMesh => {
-//             const matrix = new THREE.Matrix4()
-//                 .copy(staticMesh.matrixWorld).invert()
-//                 .multiply(body.mesh.matrixWorld);
-
-//             const intersects = body.mesh.geometry.boundsTree
-//                 .intersectsGeometry(staticMesh.geometry, matrix);
-
-//             if (!intersects) return;
-
-//             body.isSleeping = false;
-//             body.sleepyTimer = 0;
-
-//             invStaticMatrix.copy(staticMesh.matrixWorld).invert();
-//             bodyLocalPos.copy(bodyWorldPos).applyMatrix4(invStaticMatrix);
-
-//             staticMesh.geometry.boundsTree.closestPointToPoint(bodyLocalPos, closestPoint);
-//             worldClosestPoint.copy(closestPoint).applyMatrix4(staticMesh.matrixWorld);
-
-//             normal.copy(bodyWorldPos).sub(worldClosestPoint);
-//             const dist = normal.length();
-
-//             if (dist < 1e-6) {
-//                 normal.set(0, 1, 0); // fallback normale verso l'alto
-//             } else {
-//                 normal.normalize();
-//             }
-
-//             const penetrationDepth = body.boundingRadius - dist;
-//             if (penetrationDepth > 0) {
-//                 // ✅ Sovra-correzione aggressiva
-//                 const correctionFactor = 2.0;
-//                 const correctionVector = normal.clone().multiplyScalar(penetrationDepth * correctionFactor);
-//                 body.position.add(correctionVector);
-
-//                 // ⚠️ Se molto incastrato → forzatura
-//                 if (penetrationDepth > body.boundingRadius * 0.9) {
-// //                     body.linearVelocity.set(0, -2, 0); // spinta in giù
-//                     body.angularVelocity.set(0, 0, 0);
-//                 }
-
-//                 // Applica forze di risposta morbide
-//                 const springStiffness = 1000;
-//                 const dampingFactor = 0.9;
-
-//                 const penaltyForceMag = penetrationDepth * springStiffness;
-//                 const penaltyForce = normal.clone().multiplyScalar(penaltyForceMag);
-
-//                 const velocityAlongNormal = body.linearVelocity.dot(normal);
-//                 const dampingForceMag = velocityAlongNormal * dampingFactor;
-//                 const dampingForce = normal.clone().multiplyScalar(-dampingForceMag);
-
-//                 const totalForce = penaltyForce.add(dampingForce);
-//                 const contactPointRelative = new Vec3().copy(worldClosestPoint).sub(body.position);
-//                 const torque = new Vec3().crossVectors(contactPointRelative, totalForce);
-
-//                 body.force.add(totalForce);
-//                 body.torque.add(torque);
-//             }
-//         });
-//     });
-// }
-// }
-
-
-
-// export const CLAW_CONFIG = {
-//     // Maximum rotation in radians for a finger before it stops closing if it doesn't hit anything.
-//     STOP_ROT_RAD: 0.7,
-//     // Number of fingers that must touch the star to consider it "grabbed".
-//     GRAB_THRESHOLD: 2, 
-//     // Sub-steps for claw movement to prevent tunnelling through the prize.
-//     MOVEMENT_SUB_STEPS: 5,
-// }; 
-
-
-
 import * as THREE from 'three';
 import { Vec3 } from './physics_engine_vec3.js';
 
@@ -952,3 +566,304 @@ export const CLAW_CONFIG = {
     // Sub-steps for claw movement to prevent tunnelling through the prize.
     MOVEMENT_SUB_STEPS: 5,
 }; 
+
+/* 
+certissimo! ecco una lettura “guidata” anche per questo file: ti spiego cosa sono le classi, ogni proprietà importante, e a cosa servono **tutte** le funzioni/metodi, con note su edge case e (dove emergono) possibili bug/incongruenze da sistemare.
+
+---
+
+# Panoramica
+
+```js
+import * as THREE from 'three';
+import { Vec3 } from './physics_engine_vec3.js';
+```
+
+* **Three.js**: per quaternioni, box di bounding, trasformazioni e BVH (usato indirettamente).
+* **Vec3**: il tuo vettore 3D “leggero” (x,y,z + utility), usato per velocità/forze ecc.
+
+Il file espone:
+
+* `RigidBody`: wrapper fisico di una mesh (posizione/orientazione, forze, integrazione, sleep).
+* `PhysicsEngine`: step di simulazione, gravità, collisioni (tra oggetti, con limiti e con ostacoli statici BVH), “clean release”.
+* `CLAW_CONFIG`: costanti per la pinza (anche se semanticamente starebbero meglio vicino al controller).
+
+---
+
+# Classe `RigidBody`
+
+## Scopo
+
+Rappresenta un corpo rigido associato a una `mesh` Three.js: mantiene stato dinamico (posizione, orientazione, velocità, forze), integra nel tempo e sincronizza la mesh.
+
+## Proprietà principali (costruttore)
+
+* `mesh`: la mesh visuale da sincronizzare.
+* `mass`, `inverseMass`: massa (se 0 → statico/kinematico), inverseMass = 1/mass o 0.
+* **Stato lineare**:
+  `position: Vec3` (copiata da `mesh.position`),
+  `linearVelocity: Vec3`,
+  `force: Vec3`.
+* **Stato angolare**:
+  `orientation: THREE.Quaternion` (copiato dalla mesh),
+  `angularVelocity: Vec3`,
+  `torque: Vec3`.
+* **Materiale**: `restitution` (rimbalzo), `friction`.
+* **Flag di interazione**:
+  `collisionEnabled`, `isHeld` (tenuto dalla pinza), `justReleased`, `canFallThrough` (può “passare” attraverso il pavimento/chute).
+* **Sleep**: `isSleeping`, `sleepyTimer`, soglie `SLEEP_THRESHOLD = 0.1`, `FRAMES_TO_SLEEP = 30`.
+* **Altri flag**: `isBlocked` (per animazioni/scripts che temporaneamente escludono la fisica), `hasTouchedClaw`.
+* **Broad-phase**: `boundingRadius` stimato da Box3 della mesh: metà della diagonale (veloce, conservativo).
+
+> Nota: `justReleased` qui non viene usato altrove; `isBeingDispensed/isBeingReleased/ignoreClawCollision/releaseStartTime` sono citati dal motore e attesi sul body, anche se non dichiarati nel costruttore (verranno aggiunti a runtime).
+
+## `applyImpulse(impulse, point)`
+
+Applica un impulso istantaneo:
+
+* aggiorna `linearVelocity += impulse * inverseMass`;
+* calcola leva `relativePos = point - position`;
+* aggiorna `angularVelocity += (relativePos × impulse) * inverseMass`;
+* resetta lo sleep (riattiva il corpo).
+
+**Perché serve:** risposta impulsiva ai contatti/urti e alla risoluzione delle collisioni.
+
+## `update(deltaTime)`
+
+Passo di integrazione del corpo:
+
+1. **Short-circuit**: se `inverseMass==0 || isSleeping || isBlocked || isBeingDispensed || isHeld` → salta solo la **fisica**, ma **NON** la sincronizzazione visiva (vedi sotto).
+2. Calcola accelerazioni da `force/torque` e integra **velocità** e **posizione**:
+
+   * `linearVelocity += (force*inverseMass) * dt`
+   * `angularVelocity += torque * dt`
+   * `position += linearVelocity * dt`
+3. **Integrazione orientazione** (quaternioni): implementa `q_dot = 0.5 * ω * q`:
+
+   * costruisce un quat “omega” `(wx*dt/2, wy*dt/2, wz*dt/2, 0)`,
+   * lo moltiplica per l’orientazione, poi somma ai componenti e normalizza.
+4. **Damping** (più morbido del solito):
+
+   * `linearVelocity *= 0.95`, `angularVelocity *= 0.93`.
+5. **Sleep**: calcola energia cinetica approssimata (senza tensore d’inerzia), se < soglia per `FRAMES_TO_SLEEP` frame → `isSleeping=true` e azzera velocità; altrimenti azzera il timer.
+6. **Sync visuale (SEMPRE)**: copia `position` e `orientation` nella mesh, così:
+
+   * quando è **in mano** alla pinza (posizione imposta altrove) la mesh segue,
+   * quando è **bloccato/dormiente** la mesh resta coerente.
+
+---
+
+# Classe `PhysicsEngine`
+
+## Scopo
+
+Gestisce l’elenco dei corpi, applica gravità e stati speciali (dispensing/clean-release), risolve collisioni:
+
+* **body-body** (pairwise, broad-phase bounding-sphere + narrow-phase BVH),
+* **body-static** (con BVH e closest point),
+* **body-bounds** (vincoli con pareti/pavimento soffitto),
+* **vincoli “candy”** (contenitore + zona di sicurezza distributore).
+
+## Stato (costruttore)
+
+* `bodies: RigidBody[]`
+* `staticColliders: THREE.Mesh[]` (con `geometry.boundsTree` pronto)
+* `gravity = (0, -9.81, 0)`
+* Limiti: `worldBounds`, `prizeBounds`, `candyBounds` (tutti come `{min: Vec3, max: Vec3}`)
+* Dispenser: `dispenserCenter: Vec3`, `dispenserSafetyRadius` (+ `…Sq`)
+
+### Configurazione
+
+* `setWorldBounds(minVec, maxVec)` → limiti “generali”.
+* `setPrizeBounds(box3)` → converte un `THREE.Box3` in `{min,max}` con piccolo **margine** (±0.01) contro stick sugli spigoli.
+* `setCandyBounds(minVec, maxVec)` → limiti specifici per caramelle.
+* `setDispenserSafetyZone(center, radius)` → zona cilindrica di “no-go” per caramelle.
+* `addBody(body)` / `removeBody(body)` → gestione lista corpi.
+* `addStaticCollider(mesh)` → registra ostacoli statici **solo se** hanno `geometry.boundsTree`.
+
+> ⚠️ Ricorda: per usare BVH devi aver preprocessato le geometrie (es. `geometry.computeBoundsTree()` o build equivalente), altrimenti `boundsTree` è assente.
+
+## `update(deltaTime)`
+
+Ordine del passo fisico:
+
+1. **Clean release**: `updateCleanReleaseSystem()` (gestione temporizzata del rilascio “pulito”: vincola movimento e riabilita collisioni alla fine).
+2. **Gravità**: aggiunge `m*g` a `force` dei corpi dinamici **non** dormienti **e** non in dispensing.
+   Se `isBeingReleased`: applica **solo gravità verticale**, azzera velocità orizzontale e rotazione (caduta a piombo).
+3. **Collisioni tra corpi**: `resolveBodyCollisions()`
+4. **Collisioni con statici**: `resolveStaticCollisions()` (BVH + closest point)
+5. **Collisioni con pareti**: `handleCollisions()` (contro `{min,max}` attivi)
+6. **Integrazione**: chiama `body.update(dt)` per ciascun body (salta dormienti).
+   Se `body.isCandy` → applica vincoli `_applyCandyConstraints(body)`.
+
+---
+
+## “Clean Release” – `updateCleanReleaseSystem()`
+
+* Timeout: \~1200 ms da `releaseStartTime`.
+* Durante il periodo: `isBeingReleased=true`, `ignoreClawCollision=true` (utile per evitare contatti con la pinza e tra rilasci simultanei, vedi anche `getBodyPairsToCheck()`).
+* Dopo il timeout: ripristina `ignoreClawCollision=false`, `isBeingReleased=false`, pulisce `releaseStartTime`.
+* Ha un piccolo hook di debug (`window.cleanReleaseDebug`).
+
+**Perché serve:** quando la pinza rilascia, gli oggetti cadono dritti e non si disturbano tra loro/col gancio per un attimo, riducendo incastri/glitch.
+
+---
+
+## Collisioni con i limiti – `handleCollisions()`
+
+Per ciascun `body` attivo (non statico, non dormiente, non dispensing/release, non blocked):
+
+1. **Sceglie i bounds**:
+
+   * `body.isCandy` → `candyBounds`;
+   * altrimenti `prizeBounds` se impostato, altrimenti `worldBounds`.
+
+2. **Heuristic “touchedClaw”** (anti-incastro agli spigoli):
+   crea `bodyBox = new THREE.Box3().setFromObject(body.mesh)` e se **fuori** dai bounds per 2 frame di fila, ferma il corpo brevemente mettendolo a dormire, poi lo risveglia dopo 150 ms.
+
+   > ⚠️ **Possibile bug**: qui si chiama `bodyBox.intersectsBox(boundsToUse)`, ma `boundsToUse` **non è** un `THREE.Box3` – è un oggetto `{min: Vec3, max: Vec3}`. Dovresti costruire un `THREE.Box3` equivalente:
+   >
+   > ```js
+   > const b = new THREE.Box3(
+   >   new THREE.Vector3(boundsToUse.min.x, boundsToUse.min.y, boundsToUse.min.z),
+   >   new THREE.Vector3(boundsToUse.max.x, boundsToUse.max.y, boundsToUse.max.z)
+   > );
+   > bodyBox.intersectsBox(b)
+   > ```
+
+3. **Contatto vertice-contro-parete**: per ogni vertice della geometria del body (scalato), lo porta in world (`applyQuaternion` + `+ position`) e testa ciascun asse/direzione con `checkCollision(...)`.
+
+### `checkCollision(body, vertex, axis, dir, bounds)`
+
+* **Filtro “passa sotto”**: se `body.canFallThrough` e stai controllando pavimento (asse `y`, direzione `-1`) → **ignora** la collisione (serve a far passare nello scivolo).
+* Trova il **limite** lungo l’asse (`bounds.max[axis]` o `bounds.min[axis]`); se il vertice lo supera, calcola una piccola correzione posizionale (80% della penetrazione), poi:
+
+  * stima la **velocità di contatto** (`linearVelocity + ω×r`),
+  * se è “chiudente” oltre soglia, calcola impulso normale (+ eventuale rimbalzo attenuato) e **attrito** tangenziale limitato da `friction`,
+  * applica `applyImpulse` al body.
+
+**Perché serve:** gestione “manuale” dei limiti con un modello semplice ma stabile (correzione + impulso).
+
+---
+
+## Broad-phase tra corpi – `getBodyPairsToCheck()`
+
+* Salta coppie che coinvolgono statici (a meno che `isBeingDispensed`), corpi **held** o **blocked**.
+* **Salta** corpi in “clean release” (evita che i rilasci si disturbino).
+* Test **sfera-sfera** su `boundingRadius` (rapido): se dist² < (rA+rB)² → aggiunge la coppia.
+
+**Perché serve:** riduce il numero di test costosi (narrow-phase).
+
+---
+
+## Narrow-phase e risoluzione – `resolveBodyCollisions()`
+
+Per ciascuna coppia:
+
+1. **Narrow-phase BVH**:
+   costruisce `matAB = inv(B) * A` e usa `A.mesh.geometry.boundsTree.intersectsGeometry(B.mesh.geometry, matAB)`. Se **no**, esce (niente contatto reale).
+
+2. **Direzione e penetrazione** (approssimata):
+   `n = (B.pos - A.pos)`, `dist = |n|`, `penetration = rA + rB - dist`. Se penetrazione ≤ **slop** (0.005) → ignora (evita jitter).
+
+3. **Correzione posizionale** (distribuita per massa):
+
+   * fattore diverso se collisione con un **kinematico** (`inverseMass==0`) → `kinematicCorrectionFactor = 0.4` (effetto “aratro” smorzato), altrimenti `dynamicCorrectionFactor = 0.02` (molto morbido),
+   * applica solo l’eccedenza sopra `slop`.
+
+4. **Impulso di collisione**:
+
+   * proiezione della velocità relativa lungo `n`,
+   * se si avvicinano: restituzione `e = min(restitution)` ma **annullata** se l’urto è *morbido* (|velAlongNormal| < 0.2) per farli assestare senza saltellare,
+   * calcola impulso `j` e aggiorna le **velocità lineari**,
+   * risveglia entrambi (azzera sleepyTimer).
+
+**Perché serve:** contatti credibili ma **morbidi** (slop + fattori ridotti) per pile stabili.
+
+---
+
+## Collider statici BVH – `resolveStaticCollisions()`
+
+Prerequisito: `staticColliders[]` contiene mesh con `geometry.boundsTree`.
+
+Per ogni `body` attivo (non statico/dormiente/blocked/dispensed/released/held) **e** non `canFallThrough`:
+
+1. **Intersezione** `body.geometry` vs `staticMesh.geometry` (matrice inv(static) \* body).
+
+2. Se interseca:
+
+   * risveglia il body,
+   * trova il **closest point** sulla mesh statica (in locale), lo riporta in world,
+   * calcola normale `n = normalize(bodyPos - closestWorld)`,
+   * **penetrazione** = `boundingRadius - dist`.
+
+3. Se penetrazione > 0:
+
+   * **correzione aggressiva**: sposta il body lungo `n` di `penetration * 2.0` (esce subito dall’incastro),
+   * se *quasi completamente* incastrato (> 90% del raggio): forza una spinta verso il basso (`linearVelocity.y = -2`) e azzera rotazioni,
+   * **forza penalità** tipo molla + smorzamento (stiffness 500, damping 1.2) applicata come `force` + relativa **coppia** (`torque = r × F`).
+
+**Perché serve:** contatti robusti con la macchina (piani inclinati, scivolo, bordi complessi) sfruttando la geometria reale via BVH.
+
+---
+
+## Vincoli “candy” – `_applyCandyConstraints(body)`
+
+* **Muri contenitore**: se esistono `candyBoundsMin/Max`, clamp della posizione dentro i limiti (x/y/z).
+* **Zona di sicurezza distributore** (se definita e il body **non** è quello in dispensing):
+
+  * se dentro il raggio, lo spinge **dolcemente** verso il bordo (`gentleFactor=0.3`) e riduce la velocità **verso** il centro (`dampingFactor=0.7`), senza azzerarla di botto.
+
+> ⚠️ **Incongruenza**: nel costruttore imposti `this.candyBounds = {min,max}`, ma qui controlli `this.candyBoundsMin/Max` (che non esistono). O usi `candyBounds.min/max` **ovunque**, o definisci `candyBoundsMin/Max` coerentemente.
+
+---
+
+# Altre funzioni / note sparse
+
+## `spendStarAsCoin()`
+
+```js
+spendStarAsCoin() {
+  if (this.deliveredStars > 0) { this.deliveredStars--; return true; }
+  else { return false; }
+}
+```
+
+> ⚠️ **Probabile refuso**: questa funzione è **fuori** dalla classe e usa `this.deliveredStars`, ma `PhysicsEngine` non ha tale proprietà. Sembra copiata dal controller della pinza. Se ti serve, spostala nella classe corretta o aggiungi la proprietà a chi la usa.
+
+---
+
+# `CLAW_CONFIG`
+
+```js
+export const CLAW_CONFIG = {
+  STOP_ROT_RAD: 0.7,
+  GRAB_THRESHOLD: 2,
+  MOVEMENT_SUB_STEPS: 5,
+};
+```
+
+Parametri della **pinza** (non del motore):
+
+* rotazione massima dita prima di fermarsi,
+* quante dita devono toccare per considerare “preso”,
+* sub-step per il movimento (anti-tunnelling).
+
+---
+
+# Consigli & punti di attenzione
+
+1. **BVH obbligatorio**: prima di usare `intersectsGeometry`/`closestPointToPoint` assicurati che **tutte** le geometrie rilevanti abbiano `boundsTree` (preprocess).
+2. **Bug bounds**: in `handleCollisions()` costruisci un `THREE.Box3` dai tuoi `{min,max}` prima di chiamare `intersectsBox`.
+3. **Candy bounds**: unifica `candyBounds` vs `candyBoundsMin/Max`.
+4. **Flag runtime**: `isBeingReleased`, `releaseStartTime`, `ignoreClawCollision`, `isBeingDispensed` non sono inizializzati in `RigidBody` ma usati dal motore. Valuta di inizializzarli nel costruttore per chiarezza.
+5. **Energia angolare**: la stima usa `0.5*|ω|²` senza tensore d’inerzia: va bene per arcade; se vuoi più realismo, serve `ωᵀ I ω`.
+6. **Correzione posizionale**: usi bounding-sphere per la **quantità** di correzione anche quando la narrow-phase BVH rileva contatto: è stabile e semplice, ma non sempre accurato. Va bene per premi morbidi; per rigidità maggiore potresti proiettare sul punto di contatto reale.
+7. **Heuristic touchedClaw**: quella logica di “2 frame fuori bounds → sleep breve” è una pezza anti-tremolio. Se dopo il fix di `intersectsBox` vedi ancora jitter agli spigoli, valuta di aumentare `slop` o usare un **continuous collision** sul movimento verticale.
+
+---
+
+se vuoi, posso prepararti anche un **diagramma del flusso `update()`** del motore o commentare inline il file originale con TODO/fix puntuali (es. costruzione Box3, unificazione candy bounds, inizializzazione flag).
+
+
+*/

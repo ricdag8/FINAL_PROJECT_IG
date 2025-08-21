@@ -92,7 +92,7 @@ export function updateCeilingPopcorn(deltaTime) {
     }
 }
 
-// ✨ LIGHT SHOW FUNCTIONS
+// LIGHT SHOW FUNCTIONS
 export function startLightShow() {
     if (!lightingManager || lightShowActive) return;
     

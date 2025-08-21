@@ -1,5 +1,139 @@
 // candy_machine.js
 
+
+/* 
+
+⏺ Complete Overview of Candy Machine File
+
+  The candy_machine.js file implements a complex, interactive candy dispensing system with realistic mechanical animations. Here's a comprehensive breakdown:
+
+  Class Structure & Properties
+
+  CandyMachine class manages a complete candy vending machine with:
+  - Coin insertion system with visual coin flying animation
+  - Multi-stage dispensing mechanism with gate lowering, candy selection, and door opening
+  - Physics integration for realistic candy behavior and collision detection
+  - Complex animation state machine managing sequential mechanical operations
+
+  Key Properties:
+
+  - Animation State: isAnimating, isDispensing, dispensingStage
+  - Coin System: hasCoinInserted, coinMesh, coinFlyProgress
+  - Mechanical Parts: knob, gate, releaseDoor, gateSidePlanes
+  - Physics Bodies: candiesInMachine[], physicsEngine
+  - Animation Targets: Multiple 3D vectors for precise positioning
+
+  Core Functions Breakdown
+
+  1. Initialization & Setup Functions
+
+  constructor(model, physicsEngine, scene)
+  Initializes candy machine with 3D model, physics integration, and scene reference. Sets up all mechanical components, animation properties, and coin system. Calls helper functions to
+  find machine parts and create coin mesh.
+
+  _findParts()
+  Traverses the 3D model hierarchy to locate essential mechanical components by name. Finds knob (Object_6), gate, side planes (Plane2-4), and calculates their positions. Sets up knob
+  geometry centering and initial rotations for proper animation.
+
+  _createCoin()
+  Creates a golden cylindrical coin mesh with metallic material and emissive properties. Initially hidden, positioned ready for coin insertion animations. Uses realistic proportions and
+  shiny gold appearance.
+
+  _calculateDispenseCenter(gateMeshes)
+  Calculates the optimal center point of the gate area for candy targeting. Creates bounding box from all gate-related meshes and determines world coordinates where candies should be
+  directed during dispensing.
+
+  2. Machine Setup & Configuration
+
+  setReleaseDoor(mesh)
+  Configures the release door mechanism with pivot-based rotation system. Creates door pivot point at hinge location, calculates descent targets, and defines candy exit path coordinates
+  (intermediate and final positions).
+
+  setClawController(controller)
+  Links candy machine to claw controller for star-to-coin conversion system. Enables spending collected stars as coins for candy purchases, creating economic game loop.
+
+  populate(containerMesh, count, candyGeometry, scene)
+  Spawns specified number of colorful candy objects within container bounds. Uses safety zones around dispenser, assigns random colors from predefined palette, creates physics bodies,
+  and establishes candy-specific collision boundaries.
+
+  3. Core Interaction Functions
+
+  insertCoin()
+  Handles coin insertion process when player has available stars. Converts star to coin, initiates coin flying animation from world position to knob location, makes coin visible, and
+  sets up animation progress tracking.
+
+  startCandyDispensing()
+  Triggers the complete candy dispensing sequence when coin is inserted. Initiates both mechanical dispensing animation and knob rotation, selects random candy, and begins multi-stage
+  animation state machine.
+
+  4. Animation State Machine Functions
+
+  _updateDispensingAnimation(deltaTime)
+  Master animation controller managing 8 sequential dispensing stages:
+
+  - lowering_gate: Animates gate and side planes downward to create dispensing opening
+  - moving_candy: Moves selected candy horizontally to gate center with kinematic physics
+  - descending: Lowers candy vertically to door level with collision physics
+  - opening_door: Rotates release door upward using pivot system
+  - ejecting_candy: Complex two-part animation with parabolic trajectory for realistic candy exit
+  - closing_door: Returns door to closed position
+  - raising_gate: Restores gate and planes to original positions
+  - waiting_for_knob: Synchronization stage waiting for knob animation completion
+
+  _completeDispensingSequence()
+  Resets all animation states, removes dispensed candy from machine inventory, restores knob rotation, clears coin insertion flag, and removes coin mesh from scene.
+
+  5. Update & Management Functions
+
+  update(deltaTime)
+  Main update loop managing three parallel systems:
+
+  1. Coin Animation: Handles coin flying trajectory with parabolic arc, attachment to knob, position/rotation adjustments, and timed disappearance
+  2. Dispensing Animation: Processes current dispensing stage with state machine progression
+  3. Knob Animation: Manages 360-degree knob rotation with precise timing, completion detection, and sequence synchronization
+
+  Key Technical Features
+
+  Advanced Animation System
+
+  - State-driven animations with precise timing and sequencing
+  - Kinematic physics integration for realistic candy movement and collision
+  - Pivot-based rotations for mechanical door opening
+  - Parabolic trajectories for natural candy ejection paths
+
+  Physics Integration
+
+  - Dynamic candy physics with individual collision bodies
+  - Kinematic dispensing allowing pushed candies to affect others
+  - Safety zones preventing candy spawn conflicts
+  - Boundary enforcement keeping candies within machine container
+
+  Visual Polish
+
+  - Synchronized mechanical animations (gate + side planes moving together)
+  - Realistic material properties (metallic coins, colorful candies)
+  - Complex motion paths with intermediate waypoints
+  - Timed visual effects (coin disappearance, door operations)
+
+  Game Integration
+
+  - Economic system linking star collection to candy purchases
+  - Callback system for candy ejection events triggering external animations
+  - Inventory management tracking candies remaining in machine
+  - State persistence maintaining machine status between interactions
+
+  This candy machine implementation provides a highly realistic and engaging mechanical experience with sophisticated animations, physics interactions, and game system integration,
+  creating an authentic vending machine simulation within the arcade environment
+
+*/
+
+
+
+
+
+
+
+
 import * as THREE from 'three';
 import { RigidBody } from './physics_engine.js';
 import { Vec3 } from './physics_engine_vec3.js';
@@ -111,7 +245,7 @@ this.coinIsFlying = false;
     }
 
     /**
-     * Creates the coin mesh and keeps it hidden, ready for use.
+     * creates the coin mesh and keeps it hidden, ready for use.
      */
     _createCoin() {
         const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.008, 16);
@@ -128,27 +262,10 @@ this.coinIsFlying = false;
         this.coinMesh.visible = false; // Initially hidden
     }
     
-    /**
-     * Sets the reference to the claw controller to spend stars.
-     * @param {ClawController} controller - The main claw controller instance.
-     */
+    
     setClawController(controller) {
         this.clawController = controller;
     }
-
-    /**
-     * Attempts to insert a coin by spending a star.
-     * If successful, makes the coin mesh visible and attaches it to the knob.
-     */
-    /**
- * Attempts to insert a coin by spending a star.
- * If successful, starts the coin's flight animation towards the knob.
- */
-/**
- * Attempts to insert a coin by spending a star.
- * If successful, starts the coin's flight animation towards the knob.
- */
-// candy_machine.js
 
 insertCoin() {
     if (this.hasCoinInserted || this.isAnimating) {
@@ -162,7 +279,7 @@ insertCoin() {
         this.hasCoinInserted = true;
 
         if (this.knob && this.coinMesh) {
-            // --- INIZIO MODIFICHE ---
+           
 
             // 1. Definisci la posizione di partenza in coordinate GLOBALI.
             const worldStartPos = new THREE.Vector3(2, 2, 5);
@@ -193,8 +310,8 @@ insertCoin() {
     }
 }
     _findParts() {
-        const gateMeshes = []; // Collect all gate-related meshes
-        const allMeshNames = []; // Debug: collect all mesh names
+        const gateMeshes = []; // collect all gate-related meshes
+        const allMeshNames = []; // debug: collect all mesh names
         
         
         this.model.traverse(child => {
@@ -219,12 +336,6 @@ insertCoin() {
 
     this.knob.rotation.y += Math.PI; // ← AGGIUNTO: ruota la manopola di 180°
 }
-
-            // Find the Release Mechanism mesh - REMOVED because it was incorrect
-            /* if (child.isMesh && child.name === 'Object_6') {
-                child.updateWorldMatrix(true, false);
-                child.getWorldPosition(this.releaseMechanismPosition);
-            } */
 
             // Find the Gate mesh for dispensing
             if (child.isMesh && child.name === 'Gate') {
@@ -260,7 +371,7 @@ insertCoin() {
     }
 
     /**
-     * Calculate the center of the gate area for candy targeting
+     * calculate the center of the gate area for candy targeting
      */
     _calculateDispenseCenter(gateMeshes) {
         
@@ -274,19 +385,13 @@ insertCoin() {
         // Get the center in world coordinates and store it.
         bounds.getCenter(this.candyWorldTargetPos);
         
-        // --- The lower target position is now calculated in setReleaseDoor ---
-        
-        
     }
-
 
     populate(containerMesh, count, candyGeometry, scene) {
         if (!containerMesh) {
             return;
         }
 
-
-        // --- AGGIUNTO: Definisci una lista di possibili colori per le caramelle ---
         const candyColors = [
             new THREE.Color(0xff4757), // Red
             new THREE.Color(0x2ed573), // Green

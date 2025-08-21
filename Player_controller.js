@@ -139,7 +139,7 @@ export class PlayerController {
             case 'right': this.moveRight = state; break;
         }
         
-        // 🆕 DEBUG - Log movement changes (will be reduced after testing)
+        // DEBUG - Log movement changes (will be reduced after testing)
         if (this.debugEnabled) {
             const isPressingAnyKey = this.moveForward || this.moveLeft || this.moveRight;
         }
@@ -290,8 +290,8 @@ export class PlayerController {
                 },
                 {
                     name: 'Popcorn Machine',
-                    center: new THREE.Vector3(-3, 0.7, -2), // 🍿 Position from main.js:686
-                    size: { x: 2, z: 2 } // 🍿 Scaled down size (0.5 scale factor)
+                    center: new THREE.Vector3(-3, 0.7, -2), // Position from main.js:686
+                    size: { x: 2, z: 2 } //  Scaled down size (0.5 scale factor)
                 }
             ];
         } else {
@@ -412,7 +412,7 @@ export class PlayerController {
         return this.mesh ? new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion) : new THREE.Vector3(0, 0, 1);
     }
     
-    // 🆕 DEBUG AND TESTING METHODS
+    // DEBUG AND TESTING METHODS
     enableDebug() {
         this.debugEnabled = true;
     }
@@ -423,37 +423,32 @@ export class PlayerController {
     
     debugAnimationState() {
         if (!this.isLoaded) {
-            console.log("❌ Character not loaded yet");
+
             return;
-        }
-        
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        }      
+
     }
     
     listAvailableAnimations() {
         if (!this.isLoaded || !this.animations) {
-            console.log("❌ No animations available (character not loaded)");
+
             return;
         }
         
-        console.log("🎬 AVAILABLE ANIMATIONS:");
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        
         Object.keys(this.animations).forEach((name, index) => {
             const isActive = this.currentAnimation && this.currentAnimation.getClip().name.toLowerCase() === name;
-            console.log(`${index + 1}️⃣ ${name} ${isActive ? '(ACTIVE)' : ''}`);
+
         });
-        console.log("");
-        console.log("💡 Use setCharacterAnimation('animationName') to test specific animations");
+
     }
     
     forceAnimation(animationName) {
         if (!this.isLoaded) {
-            console.log("❌ Character not loaded yet");
             return;
         }
         
         this.switchToAnimation(animationName);
-        console.log(`🎭 Forced animation: ${animationName}`);
     }
 
     playDeathAnimation(onComplete) {
@@ -461,21 +456,16 @@ export class PlayerController {
         const deathAnimation = this.animations[deathAnimationName];
         
         if (!deathAnimation) {
-            console.error(`❌ Animation '${deathAnimationName}' not found! Available animations are:`, Object.keys(this.animations));
             if (onComplete) onComplete();
             return;
         }
         
         const clip = deathAnimation.getClip();
-        console.log(`[Animation Info] Found '${deathAnimationName}'. Duration: ${clip.duration} seconds.`);
 
         if (clip.duration === 0) {
-            console.warn("⚠️ This animation has a duration of 0 seconds and will not be visible.");
             if (onComplete) onComplete();
             return;
         }
-        
-        console.log("▶️ Forcing death animation play...");
 
         // Force an abrupt switch using fades with zero duration. This is often more reliable.
         if (this.currentAnimation) {
@@ -489,49 +479,13 @@ export class PlayerController {
         const durationInMs = clip.duration * 1000;
 
         setTimeout(() => {
-            console.log("✅ Death animation timer finished.");
             if (onComplete) onComplete();
         }, durationInMs);
     }
-
-    // 🆕 QUICK ANIMATION SYSTEM CHECK
-    checkAnimationSystem() {
-        console.log("🔍 ANIMATION SYSTEM STATUS CHECK:");
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        console.log(`👤 Character loaded: ${this.isLoaded}`);
-        console.log(`🎬 Animation mixer: ${!!this.mixer}`);
-        console.log(`📚 Available animations: ${Object.keys(this.animations)}`);
-        console.log(`🎮 Movement states:`);
-        console.log(`   Forward: ${this.moveForward}`);
-        console.log(`   Left: ${this.moveLeft}`);
-        console.log(`   Right: ${this.moveRight}`);
-        console.log(`🚶 Is moving: ${this.moveForward || this.moveLeft || this.moveRight}`);
-        console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        
-        if (!this.isLoaded) {
-            console.log("❌ ISSUE: Character not loaded");
-        }
-        if (!this.mixer) {
-            console.log("❌ ISSUE: Animation mixer not initialized");
-        }
-        if (Object.keys(this.animations).length === 0) {
-            console.log("❌ ISSUE: No animations found");
-        }
-        if (!this.animations.walk) {
-            console.log("❌ ISSUE: 'walk' animation not found");
-        }
-        if (!this.animations.idle) {
-            console.log("❌ ISSUE: 'idle' animation not found");
-        }
-        
-        if (this.isLoaded && this.mixer && this.animations.walk && this.animations.idle) {
-            console.log("✅ Animation system appears to be working correctly");
-            console.log("💡 Try pressing WASD to test movement animations");
-        }
-    }
+    
 }
 
-// 🆕 INPUT HANDLING FOR EXPLORATION MODE
+//  INPUT HANDLING FOR EXPLORATION MODE
 export class PlayerInputHandler {
     constructor(playerController, gameStateManager, modeManager, cameraManager) {
         this.playerController = playerController;
@@ -543,7 +497,6 @@ export class PlayerInputHandler {
     handleKeyDown(e) {
         if (!this.playerController) return;
         
-        // Prevent default for movement keys
         if (['KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyE', 'Escape', 'KeyT', 'KeyX', 'KeyL'].includes(e.code)) {
             e.preventDefault();
         }
@@ -570,13 +523,13 @@ export class PlayerInputHandler {
                 break;
             case 'KeyX':
                 if (!e.repeat && this.gameStateManager.currentZone === null) {
-                    // 🍿 Only activate popcorn mode when not near machines
+                    //  Only activate popcorn mode when not near machines
                     this.togglePopcornMode();
                 }
                 break;
             case 'KeyL':
                 if (!e.repeat && this.gameStateManager.currentZone === null) {
-                    // 🎉 Only activate disco mode when not near machines
+                    // Only activate disco mode when not near machines
                     this.toggleDiscoMode();
                 }
                 break;
@@ -599,45 +552,43 @@ export class PlayerInputHandler {
         }
     }
     
-    // 🍿 TOGGLE POPCORN MODE
+    // TOGGLE POPCORN MODE
     togglePopcornMode() {
         // Call global function to toggle popcorn mode
         if (window.togglePopcornMode) {
             window.togglePopcornMode();
         } else {
-            console.log("🍿 Popcorn mode not available yet");
+
         }
     }
-    
-    // 🎉 TOGGLE DISCO MODE
+ 
+
     toggleDiscoMode() {
-        // Call global function to toggle disco mode
+
         if (window.toggleDiscoMode) {
             window.toggleDiscoMode();
         } else {
-            console.log("🎉 Disco mode not available yet");
+
         }
     }
 }
 
-// 🆕 UTILITY FUNCTIONS FOR PLAYER TESTING
 export class PlayerTestUtils {
     static setPlayerSpeed(playerController, speed) {
         if (playerController) {
             playerController.moveSpeed = speed;
-            console.log(`🎮 Player speed set to: ${speed}`);
+
         } else {
-            console.log("❌ Player controller not found");
+
         }
     }
     
     static testCharacterAnimations(playerController) {
         if (!playerController || !playerController.isLoaded) {
-            console.log("❌ Character not loaded yet");
+
             return;
-        }
-        
-        console.log("🎭 Testing character animations...");
+        } 
+
         playerController.listAvailableAnimations();
         
         const animations = ['idle', 'walk', 'run'];
@@ -645,12 +596,12 @@ export class PlayerTestUtils {
         
         function testNext() {
             if (index >= animations.length) {
-                console.log("✅ Animation test complete!");
+
                 return;
             }
             
             const animName = animations[index];
-            console.log(`${index + 1}️⃣ Testing ${animName} animation`);
+
             playerController.forceAnimation(animName);
             
             index++;
@@ -662,40 +613,266 @@ export class PlayerTestUtils {
     
     static getCharacterStatus(playerController) {
         if (!playerController) {
-            console.log("❌ Player controller not found");
             return;
         }
-        
-        console.log("🎮 CHARACTER STATUS:");
-        console.log("━━━━━━━━━━━━━━━━━━━━");
-        console.log(`📦 Model loaded: ${playerController.isLoaded ? '✅' : '❌'}`);
-        console.log(`🎭 Animations available: ${playerController.animations ? Object.keys(playerController.animations).length : 0}`);
-        console.log(`▶️ Current animation: ${playerController.currentAnimation ? 'Active' : 'None'}`);
-        console.log(`📍 Position: (${playerController.mesh?.position.x.toFixed(2)}, ${playerController.mesh?.position.y.toFixed(2)}, ${playerController.mesh?.position.z.toFixed(2)})`);
-        
         const movement = [];
         if (playerController.moveForward) movement.push('Forward');
         if (playerController.moveLeft) movement.push('Left');
         if (playerController.moveRight) movement.push('Right');
-        
-        console.log(`🚶 Movement: ${movement.length > 0 ? movement.join('+') : 'Idle'}`);
-        
-        if (playerController.isLoaded) {
-            console.log("");
-            console.log("🎬 Commands:");
-            console.log("  testCharacterAnimations() - Test all animations");
-            console.log("  listCharacterAnimations() - Show available animations");
-            console.log("  setCharacterAnimation('walk') - Set specific animation");
-        }
     }
 
     static checkAnimationSystem(playerController) {
-        if (!playerController) {
-            console.log("❌ Player controller not provided");
-            console.log("💡 Usage: checkAnimationSystem(playerController)");
+        if (!playerController) {  
             return;
         }
-        
         playerController.checkAnimationSystem();
     }
 }
+
+/* 
+Di seguito trovi, funzione per funzione, cosa fa, con parametri, valore di ritorno ed effetti collaterali (quando rilevanti). Ho raggruppato per classe.
+
+# PlayerController
+
+### constructor(scene, physicsEngine, roomSetupManager = null, audioManager = null)
+
+* **Scopo:** inizializza il controller del personaggio e tutti gli stati interni (movimento, animazioni, riferimenti a scena/physics/room/audio).
+* **Parametri:**
+  `scene` (THREE.Scene), `physicsEngine` (istanza del tuo motore fisico), `roomSetupManager` (opzionale), `audioManager` (opzionale).
+* **Ritorno:** nessuno.
+* **Note:** imposta velocità di movimento/rotazione, stato animazioni e flag utili (es. `isGreeting`).
+
+### loadCharacter(modelUrl, characterName)
+
+* **Scopo:** carica un modello GLTF del personaggio e ne prepara animazioni e mesh.
+* **Parametri:** `modelUrl` (string), `characterName` (string, usato anche per gli effetti audio).
+* **Ritorno:** `Promise<void>`.
+* **Effetti:** su successo chiama `setupCharacterModel(gltf)`; su errore crea un “fallback” con `createFallbackMesh()` e **reject**.
+
+### setupCharacterModel(gltf)
+
+* **Scopo:** inserisce il modello GLTF nella scena, abilita ombre, prepara il mixer e le clip di animazione.
+* **Parametri:** `gltf` (GLTF result del loader).
+* **Ritorno:** nessuno.
+* **Effetti:** rimuove eventuale mesh di fallback, posiziona e scala il modello, crea `THREE.AnimationMixer`, pulisce i nomi delle animazioni (rimuove il prefisso prima di `|`, e lowercase) e salva le azioni in `this.animations`. Se esiste, parte da `idle`. Imposta `isLoaded = true`.
+
+### createFallbackMesh()
+
+* **Scopo:** crea un mesh di emergenza (capsula) quando il GLTF non si carica.
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno.
+* **Effetti:** genera `THREE.CapsuleGeometry`, abilita ombre, la posiziona, prova a costruire un BVH (`MeshBVH`) per eventuali collisioni geometriche, e aggiunge alla scena. Imposta `isLoaded = true`.
+
+### setMoving(direction, state)
+
+* **Scopo:** accende/spegne le flag di movimento in base ai tasti (W, A, D).
+* **Parametri:** `direction` ('forward' | 'left' | 'right'), `state` (boolean).
+* **Ritorno:** nessuno.
+* **Effetti:** ignorata se `isGreeting` è true (durante l’animazione di saluto).
+
+### switchToAnimation(animationName)
+
+* **Scopo:** gestisce il passaggio morbido (fade) tra animazioni.
+* **Parametri:** `animationName` (string, es. 'idle', 'walk', 'wave', 'death'… **minuscolo**).
+* **Ritorno:** nessuno.
+* **Effetti:** fa fade-out dell’azione corrente e fade-in della nuova (`0.3s`), aggiorna `currentAnimation`.
+
+### update(deltaTime)
+
+* **Scopo:** aggiorna rotazione, movimento, collisioni e stato animazione in ogni frame.
+* **Parametri:** `deltaTime` (secondi).
+* **Ritorno:** nessuno.
+* **Effetti:**
+
+  * Ruota con A/D.
+  * Se W è premuto: avanza nella direzione di `getForwardDirection()`.
+  * Poi chiama `handleMachineCollisions()` e `constrainToRoom()` per tenere il player fuori dalle macchine e dentro la stanza.
+  * Cambia animazione tra `walk` e `idle` a seconda del movimento.
+  * Forza `position.y` a `0` (se c’è animazione `idle`) altrimenti `0.5`.
+  * **Nota:** il mixer **non** viene aggiornato qui (vedi `updateAnimation`).
+
+### updateAnimation(deltaTime)
+
+* **Scopo:** aggiorna solo il mixer delle animazioni.
+* **Parametri:** `deltaTime` (secondi).
+* **Ritorno:** nessuno.
+* **Effetti:** `this.mixer.update(deltaTime)` se il mixer esiste. Da chiamare nel loop principale di rendering.
+
+### async performGreeting(cameraManager)
+
+* **Scopo:** esegue una “scena di saluto”: ferma i movimenti, anima la camera, riproduce suono e animazione `wave`, poi ripristina la camera.
+* **Parametri:** `cameraManager` (oggetto con `animateCameraToObject(dur)` e `animateCameraToOriginal(dur)`).
+* **Ritorno:** `Promise<void>`.
+* **Effetti:** imposta `isGreeting` a true per bloccare altri input, riproduce suono `${characterName}_wave` tramite `audioManager`, torna a `idle` alla fine.
+
+### playOneShotAnimation(animationName)
+
+* **Scopo:** riproduce una clip **una sola volta** e poi torna a `idle`.
+* **Parametri:** `animationName` (string).
+* **Ritorno:** `Promise<void>`.
+* **Effetti:** setta l’azione in `LoopOnce`, `clampWhenFinished = true`, fa fade in/out rapido e usa un `setTimeout` lungo quanto la durata della clip per tornare a `idle`.
+  **Nota:** il timer è a tempo reale; se cambi la velocità del mixer, il timeout non si aggiorna di conseguenza.
+
+### handleMachineCollisions()
+
+* **Scopo:** impedisce al player di entrare in zone rettangolari intorno alle macchine (claw, candy, popcorn) con “spinta” morbida o correzione dura.
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno.
+* **Effetti:**
+
+  * Costruisce una lista di “macchine” (da `roomSetupManager` se presente, altrimenti posizioni hardcoded).
+  * Calcola un riquadro per ciascuna (con raggio giocatore `playerRadius = 0.5`).
+  * Se il player entra, applica una piccola spinta nella via di fuga più vicina; se è “dentro parecchio”, corregge la posizione con un margine di sicurezza.
+
+### constrainToRoom()
+
+* **Scopo:** mantiene il player entro i limiti della stanza (40×20 → X: -20..20, Z: -10..10).
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno.
+* **Effetti:**
+
+  * Applica una “spinta” morbida quando il player si avvicina ai bordi (buffer 0.2).
+  * Poi esegue un clamping duro con `THREE.MathUtils.clamp`.
+
+### getPosition()
+
+* **Scopo:** ottenere la posizione attuale del personaggio.
+* **Parametri:** nessuno.
+* **Ritorno:** `THREE.Vector3` (clone).
+
+### getForwardDirection()
+
+* **Scopo:** ottenere il vettore avanti del personaggio in base alla sua rotazione.
+* **Parametri:** nessuno.
+* **Ritorno:** `THREE.Vector3` (0,0,1) trasformato dalla `quaternion` della mesh.
+
+### enableDebug() / disableDebug()
+
+* **Scopo:** abilita/disabilita messaggi di debug interni.
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno.
+
+### debugAnimationState()
+
+* **Scopo:** stampa a console alcune info diagnostiche sulle animazioni (placeholder).
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno.
+* **Nota:** al momento stampa solo separatori; sembra pensata per essere estesa.
+
+### listAvailableAnimations()
+
+* **Scopo:** elenca le animazioni caricate e indica quella attiva.
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno (log in console).
+* **Nota:** il confronto “attiva/non attiva” usa `getClip().name.toLowerCase()`; se i nomi originali avevano il prefisso `"armature|..."`, il match con il nome “pulito” potrebbe non coincidere visivamente.
+
+### forceAnimation(animationName)
+
+* **Scopo:** forza il passaggio a una specifica animazione (comodo per test).
+* **Parametri:** `animationName` (string).
+* **Ritorno:** nessuno (logga l’azione).
+
+### playDeathAnimation(onComplete)
+
+* **Scopo:** riproduce l’animazione di morte (`'death'`) una volta e poi esegue un callback.
+* **Parametri:** `onComplete` (funzione opzionale).
+* **Ritorno:** nessuno.
+* **Effetti:** fa uno switch “brusco” (fade 0) sull’animazione `'death'`, imposta `LoopOnce` + `clampWhenFinished`. Al termine del timer chiama `onComplete`.
+  **Nota:** non torna automaticamente a `idle`.
+
+### checkAnimationSystem()
+
+* **Scopo:** stampa un report diagnostico sul sistema animazioni.
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno (log a console con suggerimenti).
+
+---
+
+# PlayerInputHandler
+
+### constructor(playerController, gameStateManager, modeManager, cameraManager)
+
+* **Scopo:** collega la gestione input a controller, stato di gioco, modal manager e camera.
+* **Parametri:** istanze dei 4 componenti.
+* **Ritorno:** nessuno.
+
+### handleKeyDown(e)
+
+* **Scopo:** gestisce la pressione tasti.
+* **Parametri:** `e` (KeyboardEvent).
+* **Ritorno:** nessuno.
+* **Effetti:**
+
+  * Previene il default su: W, S, A, D, E, Esc, T, X, L.
+  * **W:** `forward = true`.
+  * **A:** `left = true`.
+  * **D:** `right = true`.
+  * **E:** se `gameStateManager.currentZone` esiste e non è un auto-repeat, entra in modalità macchina: `modeManager.enterMachineMode(currentZone.machineType)`.
+  * **T:** (non repeat) avvia `performGreeting` sul controller.
+  * **X:** (non repeat, e solo se **non** vicino a una macchina) chiama `togglePopcornMode()`.
+  * **L:** (non repeat, e solo se **non** vicino a una macchina) chiama `toggleDiscoMode()`.
+    **Note:** “KeyS” e “Escape” sono prevenuti ma non hanno logica associata qui; non c’è movimento indietro.
+
+### handleKeyUp(e)
+
+* **Scopo:** gestisce il rilascio tasti.
+* **Parametri:** `e` (KeyboardEvent).
+* **Ritorno:** nessuno.
+* **Effetti:** **W/A/D** → imposta a `false` i rispettivi flag di movimento.
+
+### togglePopcornMode()
+
+* **Scopo:** abilita/disabilita la “modalità popcorn” globale.
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno.
+* **Effetti:** chiama `window.togglePopcornMode()` se presente; altrimenti logga un messaggio.
+
+### toggleDiscoMode()
+
+* **Scopo:** abilita/disabilita la “modalità disco” globale.
+* **Parametri:** nessuno.
+* **Ritorno:** nessuno.
+* **Effetti:** chiama `window.toggleDiscoMode()` se presente; altrimenti logga un messaggio.
+
+---
+
+# PlayerTestUtils (metodi statici)
+
+### setPlayerSpeed(playerController, speed)
+
+* **Scopo:** cambia la velocità di movimento del player (comodo per test).
+* **Parametri:** `playerController`, `speed` (numero).
+* **Ritorno:** nessuno (logga la nuova velocità).
+
+### testCharacterAnimations(playerController)
+
+* **Scopo:** sequenza di test che prova in loop le animazioni `idle`, `walk`, `run` ogni 2s.
+* **Parametri:** `playerController`.
+* **Ritorno:** nessuno (log a console).
+* **Note:** se `run` non esiste, `switchToAnimation` non farà nulla per quella voce; serve modello con clip corrispondenti.
+
+### getCharacterStatus(playerController)
+
+* **Scopo:** stampa un riepilogo dello stato del personaggio (caricamento, numero animazioni, animazione attuale, posizione, movimento).
+* **Parametri:** `playerController`.
+* **Ritorno:** nessuno (log a console con alcuni “comandi suggeriti”).
+
+### checkAnimationSystem(playerController)
+
+* **Scopo:** “proxy” verso `playerController.checkAnimationSystem()`.
+* **Parametri:** `playerController`.
+* **Ritorno:** nessuno.
+
+---
+
+## Appunti e piccole insidie
+
+* L’import `RigidBody` non è usato in questo file.
+* La marcatura dell’animazione attiva in `listAvailableAnimations()` può non combaciare se il nome originale del clip contiene prefisso (il confronto usa il nome **non** pulito).
+* `playOneShotAnimation` e `playDeathAnimation` basano la fine sull’orologio reale (`setTimeout`), non sul tempo del mixer: cambi di playbackRate non sono considerati.
+* In `update`, la variabile `previousPosition` è calcolata ma non utilizzata.
+* Non c’è supporto per camminare all’indietro; “S” è solo nel preventDefault.
+
+
+
+*/

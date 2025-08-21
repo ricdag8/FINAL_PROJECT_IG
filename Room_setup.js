@@ -73,7 +73,7 @@ export class RoomSetupManager {
         
     }
     
-    // 🆕 INITIALIZE WITH DEPENDENCIES
+    //  INITIALIZE WITH DEPENDENCIES
     initialize(scene, physicsEngine, cameraManager) {
         this.scene = scene;
         this.physicsEngine = physicsEngine;
@@ -81,7 +81,7 @@ export class RoomSetupManager {
         
     }
     
-    // 🆕 GET MACHINE POSITIONS
+    //  GET MACHINE POSITIONS
     getMachineOffset() {
         return this.machineOffset;
     }
@@ -90,12 +90,12 @@ export class RoomSetupManager {
         return this.candyMachineOffset;
     }
     
-    // 🆕 GETTER PER LE LUCI DEI QUADRI
+    //  GETTER PER LE LUCI DEI QUADRI
     getPaintingSpotlights() {
         return this.paintingSpotlights;
     }
     
-    // 🆕 GET ROOM MATERIALS
+    //  GET ROOM MATERIALS
     getRoomMaterials() {
         return {
             wall: this.wallMaterial,
@@ -108,7 +108,7 @@ export class RoomSetupManager {
     createGameRoom() {
         const roomSize = { width: 40, height: 8, depth: 20 };
         
-        // 🆕 ENHANCED MATERIALS FOR BETTER LIGHT REFLECTION
+        //  ENHANCED MATERIALS FOR BETTER LIGHT REFLECTION
         this.wallMaterial = new THREE.MeshPhongMaterial({ 
             color: 0x3a3a3a, // Lighter for better reflection
             shininess: 30,
@@ -178,7 +178,7 @@ export class RoomSetupManager {
         
     }
     
-    // 🆕 CREATE DECORATIVE PANELS
+    // CREATE DECORATIVE PANELS
     createDecorativePanels(roomSize) {
         const panelMaterial = new THREE.MeshLambertMaterial({ 
             color: 0x16a085,
@@ -214,7 +214,7 @@ export class RoomSetupManager {
         this.scene.add(rightPanel);
     }
     
-    // 🆕 CREATE WALL PAINTINGS FROM GLB MODELS
+    //  CREATE WALL PAINTINGS FROM GLB MODELS
     createWallPaintings(roomSize) {
         const loader = new GLTFLoader();
         
@@ -285,7 +285,7 @@ export class RoomSetupManager {
 
     }
     
-    // 🆕 LOAD CLAW MACHINE
+    //  LOAD CLAW MACHINE
     loadMachine() {
         const loader = new GLTFLoader();
         
@@ -373,7 +373,7 @@ export class RoomSetupManager {
         });
     }
     
-    // 🆕 SETUP CHUTE HELPERS
+    //  SETUP CHUTE HELPERS
     setupChuteHelpers(chuteChild, model) {
         const chuteBox = new THREE.Box3().setFromObject(chuteChild);
         const size = new THREE.Vector3();
@@ -425,7 +425,7 @@ export class RoomSetupManager {
 
     }
     
-    // 🆕 SETUP JOYSTICK PIVOT
+    //  SETUP JOYSTICK PIVOT
     setupJoystickPivot() {
         if (!this.joystickMesh) return;
         
@@ -452,7 +452,7 @@ export class RoomSetupManager {
 
     }
     
-    // 🆕 LOAD CLAW
+    //  LOAD CLAW
     loadClaw() {
         const loader = new GLTFLoader();
         
@@ -519,7 +519,7 @@ export class RoomSetupManager {
         });
     }
     
-    // 🆕 LOAD CANDY MACHINE
+    //  LOAD CANDY MACHINE
     loadCandyMachine() {
         const loader = new GLTFLoader();
         
@@ -607,7 +607,7 @@ export class RoomSetupManager {
         });
     }
     
-    // 🆕 SETUP INTERACTION ZONES
+    //  SETUP INTERACTION ZONES
     setupInteractionZones(onZoneEnter, onZoneExit) {
         // Claw Machine Zone
         const clawZone = new InteractionZone(
@@ -633,7 +633,7 @@ export class RoomSetupManager {
     }
     
     
-    // 🆕 CHECK INTERACTION ZONES
+    // CHECK INTERACTION ZONES
     checkInteractionZones(playerController) {
         if (!playerController || !this.interactionZones) return;
         
@@ -666,14 +666,14 @@ export class RoomSetupManager {
         }
     }
     
-    // 🆕 ADD CALLBACK FOR MACHINE LOADING
+    //  ADD CALLBACK FOR MACHINE LOADING
     onMachineLoad(machineType, callback) {
         if (this.onMachineLoadCallbacks[machineType]) {
             this.onMachineLoadCallbacks[machineType].push(callback);
         }
     }
     
-    // 🆕 GET MACHINE COMPONENTS (for compatibility)
+    // GET MACHINE COMPONENTS (for compatibility)
     getClawMachineComponents() {
         return {
             clawGroup: this.clawGroup,
@@ -692,12 +692,12 @@ export class RoomSetupManager {
         };
     }
     
-    // 🆕 GET INTERACTION ZONES
+    //  GET INTERACTION ZONES
     getInteractionZones() {
         return this.interactionZones;
     }
     
-    // 🆕 GET/SET CURRENT ZONE
+    //  GET/SET CURRENT ZONE
     getCurrentZone() {
         return this.currentZone;
     }
@@ -706,3 +706,224 @@ export class RoomSetupManager {
         this.currentZone = zone;
     }
 } 
+
+
+
+/* 
+
+# InteractionZone
+
+### `constructor(position, radius, machineType, onEnter, onExit)`
+
+* **Cosa fa:** crea una “zona di interazione” circolare (2D sul piano XZ) attorno a un punto della stanza.
+* **Parametri:**
+
+  * `position: THREE.Vector3` – centro della zona.
+  * `radius: number` – raggio della zona.
+  * `machineType: 'claw_machine'|'candy_machine'` – etichetta usata per capire con quale macchina stai interagendo.
+  * `onEnter: (zone) => void` – callback chiamata quando il player entra per la prima volta.
+  * `onExit: (zone) => void` – callback quando esce.
+* **Stato interno:** `playerInside` (bool) per evitare callback ripetute.
+
+### `checkPlayer(playerPosition)`
+
+* **Cosa fa:** controlla se la posizione del player è dentro o fuori il raggio e fa scattare `onEnter`/`onExit` quando cambia stato.
+* **Parametri:** `playerPosition: THREE.Vector3`.
+* **Ritorno:** `void`.
+* **Note:** idempotente per frame; chiama i callback solo ai cambi di stato.
+
+---
+
+# RoomSetupManager
+
+### `constructor()`
+
+* **Cosa fa:** inizializza referenze e stato del “manager” che si occupa di stanza, macchine, collider, luci dei quadri e zone di interazione.
+* **Stato chiave:**
+
+  * `scene`, `physicsEngine`, `cameraManager` (da passare con `initialize`).
+  * Materiali stanza: `wallMaterial`, `floorMaterial`, `ceilingMaterial`.
+  * Offset macchine: `machineOffset` (claw), `candyMachineOffset` (candy).
+  * Array `paintingSpotlights`.
+  * Strutture di compatibilità: gruppi/mesh della claw, joystick, bottoni, helper del “chute”, ecc.
+  * Callbacks di caricamento (`onMachineLoadCallbacks`) per segnalare ad altri sistemi quando i modelli sono pronti.
+
+### `initialize(scene, physicsEngine, cameraManager)`
+
+* **Cosa fa:** collega le dipendenze esterne.
+* **Parametri:** `scene: THREE.Scene`, `physicsEngine: any` (deve esporre `addStaticCollider(mesh)`), `cameraManager` (deve esporre `setFirstPersonReference(...)`).
+* **Ritorno:** `void`.
+
+### `getMachineOffset()`
+
+* **Cosa fa:** restituisce la posizione della claw machine.
+* **Ritorno:** `THREE.Vector3` (stessa istanza memorizzata).
+
+### `getCandyMachineOffset()`
+
+* **Cosa fa:** restituisce la posizione della candy machine.
+* **Ritorno:** `THREE.Vector3`.
+
+### `getPaintingSpotlights()`
+
+* **Cosa fa:** restituisce l’array degli spotlights creati per i quadri.
+* **Ritorno:** `THREE.SpotLight[]`.
+
+### `getRoomMaterials()`
+
+* **Cosa fa:** restituisce i materiali attualmente creati per pareti/pavimento/soffitto.
+* **Ritorno:** `{ wall, floor, ceiling }`.
+
+### `createGameRoom()`
+
+* **Cosa fa:** costruisce la stanza (piano, soffitto, 4 pareti) con materiali Phong e abilita ricezione di ombre, poi chiama `createWallPaintings`.
+* **Parametri:** nessuno.
+* **Ritorno:** `void`.
+* **Effetti:** aggiunge mesh alla `scene`; setta `wallMaterial`, `floorMaterial`, `ceilingMaterial`.
+
+### `createDecorativePanels(roomSize)`
+
+* **Cosa fa:** (opzionale) aggiunge pannelli decorativi su pareti. Non è chiamata di default (commentata).
+* **Parametri:** `roomSize: {width, height, depth}` come oggetto dimensioni stanza.
+* **Ritorno:** `void`.
+* **Effetti:** aggiunge mesh decorative alla `scene`.
+
+### `createWallPaintings(roomSize)`
+
+* **Cosa fa:** carica 3 modelli GLB (quadri), li posiziona/scala/ruota e per ciascuno crea uno **SpotLight** dedicato puntato al quadro.
+* **Parametri:** `roomSize` (per calcolare posizioni dei quadri).
+* **Ritorno:** `void` (il caricamento è **asincrono per modello** via `GLTFLoader.load`).
+* **Effetti:** aggiunge quadri e luci alla scena; popola `paintingSpotlights`.
+* **Note:** nessun `Promise` restituito; se ti serve sapere quando sono tutti pronti, va aggiunta una gestione (es. contatore o `Promise.all` manuale).
+
+### `loadMachine()`
+
+* **Cosa fa:** carica il modello GLB della **claw machine** (senza oggetti interni), lo posiziona, setta ombre, cerca e memorizza referenze a parti note (box superiore, joystick, bottone, chute), setta i collider, il pivot del joystick e le referenze **first-person** nel `cameraManager`.
+* **Ritorno:** `Promise<{ model, clawTopBox, chuteMesh, joystickMesh, buttonMesh, joystickPivot }>`
+* **Effetti:**
+
+  * Aggiunge il modello alla `scene`.
+  * `physicsEngine.addStaticCollider(this.chuteMesh)` se presente.
+  * Chiama i callback registrati in `onMachineLoadCallbacks.clawMachine`.
+* **Errori:** `reject` se non trova la mesh “box” della macchina o se il `loader` fallisce.
+
+### `setupChuteHelpers(chuteChild, model)`
+
+* **Cosa fa:** crea e configura i **collider** e le **zone di trigger/aiuto** per lo scivolo (“chute”) della claw machine.
+* **Parametri:**
+
+  * `chuteChild: THREE.Mesh` – la mesh del chute.
+  * `model: THREE.Object3D` – root del modello claw.
+* **Dettagli:**
+
+  * Costruisce un box invisibile per fisica con **MeshBVH** e lo registra nei collider statici.
+  * Crea un `triggerVolume` (verde trasparente) e un `finalPrizeHelper` (rosso trasparente) per rilevare passaggi/cadute dei premi.
+* **Ritorno:** `void`.
+* **Effetti:** aggiunge 2 mesh helper visibili (se non cambi `visible`).
+
+### `setupJoystickPivot()`
+
+* **Cosa fa:** crea un **pivot** (THREE.Group) esattamente alla base del joystick e vi “attacca” la mesh del joystick; serve per rotazioni realistiche attorno al perno.
+* **Prerequisito:** `this.joystickMesh` deve essere già individuata in `loadMachine()`.
+* **Ritorno:** `void`.
+* **Effetti:** aggiunge `joystickPivot` alla `scene` e vi attacca il joystick.
+
+### `loadClaw()`
+
+* **Cosa fa:** carica il modello GLB della **claw** (artiglio con cilindri dita), abilita ombre, mappa ossa/cilindri per lettera (A/B/C), costruisce BVH sui cilindri, aggiunge alla scena, segnala completamento.
+* **Ritorno:** `Promise<{ clawGroup, clawBones, cylinders, allClawCylinders }>`
+* **Effetti:**
+
+  * Setta `clawLoaded = true`.
+  * Aggiunge la claw alla `scene`.
+  * Invoca `onMachineLoadCallbacks.claw`.
+* **Note:** l’associazione cilindri usa nomi precisi nel GLB (`Cylinder`, `Cylinder003`, `Cylinder008` → A/B/C).
+
+### `loadCandyMachine()`
+
+* **Cosa fa:** carica la **candy machine**, la scala e posiziona, abilita ombre, applica BVH/collider a tutte le mesh **tranne** un’esclusa (`Object_2`, il contenitore), trova la porta di rilascio (`Object_3`), istanzia `CandyMachine`, imposta la porta e popola il contenitore con sfere (“caramelle”).
+* **Ritorno:** `Promise<{ model, candyMachine, candyContainerMesh, releaseDoorMesh }>`
+* **Effetti:**
+
+  * Aggiunge il modello alla `scene`.
+  * Registra collider statici nelle mesh non escluse.
+  * Chiama `cameraManager.setFirstPersonReference('candy_machine', ...)`.
+  * Invoca `onMachineLoadCallbacks.candyMachine`.
+* **Note:** crea una `SphereGeometry` per le caramelle (r=0.12) con BVH; chiama `candyMachine.populate(container, 20, geometry, scene)`.
+
+### `setupInteractionZones(onZoneEnter, onZoneExit)`
+
+* **Cosa fa:** crea due **InteractionZone** (claw e candy) centrate sugli offset delle macchine con raggio 2.5, registra i callback e le restituisce.
+* **Parametri:** `onZoneEnter(zone)`, `onZoneExit(zone)`.
+* **Ritorno:** `InteractionZone[]` (e aggiorna `this.interactionZones`).
+* **Uso tipico:** per abilitare prompt/azioni quando il player si avvicina.
+
+### `checkInteractionZones(playerController)`
+
+* **Cosa fa:** interroga tutte le zone chiamando `zone.checkPlayer(playerPos)`.
+* **Parametri:** `playerController` deve esporre `getPosition(): THREE.Vector3`.
+* **Ritorno:** `void`.
+* **Effetti:** può invocare `onZoneEnter`/`onZoneExit` delle zone; non cambia direttamente `currentZone`.
+
+### `async loadAllMachines()`
+
+* **Cosa fa:** carica **in parallelo** claw machine, claw e candy machine, e restituisce un oggetto con i tre risultati.
+* **Ritorno:** `Promise<{ clawMachine, claw, candyMachine }>`
+* **Note:** se uno dei tre `Promise` fallisce, la `Promise` complessiva va in `catch` (re-throw).
+
+### `onMachineLoad(machineType, callback)`
+
+* **Cosa fa:** registra un callback da eseguire **dopo** il caricamento di un certo sotto-sistema.
+* **Parametri:**
+
+  * `machineType: 'clawMachine'|'claw'|'candyMachine'` (attenzione alle **chiavi esatte**).
+  * `callback: () => void`.
+* **Ritorno:** `void`.
+* **Quando viene chiamato il callback:**
+
+  * `loadMachine()` → `'clawMachine'`
+  * `loadClaw()` → `'claw'`
+  * `loadCandyMachine()` → `'candyMachine'`
+
+### `getClawMachineComponents()`
+
+* **Cosa fa:** espone un “pacchetto” di referenze utili per compatibilità con altri moduli (gruppi, mesh, helper, flag).
+* **Ritorno:** oggetto con molte proprietà (clawGroup, clawTopBox, chuteMesh, clawBones, cylinders, allClawCylinders, joystickMesh, buttonMesh, joystickPivot, candyMachine, clawLoaded, triggerVolume, finalPrizeHelper).
+
+### `getInteractionZones()`
+
+* **Cosa fa:** restituisce l’array corrente delle zone.
+* **Ritorno:** `InteractionZone[]`.
+
+### `getCurrentZone()`
+
+* **Cosa fa:** restituisce la zona “corrente” (se la gestisci tu altrove).
+* **Ritorno:** `InteractionZone|null`.
+
+### `setCurrentZone(zone)`
+
+* **Cosa fa:** imposta manualmente la zona corrente.
+* **Parametri:** `zone: InteractionZone|null`.
+* **Ritorno:** `void`.
+
+---
+
+## Note pratiche e consigli
+
+* **Ordine di inizializzazione consigliato:**
+
+  1. `initialize(scene, physics, cameraManager)`
+  2. `createGameRoom()`
+  3. `loadAllMachines()` (o singoli `load*`)
+  4. `setupInteractionZones(onEnter, onExit)`
+  5. in game loop: `checkInteractionZones(playerController)`
+
+* **Nomi mesh dipendenti dai GLB:** alcune funzioni cercano nodi per `name` (es. “Joystick”, “Button”, “polySurface42\_blinn4\_0”, “Object\_2”). Se i GLB cambiano, aggiorna questi nomi.
+
+* **Physics/BVH:** il codice assume che `physicsEngine` gestisca `addStaticCollider(mesh)` e che `MeshBVH` sia disponibile. Se cambi geometrie dopo aver creato il BVH, ricostruiscilo.
+
+* **First-person camera:** il posizionamento “utente/macchina” si appoggia a `cameraManager.setFirstPersonReference(...)` quando trova i mesh giusti (joystick per claw; container per candy).
+
+
+
+*/

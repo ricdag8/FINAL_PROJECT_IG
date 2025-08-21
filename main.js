@@ -1,20 +1,14 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RigidBody, PhysicsEngine } from './physics_engine.js';
+import { RigidBody } from './physics_engine.js';
 import { Vec3 } from './physics_engine_vec3.js';
 import { ClawController } from './claw_controller.js';
 import { GrabbableObjectsInteraction } from './grabbable_objects_interaction.js';
-import { MeshBVH, MeshBVHHelper } from 'https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js';
-import { CandyMachine } from './candy_machine.js';
-import { CameraManager, CameraUtils } from './Camera_manager.js';
-import { PlayerController, PlayerInputHandler, PlayerTestUtils } from './Player_controller.js';
-import { LightingManager } from './Lightning_manager.js';
-import { RoomSetupManager, InteractionZone } from './Room_setup.js';
-import { HomepageManager } from './Homepage.js';
-import { AudioManager } from './AudioManager.js';
-import { PopcornManager } from './popcorn.js';
-import { initializeExtras, getExtrasState, togglePopcornMode, updateCeilingPopcorn, startLightShow, updateLightShow, toggleDiscoMode, updateDiscoLights } from './extras.js';
+import { MeshBVH } from 'https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js';
+import { CameraUtils } from './Camera_manager.js';
+import { PlayerInputHandler } from './Player_controller.js';
+import { getExtrasState, startLightShow, updateLightShow, updateDiscoLights, updateCeilingPopcorn } from './extras.js';
+import { initializeGame } from './game_initialization.js';
 
 // 🆕 ROOM SETUP AND MACHINE LOADING NOW MOVED TO Room_setup.js
 
@@ -77,6 +71,12 @@ let isGameOver = false;
 
 let popcornManager;
 let popcornSpawnPoint;
+
+// Function to update popcornManager when it's loaded asynchronously
+window.updatePopcornManager = function(newPopcornManager) {
+    console.log('Updating global popcornManager reference:', newPopcornManager);
+    popcornManager = newPopcornManager;
+};
 
 // --- Make newGame function available globally ---
 window.newGame = newGame;
@@ -233,7 +233,7 @@ function createExplosion(position, color = new THREE.Color(0xffdd00)) {
     scene.add(explosion);
 }
 
-// Funzione per animare le esplosioni attive
+
 function updateExplosions(deltaTime) {
     const gravity = 5.0;
 
@@ -269,7 +269,7 @@ function updateExplosions(deltaTime) {
     });
 }
 
-   // in bbox.html
+
 
 function startPrizeAnimation(body) {
     
@@ -282,7 +282,7 @@ function startPrizeAnimation(body) {
 
     animatingPrizes.push({
         body: body,
-        state: 'moving_out', // Stato iniziale: uscita dalla macchina
+        state: 'moving_out', // update the state
     });
 }
 
@@ -298,27 +298,27 @@ function updatePrizeAnimations(deltaTime) {
         const mesh = body.mesh;
         
         switch (prize.state) {
-            // State 1: The star moves out of the machine
+            //  The star moves out of the machine
             case 'moving_out':
-                // CORRECT: We now animate the physics body's position.
+                // We now animate the physics body's position.
                 body.position.z += moveSpeed * deltaTime;
                 if (body.position.z >= targetZ) {
-                    prize.state = 'choose_destruction'; // Move to the selection state
+                    prize.state = 'choose_destruction'; // move to the selection state
                 }
                 break;
             
-            // State 2: Randomly choose a destruction animation
+            // we choose an animation
             case 'choose_destruction':
                 const animations = ['explode', 'shrink', 'fly_up'];
                 const choice = animations[Math.floor(Math.random() * animations.length)];
 
                 if (choice === 'explode') {
-                    // CORRECT: Use the body's position for the explosion.
+
                     createExplosion(body.position, mesh.material.color);
                     scene.remove(mesh);
-                    prize.state = 'disappeared'; // Animation is instant
+                    prize.state = 'disappeared'; 
                 } else {
-                    mesh.material.transparent = true; // Required for fading
+                    mesh.material.transparent = true; 
                     if (choice === 'shrinking') {
                         prize.state = 'shrinking';
                     } else { // fly_up
@@ -327,10 +327,10 @@ function updatePrizeAnimations(deltaTime) {
                 }
                 break;
 
-            // State 3a: Shrink and fade animation (No position change, this is fine)
+
             case 'shrinking':
-                mesh.scale.multiplyScalar(1 - (deltaTime * 2.5)); // Shrink over ~0.4s
-                mesh.material.opacity -= deltaTime * 2;           // Fade over 0.5s
+                mesh.scale.multiplyScalar(1 - (deltaTime * 2.5)); 
+                mesh.material.opacity -= deltaTime * 2;           
 
                 if (mesh.scale.x < 0.001) {
                     scene.remove(mesh);
@@ -338,11 +338,11 @@ function updatePrizeAnimations(deltaTime) {
                 }
                 break;
 
-            // State 3b: Fly up and fade animation
+
             case 'flying_up':
-                // CORRECT: Animate the physics body's Y position.
-                body.position.y += deltaTime * 3.0;     // Fly up fast
-                mesh.material.opacity -= deltaTime * 1.5; // Fade out over ~0.6s
+
+                body.position.y += deltaTime * 3.0;    
+                mesh.material.opacity -= deltaTime * 1.5; 
 
                 if (mesh.material.opacity <= 0) {
                     scene.remove(mesh);
@@ -455,7 +455,7 @@ function updateCandyAnimations(deltaTime) {
 function checkFinalPrizeTrigger() {
     if (!finalPrizeHelper || !grabbableObjects) return;
 
-    const helperBox = new THREE.Box3().setFromObject(finalPrizeHelper);
+    const helperBox = new THREE.Box3().setFromObject(finalPrizeHelper); //this is basically the second trigger, which allows the star to drop
 
     grabbableObjects.forEach(objData => {
         const body = objData.body;
@@ -465,16 +465,16 @@ function checkFinalPrizeTrigger() {
             const bodyBox = new THREE.Box3().setFromObject(body.mesh);
 
             if (helperBox.intersectsBox(bodyBox)) {
-                // Blocca la stella e ferma immediatamente il suo movimento
+                // when the star approaches the helper box, then it completely stop its movement, it becomes a still body
                 body.isBlocked = true;
                 body.linearVelocity.set(0, 0, 0);
                 body.angularVelocity.set(0, 0, 0);
                 body.isSleeping = false;
                 body.hasTouchedClaw = false;
-                body.canFallThrough = false;
+                body.canFallThrough = false; //the star can basically do nothing, it becomes a still body 
 
-                // Avvia l'animazione del premio
-                startPrizeAnimation(body);
+
+                startPrizeAnimation(body); // then once we've set all the conditions, we stop the star 
             }
         }
     });
@@ -484,27 +484,23 @@ function checkFinalPrizeTrigger() {
 
 
 
-
+//this instead is the first helper, that is used in order to let the star fall in the second helper
+//more in detail this function is needed in order to let the star fall through the machine box
 function checkChuteTrigger() {
     if (!triggerVolume || !grabbableObjects || grabbableObjects.length === 0) {
-        return; // Assicurati che tutto sia stato caricato
+        return; //we just do some safety checks in order to avoid errors
     }
 
-    const triggerBox = new THREE.Box3().setFromObject(triggerVolume);
-    
-    // Only log when there are active objects to check
-    let activeObjects = grabbableObjects.filter(obj => obj.body && !obj.body.canFallThrough);
-    
-    if (activeObjects.length > 0) {
-        console.log('checkChuteTrigger: checking', activeObjects.length, 'active objects');
-        console.log('triggerBox bounds:', triggerBox.min, triggerBox.max);
-    }
+      //triggerVolume -> the invisible trigger zone mesh must be loaded
+      //grabbableObjects ->  array of stars must exist and contain items
+
+    const triggerBox = new THREE.Box3().setFromObject(triggerVolume); //we define the trigger volume
 
     let foundCollisions = 0;
     grabbableObjects.forEach((objData, index) => {
         const body = objData.body;
 
-        // Controlla solo gli oggetti che non sono già stati autorizzati a cadere
+        // check only if objects have been authorized to fall
         if (body && !body.canFallThrough) {
             const bodyBox = new THREE.Box3().setFromObject(body.mesh);
             
@@ -520,7 +516,7 @@ function checkChuteTrigger() {
             // Se la bounding box della stella interseca quella dell'helper...
             if (triggerBox.intersectsBox(bodyBox)) {
 
-                body.canFallThrough = true; // ...imposta il flag per farla cadere.
+                body.canFallThrough = true; //if the star intersect the chute, then it can fall
                 foundCollisions++;
             }
         }
@@ -530,23 +526,25 @@ function checkChuteTrigger() {
 
 
 function tryInitializeClawController() {
-    // MODIFICATO: La condizione ora controlla 'joystickPivot', la variabile corretta.
+    //we check if all the components are loaded, and if so we initialize the claw controller
     if (clawLoaded && clawTopBox && joystickPivot && buttonMesh && !clawController) {
         objectsInteraction = new GrabbableObjectsInteraction(allClawCylinders);
         
-        // Passiamo il perno (joystickPivot) al costruttore
+        //we pass to the clawcontroller all the necessary components
         clawController = new ClawController(clawGroup, Object.values(cylinders), clawBones, scene, objectsInteraction, physicsEngine, grabbableObjects, joystickPivot, buttonMesh);
-        
-        clawController.setDependencies(clawTopBox, chuteMesh);
 
-        // Questa parte aggiunge gli oggetti al sistema di interazione
+        clawController.setDependencies(clawTopBox, chuteMesh); //we set the dependencies for the claw controller, by adding the chute mesh
+        //we basically link each element of the claw controller to the physics engine and we link them together
+
+        //we add all grabbable objects to the interaction system, so this
+        //allows the claw controller to interact with them
         grabbableObjects.forEach(objData => {
             if (objData.body) {
                 objectsInteraction.addGrabbableObject(objData.body, objData.name);
             }
         });
         
-        // 🆕 LINK CANDY MACHINE TO CLAW CONTROLLER
+
         if (candyMachine && clawController) {
             candyMachine.setClawController(clawController);
         }
@@ -561,13 +559,16 @@ function resetObjects() {
     const size = new THREE.Vector3();
     clawTopBox.getSize(size);
 
-    // Get the chute's bounding box to avoid spawning objects inside it.
+    //we don't want objects to spawn inside the chute
     const chuteBox = chuteMesh ? new THREE.Box3().setFromObject(chuteMesh) : null;
-    const starRadius = 0.2; // A safe radius to check against the chute.
+    const starRadius = 0.2; //we add a sef radius to not let the stars spawn inside the chute
 
     const spawnAreaWidth = size.x * 0.7;
     const spawnAreaDepth = size.z * 0.9;
 
+    // we will spawn objects in a grid-like pattern, centered around the claw machine, in order not to overlap with the chute
+    //i did this because i wanted to create a more organized spawning system that did not spawn stars at random, more in particular i didn't want
+    //stars to spawn inside the chute, so i created a grid-like system that spawns stars in a grid around the chute, or at least stars go to a grid like structure when we have a lot of them
     const itemsPerLayer = 10;
     const cols = 5;
     const rows = 2;
@@ -575,15 +576,15 @@ function resetObjects() {
     const spacingZ = spawnAreaDepth / (rows > 1 ? rows - 1 : 1);
     const layerHeight = 0.25;
 
-    // The starting point for the grid, calculated from the center.
+    
     const startX = center.x - spawnAreaWidth / 2;
-    // IMPORTANT: Make sure the spawn area is on the opposite side of the chute.
-    // Assuming chute is at max Z, we spawn starting from min Z.
+    // we make the stars spawn on the top left corner of the claw machine, not on the chute
     const startZ = clawTopBox.min.z + 0.3; 
     const baseY = clawTopBox.min.y + 0.1;
 
     animatingPrizes = [];
     activeExplosions.forEach(exp => scene.remove(exp));
+    //we cleanup the scene after initializing or resetting 
     activeExplosions = [];
 
     grabbableObjects.forEach((objData, idx) => {
@@ -642,227 +643,47 @@ function updateScoreDisplay() {
 
 
 function init() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a1a2e); // Colore più scuro per una sala giochi
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
-  
-
-  audioManager = new AudioManager();
-  audioManager.initialize(camera);
-
-  audioManager.loadSound('prizeWin', 'sounds/success-1-6297.mp3');
-  audioManager.loadSound('prizeWin', 'sounds/goodresult-82807.mp3');
-  audioManager.loadSound('prizeWin', 'sounds/winner-bell-game-show-91932.mp3');
-
-
-  audioManager.loadSound('arcade', 'sounds/background music/bgm-arcade.mp3', 0.2, true);
-  audioManager.loadSound('neon', 'sounds/background music/bgm-neon.mp3', 0.2, true);
-  audioManager.loadSound('warm', 'sounds/background music/bgm-warm.mp3', 0.2, true);
-  audioManager.loadSound('cool', 'sounds/background music/bgm-cool.mp3', 0.8, true);
-  audioManager.loadSound('dark', 'sounds/background music/bgm-dark.mp3', 0.2, true);
-  
-
-  audioManager.loadSound('Businessman_wave', 'sounds/character/businessman_hello.mp3', 0.8);
-  audioManager.loadSound('Hoodie_wave', 'sounds/character/hoodie_hey.mp3', 0.8);
-  audioManager.loadSound('Worker_wave', 'sounds/character/worker_hey.mp3', 0.8);
-  
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  
-  // 🆕 SHADOW SETUP NOW HANDLED BY LightingManager
-  
-  document.body.appendChild(renderer.domElement);
-  
-  // 🆕 INIT PHYSICS ENGINE FIRST
-  physicsEngine = new PhysicsEngine();
-  
-  // 🆕 SETUP PLAYER SYSTEM (but don't load character yet) - Pass AudioManager
-  playerController = new PlayerController(scene, physicsEngine, roomSetupManager, audioManager);
-  
-  // 🆕 SETUP CAMERA SYSTEM (without target initially)
-  cameraManager = new CameraManager(camera);
-  cameraManager.initialize(scene);
-  
-  // 🆕 SETUP HOMEPAGE MANAGER - Pass AudioManager
-  homepageManager = new HomepageManager(playerController, cameraManager, initializeGame, audioManager);
-  
-  // 🆕 DISABLE ORBIT CONTROLS IN EXPLORATION MODE
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enabled = false; // Disabled by default, will be enabled only in machine modes
-  
-  // 🆕 INITIALIZE ROOM SETUP MANAGER
-  roomSetupManager = new RoomSetupManager();
-  roomSetupManager.initialize(scene, physicsEngine, cameraManager);
-  
-  // 🆕 GET MACHINE POSITIONS FROM ROOM MANAGER
-  machineOffset = roomSetupManager.getMachineOffset();
-  candyMachineOffset = roomSetupManager.getCandyMachineOffset();
-  
-  // 🆕 SETUP INTERACTION ZONES
-  interactionZones = roomSetupManager.setupInteractionZones(onZoneEnter, onZoneExit);
-  
-  // 🆕 SETUP UI ELEMENTS
-  interactionPrompt = document.getElementById('interactionPrompt');
-  
-  // 🆕 INITIALIZE LIGHTING MANAGER
-  lightingManager = new LightingManager();
-  lightingManager.initialize(scene, machineOffset, candyMachineOffset);
-  lightingManager.setupShadows(renderer);
-  lightingManager.setupLighting();
-  lightingManager.setupLightControls();
-  
-  // 🆕 INITIALIZE EXTRAS SYSTEM
-  initializeExtras({
-    scene: scene,
-    lightingManager: lightingManager,
-    physicsEngine: physicsEngine
-  });
-  
-  // 🆕 SET GLOBAL REFERENCE FOR COMPATIBILITY
-  lightReferences = lightingManager.getLightReferences();
-  
-  // 🆕 CREATE GAME ROOM AND LOAD MACHINES
-  roomSetupManager.createGameRoom();
-  
-  // 🆕 LINK ROOM MATERIALS TO LIGHTING MANAGER
-  const roomMaterials = roomSetupManager.getRoomMaterials();
-  lightingManager.setRoomMaterials(roomMaterials);
-  
-  // 🆕 LINK PAINTING LIGHTS TO LIGHTING MANAGER
-  const paintingLights = roomSetupManager.getPaintingSpotlights();
-  lightingManager.addPaintingLights(paintingLights);
-  
-         // 🆕 LOAD ALL MACHINES ASYNCHRONOUSLY
-   roomSetupManager.loadAllMachines().then((results) => {
-       setupCompatibilityReferences();
-     
-       
-       // 🆕 SET CANDY MACHINE CALLBACK
-       if (candyMachine) {
-           candyMachine.onCandyEjected = startCandyDisappearanceAnimation;
-       }
-
-
-   // =================== 🍿 INSERISCI QUESTO BLOCCO QUI ===================
-// in bbox.html, nel .then() di loadAllMachines
-
-// =================== 🍿 SOSTITUISCI IL VECCHIO BLOCCO CON QUESTO ===================
-// =================== 🍿 SOSTITUISCI IL VECCHIO BLOCCO CON QUESTO ===================
-const loader = new GLTFLoader();
-loader.load('glbmodels/popcorn_machine.glb', (gltf) => {
-    const popcornMachineMesh = gltf.scene;
-    popcornMachineMesh.scale.set(0.5, 0.5, 0.5);
-    popcornMachineMesh.position.set(-3, 0.7, -2);
-    popcornMachineMesh.rotation.y = Math.PI / 2;
-    scene.add(popcornMachineMesh);
-    popcornMachineMesh.updateMatrixWorld(true);
-    let firstMeshFallback = null;
-    let popcornContainerMesh = null;
-    let popcornSpawnPoint = null;
-
-    popcornMachineMesh.traverse(child => {
-        if (child.isMesh) {
-            // 🍿 EXCLUDE SPECIFIC MESH FROM COLLISION
-            const excludedMeshes = ['Cylinder056_07_-_Default_0']; // Mesh to ignore for collision
-            const shouldAddCollision = !excludedMeshes.includes(child.name);
-            
-            child.geometry.computeVertexNormals();
-            child.geometry.boundsTree = new MeshBVH(child.geometry);
-            
-            if (shouldAddCollision) {
-                physicsEngine.addStaticCollider(child);
-            }
-
-            if (child.name === 'Cylinder042__0') {
-                popcornSpawnPoint = child;
-            }
-            if (child.name === 'Box002_09_-_Default_0') {
-                popcornContainerMesh = child;
-            }
-            if (!firstMeshFallback) {
-                firstMeshFallback = child;
-            }
-        }
+    // Initialize the game using the new initialization system
+    const initializedSystems = initializeGame({
+        // Dependencies that the initialization system needs
+        setupCompatibilityReferences: () => setupCompatibilityReferences(),
+        startCandyDisappearanceAnimation: (candyBody) => startCandyDisappearanceAnimation(candyBody),
+        setupPhysicsAndObjects: () => setupPhysicsAndObjects(),
+        positionClaw: () => positionClaw(),
+        tryInitializeClawController: () => tryInitializeClawController(),
+        onZoneEnter: (zone) => onZoneEnter(zone),
+        onZoneExit: (zone) => onZoneExit(zone),
+        onWindowResize: () => onWindowResize(),
+        animate: () => animate(),
+        initializeGameCallback: initializeGameLogic,
+        // References to global variables for compatibility
+        get candyMachine() { return candyMachine; }
     });
-
-    if (!popcornSpawnPoint) {
-        popcornSpawnPoint = firstMeshFallback;
-    }
-
-    let finalContainer = popcornContainerMesh;
-
-    if (popcornContainerMesh) {
-        const originalBox = new THREE.Box3().setFromObject(popcornContainerMesh);
-        const originalSize = new THREE.Vector3();
-        const originalCenter = new THREE.Vector3();
-        originalBox.getSize(originalSize);
-        originalBox.getCenter(originalCenter);
-// Per modificare SOLO l'altezza (Y), usa questo codice:
-const newSize = originalSize.multiplyScalar(0.9).clone(); // Crea una copia per non toccare le dimensioni originali
-newSize.y *= 0.5; // Esempio: imposta l'altezza al 50% dell'originale
-originalCenter.y += 0.37;
-const smallerGeometry = new THREE.BoxGeometry(newSize.x, newSize.y, newSize.z);
-
-        // Create invisible container for physics bounds only
-        const invisibleMaterial = new THREE.MeshBasicMaterial({ visible: false });
-        const smallerContainerHelper = new THREE.Mesh(smallerGeometry, invisibleMaterial);
-
-        smallerContainerHelper.position.copy(originalCenter);
-        smallerContainerHelper.quaternion.copy(popcornContainerMesh.quaternion);
-        
-        scene.add(smallerContainerHelper);
-        finalContainer = smallerContainerHelper;
-
-
-    } else {
-    }
-
-    if (popcornSpawnPoint) {
-        popcornManager = new PopcornManager({
-            scene: scene,
-            spawnMesh: popcornSpawnPoint,
-            containerMesh: finalContainer,
-            count: 100
-        });
-    } else {
-    }
-
-}, undefined, (error) => {
-});
-// ======================================================================================
-
-
-       
-       setupPhysicsAndObjects();
-       positionClaw();
-       tryInitializeClawController();
-
-       // Hide the loading screen now that assets are ready
-       const loadingScreen = document.getElementById('loadingScreen');
-       if (loadingScreen) {
-           loadingScreen.style.display = 'none';
-       }
-
-       // 🆕 SHOW CHARACTER SELECTION via HomepageManager
-       homepageManager.showCharacterSelection();
-
-   }).catch((error) => {
-   });
-  window.addEventListener('resize', onWindowResize);
-  
-  // 🆕 REMOVE INPUT LISTENERS - will be added after character selection
-  // document.addEventListener('keydown', handleKeyDown);
-  // document.addEventListener('keyup', handleKeyUp);
-  
-  // 🆕 INITIALIZE UI
-  // updateModeIndicator('exploration');
-  
-  // START THE ANIMATION LOOP IMMEDIATELY
-  animate();
+    
+    // Update global variables with initialized systems
+    scene = initializedSystems.scene;
+    camera = initializedSystems.camera;
+    renderer = initializedSystems.renderer;
+    controls = initializedSystems.controls;
+    physicsEngine = initializedSystems.physicsEngine;
+    audioManager = initializedSystems.audioManager;
+    lightingManager = initializedSystems.lightingManager;
+    roomSetupManager = initializedSystems.roomSetupManager;
+    playerController = initializedSystems.playerController;
+    cameraManager = initializedSystems.cameraManager;
+    homepageManager = initializedSystems.homepageManager;
+    popcornManager = initializedSystems.popcornManager;
+    machineOffset = initializedSystems.machineOffset;
+    candyMachineOffset = initializedSystems.candyMachineOffset;
+    interactionZones = initializedSystems.interactionZones;
+    interactionPrompt = initializedSystems.interactionPrompt;
+    lightReferences = initializedSystems.lightReferences;
+    
+    // Start animation loop after all systems are initialized
+    animate();
 }
 
-// 🆕 SETUP COMPATIBILITY REFERENCES
+
 function setupCompatibilityReferences() {
     const components = roomSetupManager.getClawMachineComponents();
     
@@ -883,8 +704,8 @@ function setupCompatibilityReferences() {
     
 }
 
-// 🆕 GAME START LOGIC (now using HomepageManager)
-function initializeGame() {
+
+function initializeGameLogic() {
     // 🆕 Rendi visibile l'interfaccia di gioco
     document.getElementById('controls').style.display = 'block';
     document.getElementById('modeIndicator').style.display = 'block';
@@ -915,23 +736,23 @@ function initializeGame() {
 function handleChangeCharacter() {
     if (!playerController) return;
 
-    // Hide the menu but keep the game paused
+    // hide the menu but keep the game paused
     const pauseMenu = document.getElementById('pauseMenu');
     pauseMenu.style.display = 'none';
     isGamePaused = true;
 
     playerController.playDeathAnimation(() => {
-        // Make the old character invisible instead of removing it.
+        // make the old character invisible instead of removing it.
         if (playerController.mesh) {
             playerController.mesh.visible = false;
         }
         
-        // Show character selection screen again
+        // show character selection screen again
         homepageManager.showCharacterSelection();
     });
 }
 
-// 🆕 ZONE EVENT HANDLERS
+
 function onZoneEnter(zone) {
     currentZone = zone;
     roomSetupManager.setCurrentZone(zone);
@@ -944,7 +765,7 @@ function onZoneExit(zone) {
     hideInteractionPrompt();
 }
 
-// 🆕 UI MANAGEMENT FUNCTIONS
+
 function showInteractionPrompt(machineType) {
     if (interactionPrompt) {
         const machineName = machineType === 'claw_machine' ? 'Claw Machine' : 'Candy Machine';
@@ -988,7 +809,7 @@ function updateModeIndicator(mode) {
     }
 }
 
-// Make updateModeIndicator available globally for extras.js
+
 window.updateModeIndicator = updateModeIndicator;
 
 
@@ -997,10 +818,10 @@ function setupPhysicsAndObjects() {
     const margin = 0.15;
     const floorOffset = 0.10; 
     
-    // Set the specific bounds for prizes within the claw machine.
+    // set the specific bounds for prizes within the claw machine.
     physicsEngine.setPrizeBounds(clawTopBox);
     
-    // 🆕 ESPANDI I BOUNDS per includere entrambe le posizioni delle macchine
+
     const expandedMin = new Vec3(
         -10, // Espandi per includere la candy machine a sinistra
         clawTopBox.min.y - floorOffset, 
@@ -1011,29 +832,132 @@ function setupPhysicsAndObjects() {
         clawTopBox.max.y - margin, 
         clawTopBox.max.z - margin
     );
+
+
+
+
+/** ⏺ Let me explain why these expanded bounds are necessary by looking at what would happen without them:
+  What World Bounds Do:
+
+  The physics engine uses worldBounds to create invisible walls that prevent objects from falling into the void.
+
+  Look at this code from physics_engine.js:
+  if (this.worldBounds) this.handleCollisions();
+
+  The physics engine collides objects with these boundaries like invisible walls.
+
+  Why Just clawTopBox Isn't Enough:
+
+  Scenario 1: Player Movement
+
+  Player walks from [Claw Machine] → [Candy Machine]
+  - With only clawTopBox: Player hits invisible wall at X=0, can't reach candy machine
+  - With expanded bounds: Player can move freely across entire room
+
+  Scenario 2: Objects Falling from Claw
+
+  Star falls from claw and bounces toward candy machine area
+  - With only clawTopBox: Star hits invisible wall and gets stuck
+  - With expanded bounds: Star can bounce naturally around the room
+
+  Scenario 3: Candy Machine Objects
+
+  Candies dispense from candy machine at X=-5
+  - With only clawTopBox: Candies immediately fall through the floor (no physics bounds)
+  - With expanded bounds: Candies can exist and be collected
+
+  The Two-Boundary System:
+
+  physicsEngine.setPrizeBounds(clawTopBox);        // Stars stay inside claw machine
+  physicsEngine.setWorldBounds(expandedMin, expandedMax); // Everything else uses room bounds
+
+  - prizeBounds: Tight boundaries for stars (keeps them in claw machine)
+  - worldBounds: Room-wide boundaries for everything else (player, candies, fallen objects)
+
+  Without Expanded Bounds:
+
+  - Player can't explore the full room
+  - Objects disappear when they leave the claw machine
+  - Candy machine doesn't work properly
+  - No physics collision with room walls
+
+  The expanded bounds create the "physics room" that matches the visual room the player sees.
+
+⏺ Now I understand the physics system! Let me explain exactly why the expanded bounds are needed:
+
+  What World Bounds Do:
+
+  The physics engine uses worldBounds to create invisible walls that prevent objects from falling into the void.
+
+  Look at this code from physics_engine.js:
+  if (this.worldBounds) this.handleCollisions();
+
+  The physics engine collides objects with these boundaries like invisible walls.
+
+  Why Just clawTopBox Isn't Enough:
+
+  Scenario 1: Player Movement
+
+  Player walks from [Claw Machine] → [Candy Machine]
+  - With only clawTopBox: Player hits invisible wall at X=0, can't reach candy machine
+  - With expanded bounds: Player can move freely across entire room
+
+  Scenario 2: Objects Falling from Claw
+
+  Star falls from claw and bounces toward candy machine area
+  - With only clawTopBox: Star hits invisible wall and gets stuck
+  - With expanded bounds: Star can bounce naturally around the room
+
+  Scenario 3: Candy Machine Objects
+
+  Candies dispense from candy machine at X=-5
+  - With only clawTopBox: Candies immediately fall through the floor (no physics bounds)
+  - With expanded bounds: Candies can exist and be collected
+
+  The Two-Boundary System:
+
+  physicsEngine.setPrizeBounds(clawTopBox);        // Stars stay inside claw machine
+  physicsEngine.setWorldBounds(expandedMin, expandedMax); // Everything else uses room bounds
+
+  - prizeBounds: Tight boundaries for stars (keeps them in claw machine)
+  - worldBounds: Room-wide boundaries for everything else (player, candies, fallen objects)
+
+  Without Expanded Bounds:
+
+  - Player can't explore the full room
+  - Objects disappear when they leave the claw machine
+  - Candy machine doesn't work properly
+  - No physics collision with room walls
+
+  The expanded bounds create the "physics room" that matches the visual room the player sees.*/
+
+
+
+
+
     
     physicsEngine.setWorldBounds(expandedMin, expandedMax);
     
     // Load multiple objects
-    const objectsToLoad = [
-        { file: 'glbmodels/star_prize.glb', name: 'Star', scale: 0.16, targetMeshName: 'star' },
-        //file: 'perfect_football__soccer_ball.glb', name: 'Ball', scale: 0.003, targetMeshName: null }
-    ];
+    // const objectsToLoad = [
+    //     { file: 'glbmodels/star_prize.glb', name: 'Star', scale: 0.16, targetMeshName: 'star' },
+    //     //file: 'perfect_football__soccer_ball.glb', name: 'Ball', scale: 0.003, targetMeshName: null }
+    // ];
     
-    let loadedCount = 0;
+    // let loadedCount = 0;
     const loader = new GLTFLoader();
-    /* carica il modello star_prize.glb UNA volta */
+   
 
 loader.load('glbmodels/star_prize.glb', (gltf) => {
 
-/* 0. trova la mesh "star" */
+
 let starMesh;
 gltf.scene.traverse(node => {
     if (node.isMesh && node.name.toLowerCase().includes('star')) starMesh = node;
 });
 if (!starMesh) { return; }
 
-/* 1. prepara BVH e bounding box sulla mesh originale */
+//we prepare meshbvh
 starMesh.geometry.computeVertexNormals();
 starMesh.geometry.computeBoundingBox();
 starMesh.geometry.boundsTree = new MeshBVH(starMesh.geometry);
@@ -1042,27 +966,26 @@ starMesh.geometry.boundsTree = new MeshBVH(starMesh.geometry);
 const STAR_COUNT = 20;
 for (let i = 0; i < STAR_COUNT; i++) {
 
-// a) clona la mesh (con geometria condivisa)
+
 const mesh = i === 0 ? starMesh : starMesh.clone();
 
-// --- MODIFICATION: Give each star its own material instance ---
+// give each star its own material instance ---
 mesh.material = starMesh.material.clone();
 
 mesh.name = `Star_${i}`;
 mesh.scale.setScalar(0.16);
 scene.add(mesh);
 
-// b) rigid-body
+// rigid-body
 const body = new RigidBody(mesh, 1.0);
 physicsEngine.addBody(body);
 
-// c) registra per interazioni
+// register the body and mesh in the grabbableObjects array
 grabbableObjects.push({ body, name: mesh.name });
 objectsInteraction?.addGrabbableObject(body, mesh.name);
 }
 
 
-/* 3. posiziona e sveglia tutto */
 resetObjects();
 tryInitializeClawController();
 }, undefined, err => {});
@@ -1081,8 +1004,8 @@ function positionClaw() {
   );
   clawGroup.position.copy(startPos);
   
-  // 🆕 AGGIORNA IL TARGET DEI CONTROLLI per centrare la vista
-  const center = new THREE.Vector3(0, 1, 0); // Centro tra le macchine
+
+  const center = new THREE.Vector3(0, 1, 0);
   controls.target.copy(center);
 }
 
@@ -1091,7 +1014,7 @@ function onWindowResize() {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   
-  // Also update the selection camera
+  // also update the selection camera
   if (homepageManager) {
     homepageManager.onWindowResize();
   }
@@ -1099,32 +1022,32 @@ function onWindowResize() {
 
 function animate() {
     requestAnimationFrame(animate);
-    const deltaTime = 1 / 60;
+    const deltaTime = 1 / 30;
 
-    // If the character selection screen is active, render its own scene.
+
     if (homepageManager && homepageManager.isActive) {
         homepageManager.update(deltaTime);
         renderer.render(homepageManager.selectionScene, homepageManager.selectionCamera);
-        return; // Stop here, don't render the main game
+        return;
     }
 
-    // 🆕 Always update the player's animation mixer, even when paused
+
     playerController?.updateAnimation(deltaTime);
 
     if (!isGamePaused) {
-      // 🆕 ALWAYS UPDATE CAMERA MANAGER (for transitions)
+
       cameraManager?.update(deltaTime);
       
-      // 🆕 UPDATE LIGHTING ANIMATIONS
+
       lightingManager?.update(deltaTime);
       
-      // ✨ UPDATE LIGHT SHOW (victory yellow flashing)
+
       const extrasState = getExtrasState();
       if (extrasState.lightShowActive) {
           updateLightShow(deltaTime);
       }
       
-      // 🎉 UPDATE DISCO LIGHTS (party mode)
+
       if (extrasState.discoMode) {
           updateDiscoLights(deltaTime);
       }
@@ -1133,12 +1056,12 @@ function animate() {
           popcornManager.update(deltaTime);
       }
       
-      // 🍿 UPDATE CEILING POPCORN WHEN IN POPCORN MODE
+
       updateCeilingPopcorn(deltaTime);
       
 
 
-      // 🆕 UPDATE DIFFERENT SYSTEMS BASED ON GAME MODE
+      // different game modes 
       switch(gameMode) {
           case 'exploration':
               // Update player in exploration mode
@@ -1150,8 +1073,8 @@ function animate() {
               // Update claw controller when in claw machine mode
               clawController?.update(deltaTime);
               objectsInteraction?.update();
-              
-              // 🆕 UPDATE TOP-DOWN CAMERA TO FOLLOW CLAW
+
+              //function to change the camera view from normal to claw
               if (camera.userData.followClaw && clawGroup) {
                   const clawPosition = clawGroup.position.clone();
                   const cameraHeight = 0.03;
@@ -1163,7 +1086,7 @@ function animate() {
                   camera.lookAt(clawPosition);
               }
               
-              // Check game over for claw machine
+              // check game over for claw machine
               if (coins <= 0 && clawController && !clawController.isAnimating && !isGameOver) {
                   isGameOver = true;
               }
@@ -1183,21 +1106,18 @@ function animate() {
               break;
       }
       
-      // 🆕 ALWAYS UPDATE THESE SYSTEMS
-      // Note: Camera updates are now handled by cameraManager in each mode
-      
-      // Animation systems (these work across all modes)
+    
       updatePrizeAnimations(deltaTime);
       updateCandyAnimations(deltaTime);
       updateExplosions(deltaTime);
       
-      // Physics engine (always running)
+
       physicsEngine?.update(deltaTime);
       
-      // UI updates
+
       updateGameUI();
       
-      // 🆕 ONLY UPDATE ORBIT CONTROLS WHEN ENABLED
+
       if (controls.enabled) {
           controls.update();
       }
@@ -1206,14 +1126,14 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-// 🆕 LIGHT CONTROL FUNCTIONS NOW MOVED TO Lightning_manager.js
 
-// 🆕 LIGHT PRESET FUNCTION (now uses LightingManager)
+
+// 
 window.applyLightPreset = function(presetName) {
     if (lightingManager) {
         lightingManager.applyLightPreset(presetName);
 
-        // 🆕 Play BGM based on preset
+
         if (audioManager) {
             if (presetName === 'dark') {
                 audioManager.stopAllBGM();
@@ -1225,22 +1145,21 @@ window.applyLightPreset = function(presetName) {
     }
 };
 
-// 🆕 INTERACTION ZONES AND UI MANAGEMENT NOW MOVED TO Room_setup.js
 
-// 🆕 MODE TRANSITION FUNCTIONS
+
+
 function enterMachineMode(machineType) {
     if (!cameraManager || !playerController?.mesh) return;
     
     gameMode = machineType;
     
-    // 🆕 HIDE PLAYER MODEL
+
     playerController.mesh.visible = false;
     
-    // Use the camera manager to switch to machine mode (FIRST PERSON)
+    // use the camera manager to switch view in first person 
     const targetMachineOffset = machineType === 'claw_machine' ? machineOffset : candyMachineOffset;
     cameraManager.switchToMachineMode(machineType, targetMachineOffset, () => {
-        // 🆕 NO ORBIT CONTROLS IN FIRST PERSON MODE
-        // controls.enabled = false; // Keep orbit controls disabled for first person
+      
         
         updateModeIndicator(machineType);
         hideInteractionPrompt();
@@ -1253,46 +1172,46 @@ function exitMachineMode() {
     const oldMode = gameMode;
     gameMode = 'exploration';
     
-    // 🆕 RESET CLAW CAMERA MODE
+
     clawCameraMode = 'normal';
     camera.userData.followClaw = false;
     normalCameraPosition = null;
     normalCameraTarget = null;
     
-    // 🆕 SHOW PLAYER MODEL
+
     playerController.mesh.visible = true;
     
-    // Disable machine controls
+    // disable machine controls
     controls.enabled = false;
     
-    // Use camera manager to switch back to exploration mode
+    // use camera manager to switch back to exploration mode
     cameraManager.switchToExplorationMode(playerController, () => {
         updateModeIndicator('exploration');
         
-        // Check if player is still in a zone
+        // check if player is still in a zone
         if (currentZone) {
             showInteractionPrompt(currentZone.machineType);
         }
     });
 }
 
-// 🆕 CLAW CAMERA MODE TOGGLE
+
 function toggleClawCameraMode() {
     if (gameMode !== 'claw_machine' || !cameraManager || !clawGroup) return;
     
     if (clawCameraMode === 'normal') {
-        // Save current camera position and target
+        // save current camera position and target
         normalCameraPosition = camera.position.clone();
         normalCameraTarget = new THREE.Vector3();
         camera.getWorldDirection(normalCameraTarget);
         normalCameraTarget.add(camera.position);
         
-        // Switch to top-down view
+        // switch to top-down view
         switchToTopDownView();
         clawCameraMode = 'top_down';
         updateModeIndicator('claw_machine');
     } else {
-        // Switch back to normal view
+        // switch back to normal view
         switchToNormalView();
         clawCameraMode = 'normal';
         updateModeIndicator('claw_machine');
@@ -1302,10 +1221,10 @@ function toggleClawCameraMode() {
 function switchToTopDownView() {
     if (!clawGroup) return;
     
-    // Get the claw's current position
+    // get the claw's current position
     const clawPosition = clawGroup.position.clone();
     
-    // Position camera above the claw
+    // position camera above the claw
     const cameraHeight = 1.5; // Height above the claw
     const cameraPos = new THREE.Vector3(
         clawPosition.x,
@@ -1313,18 +1232,18 @@ function switchToTopDownView() {
         clawPosition.z
     );
     
-    // Set camera position and look down at the claw
+    // set camera position and look down at the claw
     camera.position.copy(cameraPos);
     camera.lookAt(clawPosition);
     
-    // Update camera each frame to follow the claw
+    // update camera each frame to follow the claw
     camera.userData.followClaw = true;
 }
 
 function switchToNormalView() {
     if (!normalCameraPosition || !normalCameraTarget) return;
     
-    // Restore the original camera position and target
+    // restore the original camera position and target
     camera.position.copy(normalCameraPosition);
     camera.lookAt(normalCameraTarget);
     
@@ -1332,7 +1251,7 @@ function switchToNormalView() {
     camera.userData.followClaw = false;
 }
 
-// 🆕 INPUT HANDLER ROUTER
+
 function handleKeyDown(e) {
     if (e.code === 'KeyH' && !e.repeat) {
         togglePauseMenu();
@@ -1372,13 +1291,10 @@ function handleKeyUp(e) {
     }
 }
 
-// 🆕 EXPLORATION MODE CONTROLS NOW MOVED TO Player_controller.js
-
-// 🆕 CLAW MACHINE MODE CONTROLS
 function handleClawMachineKeyDown(e) {
     if (!clawController) return;
     
-    // Prevent default for keys we use
+
     if (['ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyP', 'Escape'].includes(e.code)) {
         e.preventDefault();
     }
@@ -1467,7 +1383,7 @@ function handleCandyMachineKeyDown(e) {
 }
 
 function handleCandyMachineKeyUp(e) {
-    // No key up actions needed for candy machine
+    // no key up actions needed for candy machine
 }
 
 function togglePauseMenu() {
@@ -1476,7 +1392,7 @@ function togglePauseMenu() {
     pauseMenu.style.display = isGamePaused ? 'flex' : 'none';
 
     if (!isGamePaused) {
-        // Restart animation loop if resuming
+
         animate();
     }
 }
