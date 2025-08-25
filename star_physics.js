@@ -71,11 +71,12 @@ class PhysicsStar {
     constructor() {
         this.gravity = new Vec3(0, -1.5, 0);
         this.particleMass = 0.1;
-        this.stiffness = 40; // RIDOTTO: da 80 per deformazioni più morbide
-        this.damping = 1.2; // AUMENTATO: da 0.9 per maggiore smorzamento
-        this.restitution = 0.2; // RIDOTTO: da 0.4 per rimbalzi più delicati
+        this.stiffness = 20; // RIDOTTO ULTERIORMENTE: per interazioni più dolci tra le stelle
+        this.damping = 0.8; // RIDOTTO: per movimento più fluido e naturale
+        this.restitution = 0.15; // RIDOTTO ULTERIORMENTE: per rimbalzi ancora più delicati
         this.timer = undefined;
         this.isSettling = false;
+        this.lowEnergyTimer = 0; // Timer per forzare settling dopo periodo di bassa energia
     }
 
     setMesh(objData) {
@@ -87,6 +88,7 @@ class PhysicsStar {
     reset() {
         this.stopSimulation();
         this.isSettling = false;
+        this.lowEnergyTimer = 0; // Reset del timer di bassa energia
         
         this.positions = this.mesh.vpos.map(p => new Vec3(p[0], p[1], p[2]));
         this.velocities = this.positions.map(() => new Vec3(0, 0, 0));
@@ -141,10 +143,21 @@ class PhysicsStar {
             if (this.positions[i].y < lowestY) lowestY = this.positions[i].y;
         }
         
-        const energyThreshold = 0.001;
-        const groundThreshold = -1.0 + 0.05;
+        const energyThreshold = 0.01; // AUMENTATO: soglia energia più alta per settling più precoce
+        const groundThreshold = -1.0 + 0.2; // AUMENTATO: permette settling anche se non completamente a terra
 
-        if (kineticEnergy < energyThreshold && lowestY <= groundThreshold) {
+        // Incrementa timer se energia è bassa
+        if (kineticEnergy < 0.05) {
+            this.lowEnergyTimer += 0.016; // dt fisso
+        } else {
+            this.lowEnergyTimer = 0; // Reset timer se energia aumenta
+        }
+
+        // Condizioni per settling: energia molto bassa O energia bassa + vicino a terra O troppo tempo con bassa energia
+        if (kineticEnergy < energyThreshold || 
+            (kineticEnergy < 0.05 && lowestY <= groundThreshold) ||
+            this.lowEnergyTimer > 3.0) { // Forza settling dopo 3 secondi di bassa energia
+            
             this.isSettling = true;
             const { center, rotation } = this.getCurrentTransform();
             const targetEuler = new THREE.Euler(0, rotation.y, 0);
@@ -221,13 +234,19 @@ function simTimeStep(dt, positions, velocities, springs, stiffness, damping, par
         forces[p1].inc(springForce);
         forces[p2].dec(springForce);
         const dVel = velocities[p2].sub(velocities[p1]);
-        const dampingForce = dVel.mul(damping * 0.7); // Applica damping ridotto per movimento più fluido
+        const dampingForce = dVel.mul(damping * 0.4); // Applica damping ancora più ridotto per movimento molto più fluido
         forces[p1].inc(dampingForce);
         forces[p2].dec(dampingForce);
     }
     for (let i = 0; i < positions.length; i++) {
         velocities[i].inc(forces[i].div(particleMass).mul(dt));
         positions[i].inc(velocities[i].mul(dt));
+        
+        // Applica dissipazione globale per velocità molto basse per favorire il settling
+        const speed = velocities[i].len();
+        if (speed < 0.1) {
+            velocities[i] = velocities[i].mul(0.95); // Dissipazione aggressiva per velocità basse
+        }
     }
     const bounds = 1.0;
     for (let i = 0; i < positions.length; i++) {
