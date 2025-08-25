@@ -36,7 +36,7 @@ export function togglePopcornMode(updateModeIndicator) {
     }
 }
 
-// 🍿 CEILING POPCORN FUNCTIONS
+//CEILING POPCORN FUNCTIONS
 function startCeilingPopcorn() {
     if (!scene) return;
     

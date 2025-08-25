@@ -41,6 +41,10 @@ export class ClawController {
         this.initialTransforms = {};
         this.releasingObjectStartTime = 0;
 
+        // Cable system
+        this.cable = null;
+        this.cableTopPosition = new THREE.Vector3();
+        this.cableSegments = 20;
 
         this.joystickPivot = joystickPivot; //we insert a pivot in order to fix the rotation point of the joystick
         this.button = button;
@@ -80,10 +84,101 @@ export class ClawController {
             this.chuteBox = new THREE.Box3().setFromObject(this.chuteMesh);
             this.createDropZoneIndicator();
         }
+        
+        // Initialize cable after spawn position is set
+        this.createCable();
     }
 
     createDropZoneIndicator() {
         // placeholder
+    }
+
+    createCable() {
+        // Only create cable if spawn position is set
+        if (this.spawnPosition.lengthSq() === 0) {
+            console.warn('Cable creation skipped - spawn position not set');
+            return;
+        }
+        
+        // Set cable top position - inside machine near the ceiling
+        this.cableTopPosition.copy(this.spawnPosition);
+        if (this.machineBox) {
+            this.cableTopPosition.y = this.machineBox.max.y ; // Just inside the machine ceiling
+        } else {
+            this.cableTopPosition.y = this.spawnPosition.y + 2.0; // Fallback height
+        }
+        
+        // create initial cable points - straight vertical line
+        const points = [];
+        const clawPosition = this.clawGroup.position;
+        
+        // cable extends/retracts based on claw height - only as long as needed
+        const cableLength = this.cableTopPosition.y - clawPosition.y;
+        const segmentsToUse = Math.max(2, Math.floor(this.cableSegments * (cableLength / 4.0))); // Dynamic segments
+        
+        for (let i = 0; i <= segmentsToUse; i++) {
+            const t = i / segmentsToUse;
+            // straight vertical line
+            const point = new THREE.Vector3().lerpVectors(this.cableTopPosition, clawPosition, t);
+            points.push(point);
+        }
+        
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        
+        // create cable material - dark steel cable color
+        const material = new THREE.LineBasicMaterial({ 
+            color: 0x404040,  // Dark steel gray
+            linewidth: 7
+        });
+        
+        // create cable mesh
+        this.cable = new THREE.Line(geometry, material);
+        this.scene.add(this.cable);
+        
+
+    }
+
+    updateCable() {
+        // create cable if it doesn't exist and spawn position is now available
+        if (!this.cable && this.spawnPosition.lengthSq() > 0) {
+            this.createCable();
+        }
+        
+        if (!this.cable) return;
+        
+        //gGet current claw position
+        const clawPosition = this.clawGroup.position.clone();
+        
+        // update cable top position to follow claw horizontally but stay at machine ceiling
+        this.cableTopPosition.x = clawPosition.x;
+        this.cableTopPosition.z = clawPosition.z;
+        
+        // calculate actual cable length needed (distance from ceiling to claw)
+        const cableLength = this.cableTopPosition.y - clawPosition.y;
+        
+        // !!!!!!!!!!!!!!!!!!only show cable if it needs to extend (claw is below ceiling)
+        if (cableLength <= 0) {
+            // hide cable when claw is at or above ceiling
+            this.cable.visible = false;
+            return;
+        }
+        
+        this.cable.visible = true;
+        
+        // calculate number of segments based on cable length (more segments for longer cables)
+        const segmentsNeeded = Math.max(2, Math.min(this.cableSegments, Math.floor(cableLength * 5)));
+        
+        // create cable points - straight vertical line from ceiling to claw
+        const points = [];
+        for (let i = 0; i <= segmentsNeeded; i++) {
+            const t = i / segmentsNeeded;
+            const point = new THREE.Vector3().lerpVectors(this.cableTopPosition, clawPosition, t);
+            points.push(point);
+        }
+        
+        // update cable geometry with new points
+        this.cable.geometry.setFromPoints(points);
+        this.cable.geometry.attributes.position.needsUpdate = true;
     }
 
     storeInitialTransforms() {
@@ -399,26 +494,26 @@ openClaw() {
         const objectBody = this.grabbedObject.body;
         objectBody.isSleeping = false;
         
-        // --- Position ---
-        // The target position is the center of the claw
+
+        // the target position is the center of the claw
         const targetPosition = new THREE.Vector3();
         this.clawGroup.getWorldPosition(targetPosition);
         targetPosition.y -= 0.15;
 
-        // Directly set the object's position for a zero-lag connection
+        // directly set the object's position for a zero-lag connection
         objectBody.position.copy(targetPosition);
 
-        // --- Velocity ---
-        // Calculate the claw's current velocity based on its position change
+
+        //calculate the claw's current velocity based on its position change
         const clawVelocity = new THREE.Vector3()
             .copy(this.clawGroup.position)
             .sub(this.lastClawPosition)
             .divideScalar(deltaTime);
 
-        // Directly set the object's velocity to match the claw's
+        //directly set the object's velocity to match the claw's
         objectBody.linearVelocity.copy(clawVelocity);
         
-        // Also, kill any rotation for stability
+        //also, kill any rotation for stability
         objectBody.angularVelocity.set(0, 0, 0);
     }
     
@@ -429,13 +524,13 @@ openClaw() {
         
         const clawPosition = this.clawGroup.position;
         
-        // Check if claw is horizontally above the chute
+        //check if claw is horizontally above the chute
         const isAboveChute = clawPosition.x >= this.chuteBox.min.x && 
                            clawPosition.x <= this.chuteBox.max.x &&
                            clawPosition.z >= this.chuteBox.min.z && 
                            clawPosition.z <= this.chuteBox.max.z;
         
-        // Check if claw is within drop threshold above chute
+        //check if claw is within drop threshold above chute
         const isWithinDropHeight = clawPosition.y <= (this.chuteBox.max.y + this.dropZoneThreshold) &&
                                  clawPosition.y >= this.chuteBox.max.y;
         
@@ -448,13 +543,13 @@ openClaw() {
         }
         
         
-        // Increment delivered counter
+        //increment delivered counter
         this.deliveredStars++;
         
-        // Release the object
+        //release the object
         this.grabbedObject.body.isHeld = false;
         
-        // Give it a slight downward velocity to ensure it falls into the chute
+        //give it a slight downward velocity to ensure it falls into the chute
         this.grabbedObject.body.linearVelocity.set(0, -1, 0);
         this.grabbedObject.body.angularVelocity.set(
             (Math.random() - 0.5) * 2,
@@ -462,36 +557,36 @@ openClaw() {
             (Math.random() - 0.5) * 2
         );
         
-        // Clear grab state
+        //clear grab state
         this.isGrabbing = false;
         this.grabbedObject = null;
         
-        // Automatically open the claw
+        //automatically open the claw
         if (this.isClosed) {
             this.openClaw();
         }
     }
 
-        // NUOVO: Metodo per animare il pulsante
+
     updateButtonAnimation() {
         if (!this.button || this.buttonPressTime === 0) return;
 
         const elapsed = Date.now() - this.buttonPressTime;
-        const pressDepth = -0.05; // Quanto scende il pulsante
+        const pressDepth = -0.05; ////quanto scende il pulsante
 
         if (elapsed < this.buttonPressDuration) {
-            // Usa una curva sinusoidale per un movimento di andata e ritorno fluido
+            //use a sinusoidal curve for smooth in-out movement
             const progress = Math.sin((elapsed / this.buttonPressDuration) * Math.PI);
             this.button.position.y = this.initialButtonPosition.y + progress * pressDepth;
         } else {
-            // Resetta alla fine dell'animazione
+            // go back to initial position
             this.button.position.copy(this.initialButtonPosition);
             this.buttonPressTime = 0;
         }
     }
 
  updateJoystickTilt() {
-        // MODIFICATO: Controlliamo e ruotiamo 'joystickPivot'
+
         if (!this.joystickPivot) return;
         
         let targetTiltX = 0;
@@ -511,7 +606,7 @@ openClaw() {
         this.joystickTiltTarget.x = targetTiltX;
         this.joystickTiltTarget.z = targetTiltZ;
 
-        // MODIFICATO: Applichiamo la rotazione al PIVOT
+        // move the pivoy
         this.joystickPivot.rotation.x = THREE.MathUtils.lerp(this.joystickPivot.rotation.x, this.joystickTiltTarget.x, 0.1);
         this.joystickPivot.rotation.z = THREE.MathUtils.lerp(this.joystickPivot.rotation.z, this.joystickTiltTarget.z, 0.1);
     }
@@ -520,15 +615,16 @@ openClaw() {
 
 
     update(deltaTime) {
-        // La logica prima dello switch non cambia
+
         this.lastClawPosition.copy(this.clawGroup.position);
         this.updateButtonAnimation();
         this.updateJoystickTilt();
+        this.updateCable();
         
         if (this.isClosing && !this.isGrabbing) {
             const potentialObject = this.objectsInteraction.getGrabbableCandidate(2);
             if (potentialObject) {
-                // 🆕 SAFETY CHECK: Don't grab objects that are being released
+                // don't grab objects that are being released
                 if (potentialObject.body.isBeingReleased) {
                     return;
                 }
@@ -542,7 +638,7 @@ openClaw() {
             this.applyDirectLink(deltaTime);
         }
 
-        // --- VERSIONE COMPLETA E CORRETTA DELLO SWITCH ---
+
         switch (this.automationState) {
 
             case 'MANUAL_HORIZONTAL': {
@@ -579,7 +675,7 @@ openClaw() {
             }
 
             case 'OPERATING': {
-                // Stato di attesa, corretto che sia vuoto
+
                 break;
             }
 
@@ -640,7 +736,7 @@ openClaw() {
             }
                 
             case 'RELEASING_OBJECT': {
-                // Safety timeout in case the openClaw() promise doesn't resolve
+                // safety timeout in case the openClaw() promise doesn't resolve
                 if (Date.now() - this.releasingObjectStartTime > 3000) {
                     console.warn('RELEASING_OBJECT timeout - forcing reset to MANUAL_HORIZONTAL');
                     this.automationState = 'MANUAL_HORIZONTAL';
@@ -696,31 +792,31 @@ openClaw() {
         const clawBBox = new THREE.Box3();
         let collisionDetected = false;
     
-        // This matrix transforms points from world space to the chute's local space
+        // this matrix transforms points from world space to the chute's local space
         const worldToChuteMatrix = new THREE.Matrix4().copy(this.chuteMesh.matrixWorld).invert();
     
-        // Test each axis of movement independently
+        // test each axis of movement independently
         ['x', 'y', 'z'].forEach(axis => {
             if (velocity[axis] === 0) return;
     
-            // Get the claw's bounding box in its potential new position
+            // get the claw's bounding box in its potential new position
             clawBBox.setFromObject(this.clawGroup);
             const moveVector = new THREE.Vector3();
             moveVector[axis] = velocity[axis];
             clawBBox.translate(moveVector);
     
-            // Check for collision
+            // check for collision
             if (chuteBVH.intersectsBox(clawBBox, worldToChuteMatrix)) {
-                // If a collision would occur, nullify the movement on this axis
+                // if a collision would occur, nullify the movement on this axis
                 velocity[axis] = 0;
                 collisionDetected = true;
             }
         });
     
-        // Apply the corrected velocity vector (some components might be zero)
+        // apply the corrected velocity vector (some components might be zero)
         this.clawGroup.position.add(velocity);
     
-        // Return true if any collision was detected and prevented
+        // return true if any collision was detected and prevented
         return collisionDetected;
     }
 
