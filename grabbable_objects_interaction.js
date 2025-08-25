@@ -4,9 +4,9 @@ import { Vec3 } from './physics_engine_vec3.js';
 export class GrabbableObjectsInteraction {
     constructor(cylinders) {
         this.cylinders = cylinders;
-        this.objects = []; // Array of {body, mesh, name} objects
+        this.objects = []; //array of {body, mesh, name} objects
         this.collisions = { A: false, B: false, C: false };
-        this.collisionDetails = { A: null, B: null, C: null }; // Store which object each finger is touching
+        this.collisionDetails = { A: null, B: null, C: null }; //store which object each finger is touching
         this.cylinderToFinger = { 'Cylinder': 'A', 'Cylinder003': 'B', 'Cylinder008': 'C' };
     }
 
@@ -29,7 +29,7 @@ export class GrabbableObjectsInteraction {
             this.collisionDetails[k] = null;
         });
 
-        // Check collisions with all grabbable objects
+        //check collisions with all grabbable objects
         this.objects.forEach(obj => {
             if (!obj.body || !obj.mesh || obj.body.inverseMass === 0 || obj.body.isHeld || obj.body.ignoreClawCollision) {
     return; // Salta le collisioni con la claw se richiesto

@@ -176,28 +176,27 @@ export class CandyMachine {
         this.releaseMechanismPosition = new THREE.Vector3(); // To store Object_6's position
 
         // --- NEW PROPERTIES FOR COIN LOGIC ---
-        this.clawController = null; // Reference to the claw controller
-        this.hasCoinInserted = false; // State to check if a coin is ready to be used
-        this.coinMesh = null; // The visual mesh for the coin
+        this.clawController = null; // reference to the claw controller
+        this.hasCoinInserted = false; // state to check if a coin is ready to be used
+        this.coinMesh = null; // the visual mesh for the coin
 
         this._findParts();
-        this._createCoin(); // Create the coin mesh at startup
+        this._createCoin(); // create the coin mesh at startup
         this.coinFlyProgress = 0;
 this.coinStartPos = new THREE.Vector3();
 this.coinTargetPos = new THREE.Vector3();
 this.coinIsFlying = false;
         this.coinHasReachedKnob = false;
         this.coinDisappearTimer = 0;
-        this.knobAnimationComplete = false; // Track if knob has completed 360° rotation
-        this.knobInitialRotationY = 0; // Per una rotazione precisa
+        this.knobAnimationComplete = false; // track if knob has completed 360° rotation
+        this.knobInitialRotationY = 0; // for a precise knob rotation
     }
 
     setReleaseDoor(mesh) {
         this.releaseDoor = mesh;
         
-        // --- Create a pivot for the door to rotate around its hinge ---
-        // 1. Calculate the pivot point in the door's local coordinates.
-        //    We assume the hinge is at the back (max z) and center of the mesh.
+        //create a pivot for the door to rotate around its hinge
+        // calculate the pivot point in the door's local coordinates.
         mesh.geometry.computeBoundingBox();
         const bbox = mesh.geometry.boundingBox;
         const pivotPointLocal = new THREE.Vector3(
@@ -206,46 +205,45 @@ this.coinIsFlying = false;
             bbox.max.z 
         );
 
-        // 2. Create the pivot Group and position it where the hinge should be in the world.
+        // create the pivot Group and position it where the hinge should be in the world.
         this.releaseDoorPivot = new THREE.Group();
         mesh.localToWorld(pivotPointLocal); // this updates pivotPointLocal to world coords
         this.releaseDoorPivot.position.copy(pivotPointLocal);
         this.scene.add(this.releaseDoorPivot);
 
-        // 3. Attach the door to the pivot. This makes the door a child of the pivot
-        //    while maintaining its current world position.
+        // attach the door to the pivot, this makes the door a child of the pivot
+        // while maintaining its current world position.
         this.releaseDoorPivot.attach(this.releaseDoor);
 
-        // --- Calculate descent target and create its helper here ---
-        // This is the correct place, as we now have the door pivot with the correct height.
-        this.candyDescentTargetPos.copy(this.candyWorldTargetPos); // Keep X/Z from the upper target point
-        this.candyDescentTargetPos.y = this.releaseDoorPivot.position.y - 0.9; // Use the correct Y from the door pivot and lower it slightly
+        // calculate descent target and create its helper here 
+        this.candyDescentTargetPos.copy(this.candyWorldTargetPos); // keep X/Z from the upper target point
+        this.candyDescentTargetPos.y = this.releaseDoorPivot.position.y - 0.9; // use the correct Y from the door pivot and lower it slightly so that it basically corresponds to the exit point
 
 
 
-        // --- Define the intermediate and final exit positions ---
+        // define the intermediate and final exit positions 
         const pivotPos = this.releaseDoorPivot.position;
 
-        // Il punto intermedio (helper rosso)
+        //the intermediate point (yellow helper) is slightly below the pivot and further back
         this.candyIntermediateExitPos.set(
             pivotPos.x,
-            pivotPos.y - 0.5, // Abbassa il punto di espulsione
-            pivotPos.z + 1.0  // Posizionato indietro
+            pivotPos.y - 0.5,
+            pivotPos.z + 1.0  
         );
 
-        // Il punto finale (helper blu) ha coordinate X e Z indipendenti
+        // the final exit position (blue helper) is higher than the intermediate, the blue one is the finish line basically when then the animation is executed
         this.candyFinalExitPos.set(
             pivotPos.x,
-            this.candyIntermediateExitPos.y + 2.0, // Posizionato più in alto rispetto all'intermedio
-            pivotPos.z + 0.5 // MODIFICATO: Usa un offset Z indipendente per renderlo spostabile autonomamente
+            this.candyIntermediateExitPos.y + 2.0, // positioned higher than the intermediate
+            pivotPos.z + 0.5
         );
 
 
 
     }
 
-    /**
-     * creates the coin mesh and keeps it hidden, ready for use.
+    /*
+      creates the coin mesh and keeps it hidden, ready for use.
      */
     _createCoin() {
         const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.008, 16);
@@ -261,8 +259,8 @@ this.coinIsFlying = false;
 
         this.coinMesh.visible = false; // Initially hidden
     }
-    
-    
+
+    //we bind the claw controller
     setClawController(controller) {
         this.clawController = controller;
     }
@@ -281,24 +279,22 @@ insertCoin() {
         if (this.knob && this.coinMesh) {
            
 
-            // 1. Definisci la posizione di partenza in coordinate GLOBALI.
+            
             const worldStartPos = new THREE.Vector3(2, 2, 5);
 
-            // 2. Calcola la posizione di destinazione in coordinate GLOBALI.
+            //we basically compute the world position of the knob to use it as target
             const localTargetPos = new THREE.Vector3(-0.1, 0.5, -0.8);
             this.knob.updateWorldMatrix(true, false);
             const worldTargetPos = this.knob.localToWorld(localTargetPos.clone());
-            
-            // 3. Converti entrambe le posizioni GLOBALI in coordinate LOCALI rispetto al genitore della moneta (this.model).
-            //    Questo assicura che l'interpolazione avvenga nello stesso sistema di coordinate.
+
+            // we then convert both global positions to LOCAL coordinates relative to the coin's parent (this.model) so that we can animate the coin in local space
             this.model.updateWorldMatrix(true, false);
             this.coinStartPos.copy(this.model.worldToLocal(worldStartPos));
             this.coinTargetPos.copy(this.model.worldToLocal(worldTargetPos));
             
-            // --- FINE MODIFICHE ---
 
             this.model.add(this.coinMesh);
-            this.coinMesh.position.copy(this.coinStartPos); // Ora imposti la posizione locale corretta.
+            this.coinMesh.position.copy(this.coinStartPos); 
             this.coinMesh.rotation.set(Math.PI / 2, 0, 0);
             this.coinMesh.visible = true;
 
@@ -310,8 +306,8 @@ insertCoin() {
     }
 }
     _findParts() {
-        const gateMeshes = []; // collect all gate-related meshes
-        const allMeshNames = []; // debug: collect all mesh names
+        const gateMeshes = []; // collect all gate-related meshes, the ones needed in order to lower the gates
+        const allMeshNames = []; // debug: collect all mesh names, to remove!!!
         
         
         this.model.traverse(child => {
@@ -334,37 +330,37 @@ insertCoin() {
     const transformedOffset = centroid.clone().applyQuaternion(this.knob.quaternion).multiply(this.knob.scale);
     this.knob.position.add(transformedOffset);
 
-    this.knob.rotation.y += Math.PI; // ← AGGIUNTO: ruota la manopola di 180°
+    this.knob.rotation.y += Math.PI; //we rotate the knob by 180 degrees, so it faces the correct direction
 }
 
-            // Find the Gate mesh for dispensing
+            // find the Gate mesh for dispensing
             if (child.isMesh && child.name === 'Gate') {
                 this.gate = child;
                 this.gateOriginalPosition = child.position.clone();
-                // Calculate gate lowering position (move down by 0.5 units)
+                // calculate gate lowering position (move down by 0.5 units)
                 this.gateTargetPosition = child.position.clone();
                 this.gateTargetPosition.y -= 0.5;
             }
 
-            // Aggiunto: Trova i plane laterali da muovere con il gate
+
             if (child.isMesh && ['Plane2', 'Plane3', 'Plane4'].includes(child.name)) {
                 this.gateSidePlanes.push(child);
                 const originalPos = child.position.clone();
                 this.gateSidePlanesOriginalPositions.push(originalPos);
                 
                 const targetPos = originalPos.clone();
-                targetPos.y -= 0.5; // Abbassa dello stesso valore del gate
+                targetPos.y -= 0.5; 
                 this.gateSidePlanesTargetPositions.push(targetPos);
             }
 
-            // Collect gate area meshes to calculate dispensing center
+
             if (child.isMesh && ['Gate', 'Plane2', 'Plane3', 'Plane4'].includes(child.name)) {
                 gateMeshes.push(child);
 }
 
         });
 
-        // Calculate the center of the gate area for candy targeting
+        //calculate the center of the gate area for candy targeting
         if (gateMeshes.length > 0) {
             this._calculateDispenseCenter(gateMeshes);
         }
@@ -382,7 +378,7 @@ insertCoin() {
             bounds.union(meshBounds);
         });
         
-        // Get the center in world coordinates and store it.
+        //get the center in world coordinates and store it.
         bounds.getCenter(this.candyWorldTargetPos);
         
     }
@@ -401,18 +397,17 @@ insertCoin() {
             new THREE.Color(0xe67e22)  // Orange
         ];
     
-        // Get candy radius for spacing
+        //get candy radius for spacing
         const candyRadius = candyGeometry.parameters.radius;
 
-        // Get the world bounding box of the container to define the spawn area
+        //get the world bounding box of the container to define the spawn area
         this.scene.updateMatrixWorld(true);
         containerMesh.updateWorldMatrix(true, false);
         const containerWorldBox = new THREE.Box3().setFromObject(containerMesh);
         
-        // --- MODIFICATO: Restringi l'area di spawn in modo non uniforme ---
-        // Restringi di molto su X e Z, ma meno su Y per avere più altezza.
+
         const marginXZ = candyRadius * 3;
-        const marginY = candyRadius * 1.0; // Un margine più piccolo per avere più spazio verticale
+        const marginY = candyRadius * 1.0; 
 
         containerWorldBox.min.x += marginXZ;
         containerWorldBox.max.x -= marginXZ;
@@ -422,42 +417,39 @@ insertCoin() {
         containerWorldBox.min.y += marginY-0.1;
         containerWorldBox.max.y -= marginY-0.1;
         
-        // --- SAFETY ZONE AROUND DISPENSER ---
-        const safetyRadius = 0.7; // Candies won't spawn within this radius of the target point
-        const safetyRadiusSq = safetyRadius * safetyRadius; // Use squared distance for performance
+        //SAFETY ZONE AROUND DISPENSER!!!!!!!!!!
+        const safetyRadius = 0.7; //candies won't spawn within this radius of the target point
+        const safetyRadiusSq = safetyRadius * safetyRadius; //use squared distance
 
-        // AGGIUNTO: Comunica la zona di sicurezza al motore fisico
+        //we add the dispenser zone to the engine
         this.physicsEngine.setDispenserSafetyZone(this.candyWorldTargetPos, safetyRadius);
 
-        // Create candies
+
         for (let i = 0; i < count; i++) {
             let worldX, worldY, worldZ;
             let positionIsValid = false;
             let attempts = 0;
-            const maxAttempts = 100; // Prevent infinite loops
+            const maxAttempts = 100; //prevent infinite loops
             const spawnPoint = new THREE.Vector3();
 
-            // Keep trying until a valid position is found
+            //keep trying until a valid position is found
             while (!positionIsValid && attempts < maxAttempts) {
-                // Generate random world position within the container
+                //generate random world position within the container
                 worldX = THREE.MathUtils.lerp(containerWorldBox.min.x, containerWorldBox.max.x, Math.random());
                 worldY = THREE.MathUtils.lerp(containerWorldBox.min.y, containerWorldBox.max.y, Math.random());
                 worldZ = THREE.MathUtils.lerp(containerWorldBox.min.z, containerWorldBox.max.z, Math.random());
                 spawnPoint.set(worldX, worldY, worldZ);
 
-                // Check distance to the dispenser area (ignoring Y-axis for a cylindrical check)
+                //check distance to the dispenser area (ignoring Y-axis for a cylindrical check)
                 const distanceSq = (spawnPoint.x - this.candyWorldTargetPos.x) ** 2 + (spawnPoint.z - this.candyWorldTargetPos.z) ** 2;
 
                 if (distanceSq > safetyRadiusSq) {
                     positionIsValid = true;
+                    //if the position is valid, we can exit the loop and thus spawn the candy
                 }
                 attempts++;
             }
             
-            if (!positionIsValid) {
-            }
-
-            // --- MODIFICATO: Crea un materiale unico con un colore casuale per ogni caramella ---
             const candyMaterial = new THREE.MeshStandardMaterial({
                 color: candyColors[Math.floor(Math.random() * candyColors.length)],
                 roughness: 0.3,

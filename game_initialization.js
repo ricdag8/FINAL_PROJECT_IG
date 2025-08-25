@@ -9,6 +9,7 @@ import { PlayerController } from './Player_controller.js';
 import { LightingManager } from './Lightning_manager.js';
 import { RoomSetupManager } from './Room_setup.js';
 import { HomepageManager } from './Homepage.js';
+import { MainHomepage } from './MainHomepage.js';
 import { AudioManager } from './AudioManager.js';
 import { PopcornManager } from './popcorn.js';
 import { initializeExtras } from './extras.js';
@@ -16,7 +17,7 @@ import { initializeExtras } from './extras.js';
 // Global variables that will be initialized
 let scene, camera, renderer, controls;
 let physicsEngine, audioManager, lightingManager, roomSetupManager;
-let playerController, cameraManager, homepageManager;
+let playerController, cameraManager, homepageManager, mainHomepage;
 let machineOffset, candyMachineOffset, interactionZones;
 let interactionPrompt, lightReferences;
 let popcornManager;
@@ -126,6 +127,12 @@ function setupCoreGameSystems() {
     // Setup homepage manager
     homepageManager = new HomepageManager(playerController, cameraManager, dependencies.initializeGameCallback, audioManager);
     
+    // Setup main homepage
+    mainHomepage = new MainHomepage(() => {
+        // When user clicks "Enter Arcade", show character selection
+        homepageManager.showCharacterSelection();
+    });
+    
     // Get machine positions from room manager
     machineOffset = roomSetupManager.getMachineOffset();
     candyMachineOffset = roomSetupManager.getCandyMachineOffset();
@@ -191,13 +198,14 @@ function loadGameAssets() {
             loadingScreen.style.display = 'none';
         }
         
-        // Show character selection
-        homepageManager.showCharacterSelection();
+        // Show homepage first
+        mainHomepage.show();
         
     }).catch((error) => {
         console.error('Error loading game assets:', error);
     });
 }
+
 
 function loadPopcornMachine() {
     const loader = new GLTFLoader();
@@ -308,6 +316,7 @@ export function getInitializedSystems() {
         playerController,
         cameraManager,
         homepageManager,
+        mainHomepage,
         popcornManager,
         machineOffset,
         candyMachineOffset,

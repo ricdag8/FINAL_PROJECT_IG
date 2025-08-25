@@ -5,6 +5,8 @@ import * as THREE from 'three';
  * follows a target (player) from behind based on their rotation.
  */
 export class ThirdPersonCamera {
+    // initializes third person camera system that follows a target player from behind
+    // sets up camera distance (4.0), height (4.0), and animation state for smooth transitions
     constructor(camera, target) {
         this.camera = camera;
         this.target = target; //the target is the player
@@ -22,6 +24,8 @@ export class ThirdPersonCamera {
         
     }
     
+    // updates camera position every frame to follow the player from behind
+    // handles view animations, greeting freeze, and maintains proper camera distance and height
     update(deltaTime) { //the update method is needed in order to keep the camera behind the player every time it rotates or moves
         if (!this.target) return;
 
@@ -78,6 +82,8 @@ export class ThirdPersonCamera {
 */
     }
 
+    // animates camera from behind player to in front for object interaction
+    // smoothly transitions to face direction player is looking with specified duration
     animateToObjectView(duration) { //function needed to animate the camera to a specific object, namely the candy machine and claw machine
         return new Promise(resolve => {
             if (this.isAnimatingView || !this.target) {
@@ -98,6 +104,8 @@ export class ThirdPersonCamera {
         });
     }
 
+    // returns camera from object view back to standard behind-player position
+    // creates smooth transition animation with easing for natural movement
     animateToOriginalView(duration) {
         return new Promise(resolve => {
             if (this.isAnimatingView || !this.target) {
@@ -118,6 +126,8 @@ export class ThirdPersonCamera {
         });
     }
 
+    // provides smooth s-curve easing for camera animations
+    // starts slow, accelerates in middle, decelerates at end for natural feel
     easeInOutCubic(t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
@@ -129,19 +139,27 @@ export class ThirdPersonCamera {
   }
           */
     
+    // enables or disables the third person camera system
+    // used during mode transitions to prevent conflicting camera updates
     setEnabled(enabled) {
         this.enabled = enabled;
     }
     
     // utility methods for runtime adjustment
+    // adjusts how far the camera follows behind the player
+    // larger values create more distant third person view
     setDistance(distance) {
         this.distance = distance;
     }
     
+    // changes camera height above the player character
+    // higher values give more elevated viewing angle
     setHeight(height) {
         this.height = height;
     }
     
+    // returns comprehensive debug information about camera state
+    // includes player position, camera position, forward direction, distance and height
     getDebugInfo() {
         if (!this.target) return null;
         
@@ -165,6 +183,8 @@ export class ThirdPersonCamera {
 
  */
 export class CameraTransition {
+    // initializes smooth camera transition system between different viewing modes
+    // manages interpolation of camera position and look-at target over time
     constructor(camera) {
         this.camera = camera;
         this.isTransitioning = false;
@@ -179,6 +199,8 @@ export class CameraTransition {
         this.onComplete = null;
     }
     
+    // begins smooth camera transition from current position to target position and look-at
+    // captures current state and sets up interpolation parameters for animation
     startTransition(endPos, endLookAt, onComplete = null) {
         this.startPosition.copy(this.camera.position);
         this.endPosition.copy(endPos);
@@ -195,6 +217,8 @@ export class CameraTransition {
         
     }
     
+    // processes ongoing camera transition by interpolating position and look-at
+    // applies smooth easing and calls completion callback when finished
     update(deltaTime) {
         if (!this.isTransitioning) return;
         
@@ -222,10 +246,14 @@ export class CameraTransition {
         this.camera.lookAt(currentLookAt);
     }
     
+    // applies cubic easing function for smooth transition animations
+    // creates natural acceleration and deceleration curve
     easeInOutCubic(t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
     
+    // changes the duration for all future camera transitions
+    // shorter durations create faster camera movements
     setDuration(duration) {
         this.duration = duration;
     }
@@ -236,6 +264,8 @@ export class CameraTransition {
  * central manager for all camera systems 
  */
 export class CameraManager {
+    // central camera management system coordinating all camera modes
+    // handles third-person exploration, first-person machine views, and smooth transitions
     constructor(camera) {
         this.camera = camera;
         this.scene = null; // will be set by initialize()
@@ -252,10 +282,14 @@ export class CameraManager {
     }
     
     // INITIALIZE WITH SCENE REFERENCE
+    // stores scene reference for camera positioning calculations
+    // must be called before other camera operations can function properly
     initialize(scene) {
         this.scene = scene;
     }
     
+    // creates and configures third-person camera system with transition manager
+    // positions camera behind player at initial distance and height
     initThirdPersonCamera(target) {
         // INITIALIZE CAMERA TRANSITION FIRST
         this.cameraTransition = new CameraTransition(this.camera);
@@ -269,6 +303,8 @@ export class CameraManager {
         
     }
     
+    // main camera update loop called every frame
+    // updates third-person following in exploration mode and processes transitions
     update(deltaTime) {
         if (this.currentMode === 'exploration' && this.thirdPersonCamera) {
             this.thirdPersonCamera.update(deltaTime); //if we are in exploration mode, update the camera system
@@ -280,6 +316,8 @@ export class CameraManager {
         }
     }
     
+    // transitions from exploration to first-person machine interaction view
+    // disables third-person system and smoothly moves to pre-calculated machine position
     switchToMachineMode(machineType, machineOffset, onComplete = null) {
         if (!this.cameraTransition) {
             return;
@@ -307,6 +345,8 @@ export class CameraManager {
         }
     }
     
+    // returns from machine view to third-person exploration mode
+    // calculates appropriate behind-player position and re-enables third-person following
     switchToExplorationMode(target, onComplete = null) {
         if (!this.cameraTransition || this.cameraTransition.isTransitioning) return;
         
@@ -338,6 +378,8 @@ export class CameraManager {
 //function to update the first person camera reference
 // calculates optimal first-person camera positions for each machine based on their control interfaces.
 
+    // calculates optimal first-person camera positions using machine control interfaces
+    // analyzes reference mesh position to determine best viewing angle and distance
     setFirstPersonReference(machineType, referenceMesh, machineCenter, machineSize = 3) {
         if (!referenceMesh) {
             return;
@@ -370,6 +412,8 @@ export class CameraManager {
     /**
      * calculate which side of the machine a reference point is on
      */
+    // determines which side of machine the reference point is on (left/right/front/back)
+    // compares axis displacement to identify primary direction and create offset vector
     calculateMachineSide(referencePos, machineCenter, machineSize) {
         const dx = referencePos.x - machineCenter.x;
         const dz = referencePos.z - machineCenter.z;
@@ -398,6 +442,8 @@ export class CameraManager {
     /**
      * calculate first person camera position based on machine side
      */
+    // computes exact first-person camera position and target with machine-specific adjustments
+    // sets realistic human height (3.8 units) with natural viewing angle towards machine center
     calculateFirstPersonPosition(machineCenter, sideInfo, machineSize, machineType = null) {
         const playerHeight = 3.8; // 🆕 Elevated first person height for better view
         const baseDistance = machineSize * 0.8; // Increased base distance from machine edge
@@ -534,6 +580,8 @@ export class CameraManager {
  */
 export const CameraUtils = {
     // initialize global camera control functions for debugging
+    // exposes camera control functions globally for development and debugging
+    // creates window functions for runtime camera adjustment and testing
     initGlobalControls(cameraManager) {
         window.setCameraDistance = (distance) => {
             if (cameraManager) {
@@ -549,7 +597,7 @@ export const CameraUtils = {
             }
         };
         
-        // REMOVED!!!!!!!!!: setCameraSpeed is no longer needed.
+        //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVED!!!!!!!!!: setCameraSpeed is no longer needed.
         
         window.setTransitionDuration = (duration) => {
             if (cameraManager) {

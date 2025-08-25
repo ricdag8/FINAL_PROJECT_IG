@@ -295,3 +295,192 @@
       transform: scale(1.05);
     }
 
+    /* 🎮 HOMEPAGE STYLES */
+    .homepage-container {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .homepage-header {
+      text-align: center;
+      margin-bottom: 40px;
+      animation: fadeInDown 1s ease-out;
+    }
+
+    .homepage-title {
+      font-size: 3.5em;
+      color: #fff;
+      margin: 0;
+      text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+      animation: pulse 2s infinite;
+    }
+
+    .homepage-subtitle {
+      font-size: 1.4em;
+      color: #f0f0f0;
+      margin: 10px 0 0 0;
+      opacity: 0.9;
+    }
+
+    .machines-showcase {
+      display: flex;
+      justify-content: space-around;
+      gap: 30px;
+      margin: 40px 0;
+      flex-wrap: wrap;
+      animation: fadeInUp 1s ease-out 0.5s both;
+    }
+
+    .machine-card {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 25px;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      transition: all 0.3s ease;
+      min-width: 280px;
+      max-width: 320px;
+      flex: 1;
+    }
+
+    .machine-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .machine-image-container {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .machine-image {
+      width: 200px;
+      height: 150px;
+      object-fit: cover;
+      border-radius: 15px;
+      border: 3px solid rgba(255, 255, 255, 0.4);
+      margin: 0 auto;
+      display: block;
+      transition: all 0.3s ease;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .machine-image:hover {
+      transform: scale(1.05);
+      border-color: rgba(255, 255, 255, 0.6);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    }
+
+    .machine-title {
+      font-size: 1.5em;
+      color: #fff;
+      margin: 15px 0 10px 0;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .machine-description {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 1em;
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .homepage-footer {
+      text-align: center;
+      margin-top: 50px;
+      animation: fadeInUp 1s ease-out 1s both;
+    }
+
+    .enter-arcade-button {
+      position: relative;
+      background: linear-gradient(45deg, #ff6b6b, #feca57);
+      border: none;
+      padding: 20px 50px;
+      border-radius: 50px;
+      font-size: 1.4em;
+      font-weight: bold;
+      color: #fff;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 30px rgba(255, 107, 107, 0.4);
+      margin-bottom: 20px;
+    }
+
+    .enter-arcade-button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px rgba(255, 107, 107, 0.6);
+    }
+
+    .button-glow {
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .enter-arcade-button:hover .button-glow {
+      left: 100%;
+    }
+
+    .footer-text {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 1.1em;
+      margin: 0;
+    }
+
+    /* Animations */
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(50px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+      }
+      50% {
+        text-shadow: 0 0 30px rgba(255, 255, 255, 0.8), 0 0 40px rgba(255, 255, 255, 0.3);
+      }
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .machines-showcase {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .homepage-title {
+        font-size: 2.5em;
+      }
+      
+      .machine-card {
+        min-width: 260px;
+        max-width: 300px;
+      }
+    }
+
