@@ -1,139 +1,3 @@
-// candy_machine.js
-
-
-/* 
-
-⏺ Complete Overview of Candy Machine File
-
-  The candy_machine.js file implements a complex, interactive candy dispensing system with realistic mechanical animations. Here's a comprehensive breakdown:
-
-  Class Structure & Properties
-
-  CandyMachine class manages a complete candy vending machine with:
-  - Coin insertion system with visual coin flying animation
-  - Multi-stage dispensing mechanism with gate lowering, candy selection, and door opening
-  - Physics integration for realistic candy behavior and collision detection
-  - Complex animation state machine managing sequential mechanical operations
-
-  Key Properties:
-
-  - Animation State: isAnimating, isDispensing, dispensingStage
-  - Coin System: hasCoinInserted, coinMesh, coinFlyProgress
-  - Mechanical Parts: knob, gate, releaseDoor, gateSidePlanes
-  - Physics Bodies: candiesInMachine[], physicsEngine
-  - Animation Targets: Multiple 3D vectors for precise positioning
-
-  Core Functions Breakdown
-
-  1. Initialization & Setup Functions
-
-  constructor(model, physicsEngine, scene)
-  Initializes candy machine with 3D model, physics integration, and scene reference. Sets up all mechanical components, animation properties, and coin system. Calls helper functions to
-  find machine parts and create coin mesh.
-
-  _findParts()
-  Traverses the 3D model hierarchy to locate essential mechanical components by name. Finds knob (Object_6), gate, side planes (Plane2-4), and calculates their positions. Sets up knob
-  geometry centering and initial rotations for proper animation.
-
-  _createCoin()
-  Creates a golden cylindrical coin mesh with metallic material and emissive properties. Initially hidden, positioned ready for coin insertion animations. Uses realistic proportions and
-  shiny gold appearance.
-
-  _calculateDispenseCenter(gateMeshes)
-  Calculates the optimal center point of the gate area for candy targeting. Creates bounding box from all gate-related meshes and determines world coordinates where candies should be
-  directed during dispensing.
-
-  2. Machine Setup & Configuration
-
-  setReleaseDoor(mesh)
-  Configures the release door mechanism with pivot-based rotation system. Creates door pivot point at hinge location, calculates descent targets, and defines candy exit path coordinates
-  (intermediate and final positions).
-
-  setClawController(controller)
-  Links candy machine to claw controller for star-to-coin conversion system. Enables spending collected stars as coins for candy purchases, creating economic game loop.
-
-  populate(containerMesh, count, candyGeometry, scene)
-  Spawns specified number of colorful candy objects within container bounds. Uses safety zones around dispenser, assigns random colors from predefined palette, creates physics bodies,
-  and establishes candy-specific collision boundaries.
-
-  3. Core Interaction Functions
-
-  insertCoin()
-  Handles coin insertion process when player has available stars. Converts star to coin, initiates coin flying animation from world position to knob location, makes coin visible, and
-  sets up animation progress tracking.
-
-  startCandyDispensing()
-  Triggers the complete candy dispensing sequence when coin is inserted. Initiates both mechanical dispensing animation and knob rotation, selects random candy, and begins multi-stage
-  animation state machine.
-
-  4. Animation State Machine Functions
-
-  _updateDispensingAnimation(deltaTime)
-  Master animation controller managing 8 sequential dispensing stages:
-
-  - lowering_gate: Animates gate and side planes downward to create dispensing opening
-  - moving_candy: Moves selected candy horizontally to gate center with kinematic physics
-  - descending: Lowers candy vertically to door level with collision physics
-  - opening_door: Rotates release door upward using pivot system
-  - ejecting_candy: Complex two-part animation with parabolic trajectory for realistic candy exit
-  - closing_door: Returns door to closed position
-  - raising_gate: Restores gate and planes to original positions
-  - waiting_for_knob: Synchronization stage waiting for knob animation completion
-
-  _completeDispensingSequence()
-  Resets all animation states, removes dispensed candy from machine inventory, restores knob rotation, clears coin insertion flag, and removes coin mesh from scene.
-
-  5. Update & Management Functions
-
-  update(deltaTime)
-  Main update loop managing three parallel systems:
-
-  1. Coin Animation: Handles coin flying trajectory with parabolic arc, attachment to knob, position/rotation adjustments, and timed disappearance
-  2. Dispensing Animation: Processes current dispensing stage with state machine progression
-  3. Knob Animation: Manages 360-degree knob rotation with precise timing, completion detection, and sequence synchronization
-
-  Key Technical Features
-
-  Advanced Animation System
-
-  - State-driven animations with precise timing and sequencing
-  - Kinematic physics integration for realistic candy movement and collision
-  - Pivot-based rotations for mechanical door opening
-  - Parabolic trajectories for natural candy ejection paths
-
-  Physics Integration
-
-  - Dynamic candy physics with individual collision bodies
-  - Kinematic dispensing allowing pushed candies to affect others
-  - Safety zones preventing candy spawn conflicts
-  - Boundary enforcement keeping candies within machine container
-
-  Visual Polish
-
-  - Synchronized mechanical animations (gate + side planes moving together)
-  - Realistic material properties (metallic coins, colorful candies)
-  - Complex motion paths with intermediate waypoints
-  - Timed visual effects (coin disappearance, door operations)
-
-  Game Integration
-
-  - Economic system linking star collection to candy purchases
-  - Callback system for candy ejection events triggering external animations
-  - Inventory management tracking candies remaining in machine
-  - State persistence maintaining machine status between interactions
-
-  This candy machine implementation provides a highly realistic and engaging mechanical experience with sophisticated animations, physics interactions, and game system integration,
-  creating an authentic vending machine simulation within the arcade environment
-
-*/
-
-
-
-
-
-
-
-
 import * as THREE from 'three';
 import { RigidBody } from './physics_engine.js';
 import { Vec3 } from './physics_engine_vec3.js';
@@ -456,30 +320,28 @@ insertCoin() {
                 metalness: 0.1
             });
 
-            // Create candy mesh
+            //create candy mesh
             const mesh = new THREE.Mesh(candyGeometry, candyMaterial);
             mesh.name = `Candy_${i}`;
             
-            // Add directly to scene
+            //add directly to scene
             scene.add(mesh);
 
-            // Create physics body
+            //create physics body
             const body = new RigidBody(mesh, 0.5);
-            body.isCandy = true; // Mark for bounds checking in the physics engine
+            body.isCandy = true; //mark for bounds checking in the physics engine
             
-            // Set position directly on the physics body (world coordinates)
+            //set position directly on the physics body (world coordinates)
             body.position.set(worldX, worldY, worldZ);
             
-            // Sync the visual mesh's position with the physics body's position
             body.mesh.position.copy(body.position);
             
-            // Add to physics engine and our internal list
             this.physicsEngine.addBody(body);
             this.candiesInMachine.push(body);
         }
 
         
-        // Define the physics boundaries for the candies using the container's box
+        //define the physics boundaries for the candies using the container's box
         const candyBoundsMin = new Vec3(containerWorldBox.min.x, containerWorldBox.min.y, containerWorldBox.min.z);
         const candyBoundsMax = new Vec3(containerWorldBox.max.x, containerWorldBox.max.y, containerWorldBox.max.z);
         this.physicsEngine.setCandyBounds(candyBoundsMin, candyBoundsMax);
@@ -487,8 +349,8 @@ insertCoin() {
     }
 
 
-    /**
-     * Start the candy dispensing sequence
+    /*
+      Start the candy dispensing sequence
      */
     startCandyDispensing() {
         if (!this.hasCoinInserted) {
@@ -519,7 +381,7 @@ insertCoin() {
     }
 
     _updateDispensingAnimation(deltaTime) {
-        const animationSpeed = 2.0; // Animation speed multiplier
+        const animationSpeed = 2.0; //animation speed multiplier, this appeared to be the right value
 
         switch (this.dispensingStage) {
             case 'lowering_gate':
@@ -530,7 +392,7 @@ insertCoin() {
                     this.gate.position.lerpVectors(this.gateOriginalPosition, this.gateTargetPosition, t_lower);
                 }
 
-                // Anima anche i plane laterali insieme al gate
+
                 this.gateSidePlanes.forEach((plane, index) => {
                     plane.position.lerpVectors(
                         this.gateSidePlanesOriginalPositions[index],
@@ -540,14 +402,14 @@ insertCoin() {
                 });
                     
                 if (t_lower >= 1) {
-                    // Gate is down, now select and move the candy
+                    //gate is down, now select and move the candy
                     const randomIndex = Math.floor(Math.random() * this.candiesInMachine.length);
                     this.dispensingCandy = this.candiesInMachine[randomIndex];
                     this.candyStartPos.copy(this.dispensingCandy.position);
                     
                     this.dispensingCandy.isBeingDispensed = true;
-                    this.dispensingCandy.isSleeping = false; // Wake it up
-                    this.dispensingCandy.inverseMass = 0; // AGGIUNTO: Rendilo cinematico per spingere le altre caramelle
+                    this.dispensingCandy.isSleeping = false; //wake it up
+                    this.dispensingCandy.inverseMass = 0; //we change its inverse mass to make it kinematic
 
                     this.dispensingStage = 'moving_candy';
                     this.candyMoveProgress = 0;
@@ -557,9 +419,9 @@ insertCoin() {
             case 'moving_candy':
                 if (this.dispensingCandy) {
                     this.candyMoveProgress += deltaTime * animationSpeed;
-                    const t = Math.min(this.candyMoveProgress, 1);
+                    const t = Math.min(this.candyMoveProgress, 1); 
                     
-                    // --- AGGIUNTO: Calcola la velocità per la spinta fisica ---
+
                     const oldPos = this.dispensingCandy.position.clone();
 
                     const newPos = new THREE.Vector3().lerpVectors(
@@ -567,22 +429,24 @@ insertCoin() {
                         this.candyWorldTargetPos,
                         t
                     );
+
+                    //linear interpolation between 0 and 1
                     
                     this.dispensingCandy.position.copy(newPos);
                     this.dispensingCandy.mesh.position.copy(newPos);
 
-                    // Imposta la velocità lineare per permettere al corpo cinematico di spingere gli altri
+                    //set linear velocity to allow the kinematic body to push others
                     if (deltaTime > 0) {
                         const velocity = newPos.clone().sub(oldPos).divideScalar(deltaTime);
                         this.dispensingCandy.linearVelocity.copy(velocity);
                     }
                     
                     if (t >= 1) {
-                        // Candy has arrived at the pre-descent point. Now, start descending.
-                        this.dispensingCandy.linearVelocity.set(0, 0, 0); // Ferma la spinta
+                        //candy has arrived at the pre-descent point. nnw, start descending.
+                        this.dispensingCandy.linearVelocity.set(0, 0, 0); 
                         this.dispensingStage = 'descending';
                         this.candyMoveProgress = 0;
-                        this.candyStartPos.copy(this.dispensingCandy.position); // Update start pos for next stage
+                        this.candyStartPos.copy(this.dispensingCandy.position); //update start pos for next stage
                     }
                 }
                 break;
@@ -611,76 +475,77 @@ insertCoin() {
                     }
 
                     if (t >= 1) {
-                        // The candy has finished descending. Now open the release door.
+                        //the candy has finished descending, in fact interpolation basically stops and thus the candy should be at the final position ready to be dispensed
                         this.dispensingCandy.linearVelocity.set(0, 0, 0); // Ferma la spinta
                         this.dispensingStage = 'opening_door';
                         this.doorAnimationProgress = 0;
-                        // Set the start position for the next animation stage (the ejection)
+                        //set the start position for the next animation stage (the ejection)
                         this.candyStartPos.copy(this.dispensingCandy.position);
-                        this.candyMoveProgress = 0; // Reset progress for the ejection animation
+                        this.candyMoveProgress = 0; //reset progress for the ejection animation
                     }
                 }
                 break;
 
             case 'opening_door':
-                this.doorAnimationProgress += deltaTime * animationSpeed * 1.5; // Open faster
+                this.doorAnimationProgress += deltaTime * animationSpeed * 1.5; 
                 const open_t = Math.min(this.doorAnimationProgress, 1);
                 
                 if (this.releaseDoorPivot) {
-                    // Tilt the door upwards by rotating the pivot on its X-axis
+                    //tilt the door upwards by rotating the pivot on its X-axis
                     this.releaseDoorPivot.rotation.x = -Math.PI / 3 * open_t; // Open by 60 degrees
                 }
 
                 if (open_t >= 1) {
-                    this.dispensingStage = 'ejecting_candy'; // Next, animate the candy out
+                    this.dispensingStage = 'ejecting_candy'; //next, animate the candy out
                 }
                 break;
                 
             case 'ejecting_candy':
-                // This stage animates the candy along a two-part exit path with a parabola
+                //this stage animates the candy along a two-part exit path with a parabola, in fact it needs to go from bottom to up 
                 if (this.dispensingCandy) {
-                    this.candyMoveProgress += deltaTime * 1.0; // Rallentato per vedere meglio il percorso
+                    this.candyMoveProgress += deltaTime * 1.0;
                     const t = Math.min(this.candyMoveProgress, 1);
 
                     const newPos = new THREE.Vector3();
-                    const parabolaHeight = 0.8; // Altezza dell'arco parabolico
+                    const parabolaHeight = 0.8; // height of the parabola
 
-                    // Animate through the intermediate point to the final destination
+                    //animate through the intermediate point to the final destination
                     if (t <= 0.5) {
-                        // Prima metà: da `start` a `intermediate` (lineare)
-                        const t_part1 = t * 2; // Scala t da [0, 0.5] a [0, 1]
+                        //first half, from `start` to `intermediate` (linear)
+                        const t_part1 = t * 2; 
                         newPos.lerpVectors(
                         this.candyStartPos,
                             this.candyIntermediateExitPos,
                             t_part1
                         );
                     } else {
-                        // Seconda metà: da `intermediate` a `final` (con parabola)
-                        const t_part2 = (t - 0.5) * 2; // Scala t da [0.5, 1] a [0, 1]
+                        //second half, from `intermediate` to `final` (with parabola)
+                        const t_part2 = (t - 0.5) * 2; 
                         
-                        // Interpola linearmente la posizione di base
+                        
+                        
                         newPos.lerpVectors(
                             this.candyIntermediateExitPos,
                             this.candyFinalExitPos,
                             t_part2
                     );
                         
-                        // Aggiungi l'altezza della parabola
+
                         newPos.y += Math.sin(t_part2 * Math.PI) * parabolaHeight;
                     }
 
-                    // Keep physics paused while we animate
+                    //keep physics paused while we animate
                     this.dispensingCandy.position.copy(newPos);
                     this.dispensingCandy.mesh.position.copy(newPos);
                     
-                    // Once the animation is complete, release the candy to the physics world
+                    //once the animation is complete, release the candy to the physics world
                     if (t >= 1) {
-                        // --- MODIFICATO: Chiama il callback per l'animazione di scomparsa ---
+
                         if (this.onCandyEjected) {
                             this.onCandyEjected(this.dispensingCandy);
                         }
                         
-                        // Rimuovi la caramella dalla lista interna della macchina
+
                         this.candiesInMachine = this.candiesInMachine.filter(c => c !== this.dispensingCandy);
                         this.dispensingCandy = null;
                         
@@ -695,12 +560,12 @@ insertCoin() {
                 const close_t = Math.min(this.doorAnimationProgress, 1);
 
                 if (this.releaseDoorPivot) {
-                    // Animate from open to closed
+                    //animate from open to closed
                     this.releaseDoorPivot.rotation.x = -Math.PI / 3 * (1 - close_t);
                 }
 
                 if (close_t >= 1) {
-                    // Door is closed, now we can raise the main gate
+                    //door is closed, now we can raise the main gate
                         this.dispensingStage = 'raising_gate';
                         this.gateAnimationProgress = 0;
                 }
@@ -714,7 +579,7 @@ insertCoin() {
                     this.gate.position.lerpVectors(this.gateTargetPosition, this.gateOriginalPosition, t_raise);
                 }
                 
-                // Anima anche i plane laterali mentre salgono
+
                 this.gateSidePlanes.forEach((plane, index) => {
                     plane.position.lerpVectors(
                         this.gateSidePlanesTargetPositions[index],
@@ -724,7 +589,7 @@ insertCoin() {
                 });
 
                 if (t_raise >= 1) {
-                    this.dispensingStage = 'idle'; // Dispensing part is done
+                    this.dispensingStage = 'idle'; // dispensing part is done
                     if (this.knobAnimationComplete) {
                         this._completeDispensingSequence();
                     } else {
@@ -750,7 +615,7 @@ insertCoin() {
         this.rotationProgress = 0;
         this.knobAnimationComplete = false;
         
-        // Ripristina la rotazione esatta della manopola
+
         if (this.knob) {
             this.knob.rotation.y = this.knobInitialRotationY;
         }
@@ -777,25 +642,25 @@ insertCoin() {
             this.model.remove(this.coinMesh);
             this.knob.add(this.coinMesh);
 
-            // 🎯 MODIFICA QUI: Imposta la posizione locale finale corretta.
+            // reposition and rotate the coin relative to the knob
             this.coinMesh.position.set(-0.1, 0.5, -0.8);
             this.coinMesh.rotation.set(0, Math.PI / 2, 0);
 
         }
     }
 
-    // Handle the dispensing state machine
+    // handle the dispensing state machine
     if (this.isDispensing) {
         this._updateDispensingAnimation(deltaTime);
     }
 
-    // Handle knob animation
+    // handle knob animation
     if (this.isAnimating) {
         this.rotationProgress += deltaTime;
         const t = Math.min(this.rotationProgress / this.rotationDuration, 1);
 
         if (this.knob) {
-            // Usa l'interpolazione per una rotazione precisa invece di accumulare errori
+
             this.knob.rotation.y = this.knobInitialRotationY + t * (Math.PI * 2);
         }
 
@@ -806,7 +671,7 @@ insertCoin() {
             }
         }
 
-        // Check if knob has completed its full rotation
+
         if (this.rotationProgress >= this.rotationDuration) {
             this.knobAnimationComplete = true;
             

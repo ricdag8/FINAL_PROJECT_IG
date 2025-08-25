@@ -1,10 +1,7 @@
 import * as THREE from 'three';
-import { RigidBody } from './physics_engine.js';
-import { Vec3 } from './physics_engine_vec3.js';
-import { MeshBVH, MeshBVHHelper } from 'https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js';
 
 export class ClawController {
-    // AGGIUNTA: Il costruttore ora accetta 'grabbableObjects'
+
  constructor(clawGroup, cylinders, clawBones, scene, objectsInteraction, physicsEngine, grabbableObjects, joystickPivot, button) {
         this.clawGroup = clawGroup;
         this.cylinders = cylinders;
@@ -15,13 +12,13 @@ export class ClawController {
         this.machineBox = null;
         this.chuteMesh = null;
         
-        // AGGIUNTA: Memorizza l'array di oggetti
+
         this.grabbableObjects = grabbableObjects; 
         
-        // --- State Machine ---
+        // state Machine 
         this.automationState = 'MANUAL_HORIZONTAL';
         this.returnYPosition = 0;
-        this.dropTargetY = 0;       // Questa verrà calcolata dinamicamente
+        this.dropTargetY = 0;       
         
         this.moveState = { left:false, right:false, forward:false, backward:false };
         this.moveSpeed = 1.5;
@@ -30,7 +27,7 @@ export class ClawController {
         this.spawnPosition = new THREE.Vector3();     // Posizione iniziale della claw
         this.dropOffPosition = new THREE.Vector3();   
 
-        // ... (il resto del costruttore rimane invariato)
+        //all claw machine states
         this.isAnimating = false;
         this.isClosed = false;
         this.isClosing = false;
@@ -45,14 +42,14 @@ export class ClawController {
         this.releasingObjectStartTime = 0;
 
 
-        this.joystickPivot = joystickPivot; // Rinominiamo la proprietà per chiarezza
+        this.joystickPivot = joystickPivot; //we insert a pivot in order to fix the rotation point of the joystick
         this.button = button;
         this.initialJoystickRotation = this.joystickPivot ? this.joystickPivot.rotation.clone() : null;
         this.initialButtonPosition = this.button ? this.button.position.clone() : null;
         this.joystickTiltTarget = new THREE.Euler();
         this.buttonPressTime = 0;
         this.buttonPressDuration = 250; // in ms
-        this.joystickTiltAngle = 0.3; // Manteniamo l'angolo piccolo
+        this.joystickTiltAngle = 0.3;
 
         this.storeInitialTransforms();
     }
@@ -63,23 +60,21 @@ export class ClawController {
         this.machineBox = machineBox;
         this.chuteMesh = chuteMesh;
         
-        // Memorizziamo la posizione di spawn iniziale della claw
+//memorize the start position of the claw so that it will return to it
         if(this.spawnPosition.lengthSq() === 0) {
             this.spawnPosition.copy(this.clawGroup.position);
         }
 
         if (this.machineBox) {
-            // Definiamo il punto di rilascio in un angolo della macchina (es. in alto a destra)
-            // Puoi cambiare 'max.x' e 'max.z' con 'min.x' e 'min.z' per scegliere un altro angolo
+
             this.dropOffPosition.set(
                 this.machineBox.max.x - this.moveMargin - 0.1,
-                0, // La Y verrà impostata al momento
+                0, 
                 this.machineBox.max.z - this.moveMargin - 0.1
             );
         }
         
-        // La logica della drop zone non è più necessaria per il rilascio automatico,
-        // ma la lasciamo per usi futuri se necessario.
+
         if (this.chuteMesh) {
             this.chuteMesh.updateWorldMatrix(true, false);
             this.chuteBox = new THREE.Box3().setFromObject(this.chuteMesh);
@@ -88,7 +83,7 @@ export class ClawController {
     }
 
     createDropZoneIndicator() {
-        // Placeholder method - no visual indicator needed
+        // placeholder
     }
 
     storeInitialTransforms() {
@@ -103,7 +98,7 @@ export class ClawController {
             }
         });
     }
-
+//methods used to interact with the claw
     toggleClaw() {
         if (this.isAnimating) {
             return; 
@@ -116,6 +111,9 @@ export class ClawController {
         }
     }
 
+
+
+    // wait until all claw fingers have stopped moving
     waitUntilAllStopped(callback) {
         const checkInterval = setInterval(() => {
             if (this.stopStatus.A && this.stopStatus.B && this.stopStatus.C) {
@@ -128,7 +126,8 @@ export class ClawController {
     checkFingerCollisions() {
         const fingerToCylinder = { 'A': 'Cylinder', 'B': 'Cylinder003', 'C': 'Cylinder008' };
         const keys = ['A', 'B', 'C'];
-    
+        //very first method used to check for claw collisions. it uses cylinders that are checked in couple to detect collisions
+        
         for (let i = 0; i < keys.length; i++) {
             for (let j = i + 1; j < keys.length; j++) {
                 const f1 = keys[i];
@@ -138,7 +137,7 @@ export class ClawController {
                 const c2 = this.clawGroup.getObjectByName(fingerToCylinder[f2]);
     
                 if (c1 && c2) {
-                    // Usa bounding box aggiornate per ciascun cilindro
+                    //we basically get new bounding boxes for each cylinders
                     const box1 = new THREE.Box3().setFromObject(c1);
                     const box2 = new THREE.Box3().setFromObject(c2);
     
@@ -150,6 +149,7 @@ export class ClawController {
             }
         }
     }
+
     spendStarAsCoin() {
     if (this.deliveredStars > 0) {
         this.deliveredStars--;
@@ -159,11 +159,11 @@ export class ClawController {
     }
 }
 
-
+//function used in order to check which should be the correct drop height for the claw
 calculateAndSetDropHeight() {
     const fallbackHeight = this.machineBox ? this.machineBox.min.y + 0.5 : 0;
 
-    // Fallback 1: L'array di oggetti non esiste o è vuoto.
+    //if dont have any grabbable objcects, then we set the drop height to a fallback value, because we need a valid target
     if (!this.grabbableObjects || this.grabbableObjects.length === 0) {
         this.dropTargetY = fallbackHeight;
         return;
@@ -171,7 +171,7 @@ calculateAndSetDropHeight() {
 
     let highestY = -Infinity;
     this.grabbableObjects.forEach(objData => {
-        // Controlla che il corpo fisico e la sua posizione siano validi
+
         if (objData && objData.body && objData.body.position && !objData.body.isHeld) {
             if (objData.body.position.y > highestY) {
                 highestY = objData.body.position.y;
@@ -179,16 +179,16 @@ calculateAndSetDropHeight() {
         }
     });
 
-    // Fallback 2: Gli oggetti esistono, ma nessuno ha fornito una coordinata Y valida.
+
     if (highestY === -Infinity) {
         this.dropTargetY = fallbackHeight;
         return;
     }
 
-    const penetrationOffset = -0.15; // Valore di penetrazione
-    this.dropTargetY = highestY - penetrationOffset; // SOTTRAIAMO l'offset invece di aggiungerlo
+    const penetrationOffset = -0.15; //penetration value
+    this.dropTargetY = highestY - penetrationOffset; //subtract the offset instead of adding it
 
-    // Controllo di sicurezza finale: assicurati che il target non sia sotto il pavimento della macchina
+    // final safety check: make sure the target is not below the machine's floor
     if (this.machineBox && this.dropTargetY < this.machineBox.min.y) {
         this.dropTargetY = this.machineBox.min.y + 0.1;
     }
@@ -196,28 +196,22 @@ calculateAndSetDropHeight() {
 }
 
 
-
-// in claw_controller.js
-
-
 startDropSequence() {
-    // --- INIZIO LOGICA DI BLOCCO CON MARGINE DI SICUREZZA ---
+
     if (this.chuteBox) {
         const clawPos = this.clawGroup.position;
         const chuteBounds = this.chuteBox;
 
-        // --- NUOVO: Calcoliamo dinamicamente le dimensioni della claw ---
+
         const clawBox = new THREE.Box3().setFromObject(this.clawGroup);
         const clawSize = new THREE.Vector3();
         clawBox.getSize(clawSize);
 
-        // Il margine di sicurezza è la metà della dimensione della claw su ciascun asse.
-        // In questo modo, il blocco scatta quando il *bordo* della claw tocca la zona di rispetto.
+ 
         const safeMarginX = clawSize.x ;
         const safeMarginZ = clawSize.z ;
 
-        // --- MODIFICATO: La condizione ora usa i margini di sicurezza ---
-        // Controlliamo se il centro della claw entra in un'area "gonfiata" delle dimensioni del margine.
+//we block the claw descent if it intersects with the chute
         const isOverChute =
             clawPos.x >= (chuteBounds.min.x - safeMarginX) &&
             clawPos.x <= (chuteBounds.max.x + safeMarginX) &&
@@ -225,12 +219,12 @@ startDropSequence() {
             clawPos.z <= (chuteBounds.max.z + safeMarginZ);
 
         if (isOverChute) {
-            return; // Esce dalla funzione, impedendo l'avvio della sequenza.
+            return; 
         }
     }
-    // --- ✅ FINE LOGICA DI BLOCCO ---
 
-    // Il resto della funzione originale viene eseguito solo se il controllo precedente passa
+
+
     if (this.automationState === 'MANUAL_HORIZONTAL' && !this.isAnimating) { //
         
         if (this.button) { //
@@ -244,42 +238,42 @@ startDropSequence() {
     }
 }
 
-// --- NUOVO CICLO DI PRESA ASINCRONO ---
+
 async runCloseSequence() {
     this.automationState = 'OPERATING';
 
-    await this.closeClaw(); // Chiudi la claw
+    await this.closeClaw(); 
     
-    // Pausa per stabilizzare la presa (se c'è)
+
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    // Passa subito allo stato di risalita, SENZA aprire la claw
+
     this.automationState = 'ASCENDING';
 }
 
-// in claw_controller.js
+
 
 async runReleaseAndReturnSequence() {
     this.automationState = 'RELEASING_OBJECT';
 
-    // --- NEW RELEASE LOGIC ---
-    // This is now the *only* place where the object's state transitions from "held" to "released".
+
+    // this is now the only place where the object's state transitions from "held" to "released"
     if (this.isGrabbing && this.grabbedObject) {
         this.deliveredStars++;
 
         const body = this.grabbedObject.body;
         
-        // 1. Un-pin the object from the claw controller.
+        // un-pin the object from the claw controller.
         body.isHeld = false;
         this.isGrabbing = false;
         this.grabbedObject = null;
 
-        // 2. Activate the physics engine's "clean release" system.
+        // activate the physics engine's "clean release" system.
         body.ignoreClawCollision = true;
         body.isBeingReleased = true;
         body.releaseStartTime = Date.now();
 
-        // 3. Reset physics state for a clean vertical drop.
+        // reset physics state for a clean vertical drop, so that the star is dropped directly downwards
         body.linearVelocity.set(0, 0, 0);
         body.angularVelocity.set(0, 0, 0);
         body.force.set(0, 0, 0);
@@ -287,20 +281,20 @@ async runReleaseAndReturnSequence() {
         body.isSleeping = false;
         
     }
-    // --- END NEW LOGIC ---
 
     
     await this.openClaw();
     await new Promise(resolve => setTimeout(resolve, 500)); 
     
-    // The state transition to begin returning to the start position
+    // the state transition to begin returning to the start position
     this.automationState = 'RETURNING_ASCEND';
 }
-// --- closeClaw E openClaw MODIFICATI PER RESTITUIRE PROMISES ---
+
+
 closeClaw() {
     return new Promise(resolve => {
         this.isClosing = true;
-        // Resetta lo stato di stop all'inizio di ogni chiusura
+
         this.stopStatus = { A: false, B: false, C: false };
 
         const closeStep = 0.03;
@@ -310,7 +304,7 @@ closeClaw() {
         const grabInterval = setInterval(() => {
             rotationSteps++;
 
-            // Ruota le dita solo se non sono state fermate da una collisione
+            //we check for collisions and also we add the closing value 
             if (this.clawBones.A && !this.stopStatus.A) {
                 this.clawBones.A.rotation.z -= closeStep;
             }
@@ -323,10 +317,10 @@ closeClaw() {
             
             this.cylinders.forEach(c => c.updateMatrixWorld(true));
 
-            // Esegui il controllo delle collisioni ad ogni passo
+
             this.checkFingerCollisions();
 
-            // Condizioni di stop: timeout OPPURE tutte le dita si sono fermate
+
             const allFingersCollided = this.stopStatus.A && this.stopStatus.B && this.stopStatus.C;
 
             if (rotationSteps >= maxSteps || allFingersCollided) {
@@ -341,19 +335,14 @@ closeClaw() {
 }
 
 
-// in claw_controller.js
-
 openClaw() {
     return new Promise((resolve, reject) => {
-        // --- SIMPLIFIED: This function no longer manages the grabbed object's state. ---
         
         try {
             const openSteps = 30;
             let currentStep = 0;
         
-            // Check if required objects exist
             if (!this.clawBones.A || !this.clawBones.B || !this.clawBones.C) {
-                console.error('ClawController: Missing claw bones for openClaw()');
                 reject(new Error('Missing claw bones'));
                 return;
             }
@@ -364,11 +353,11 @@ openClaw() {
                 C: this.clawBones.C.rotation.z
             };
             
-            // Check if initial transforms exist
+            // check if initial transforms exist
             if (!this.initialTransforms[this.clawBones.A.name] || 
                 !this.initialTransforms[this.clawBones.B.name] || 
                 !this.initialTransforms[this.clawBones.C.name]) {
-                console.error('ClawController: Missing initial transforms for openClaw()');
+
                 reject(new Error('Missing initial transforms'));
                 return;
             }
@@ -378,7 +367,7 @@ openClaw() {
                 B: this.initialTransforms[this.clawBones.B.name].rotation.z,
                 C: this.initialTransforms[this.clawBones.C.name].rotation.z
             };
-    
+            //we basically go back to the initial position by reverting the rotation using lerp
         const openInterval = setInterval(() => {
             currentStep++;
             const progress = currentStep / openSteps;
@@ -390,7 +379,7 @@ openClaw() {
             if (currentStep >= openSteps) {
                 clearInterval(openInterval);
                 this.isClosed = false;
-                resolve(); // The Promise is resolved
+                resolve();
             }
         }, 30);
         
@@ -401,30 +390,6 @@ openClaw() {
     });
 }
 
-    // Debug method to check and reset claw state
-    resetClawState() {
-        console.log('ClawController: Forcing reset to MANUAL_HORIZONTAL state');
-        this.automationState = 'MANUAL_HORIZONTAL';
-        this.isAnimating = false;
-        this.isGrabbing = false;
-        this.grabbedObject = null;
-        if (this.isClosed) {
-            this.openClaw().catch(error => {
-                console.error('Error opening claw during reset:', error);
-            });
-        }
-    }
-
-    // Debug method to get current state
-    getDebugState() {
-        return {
-            automationState: this.automationState,
-            isAnimating: this.isAnimating,
-            isGrabbing: this.isGrabbing,
-            isClosed: this.isClosed,
-            hasGrabbedObject: !!this.grabbedObject
-        };
-    }
 
     applyDirectLink(deltaTime) {
         if (!this.isGrabbing || !this.grabbedObject) {
@@ -772,376 +737,104 @@ openClaw() {
     }
 } 
 
+/*
 
-/* 
+# Big picture
 
+* Controls a claw crane head inside a bounded machine volume.
+* Two layers:
+
+  1. **Manual movement** on X/Z within `machineBox`; drop sequence on button.
+  2. **Automations** (descend → close → lift → deliver/release → return).
+* Integrates with external systems:
+
+  * `objectsInteraction` for finding a nearby grabbable during closing,
+  * physics-like bodies on objects (`isHeld`, velocities, flags),
+  * optional **BVH** on the chute for precise collision checks.
+
+# Key inputs & deps
+
+* Constructor gets: `clawGroup` (transform root), finger **bones** `{A,B,C}`, finger **cylinders** (collision between fingers), `scene`, `objectsInteraction`, `physicsEngine` (ref), `grabbableObjects`, and UI meshes (`joystickPivot`, `button`).
+* `setDependencies(machineBox, chuteMesh)`:
+
+  * Stores machine bounds (`Box3`), first `spawnPosition`, computes `dropOffPosition` (corner), builds `chuteBox` (and uses `geometry.boundsTree` if present).
+
+# State machine (high level)
+
+`MANUAL_HORIZONTAL → DESCENDING → OPERATING → ASCENDING → (deliver or release) → RETURNING_* → MANUAL_HORIZONTAL`
+
+* **MANUAL\_HORIZONTAL**: free X/Z move (clamped to `machineBox` with `moveMargin`).
+* **DESCENDING**: go to `dropTargetY` (computed above the highest unheld object; clamped off the floor).
+* **OPERATING**: wait for fingers to finish closing (async).
+* **ASCENDING**: rise to `returnYPosition`. If holding → **DELIVERING\_MOVE\_X/Z** then **DELIVERING\_DESCEND**; else → **RELEASING\_OBJECT**.
+* **DELIVERING\_\*:** move to `dropOffPosition` (X then Z), short descend, then release.
+* **RELEASING\_OBJECT:** open, clean release, safety timeout.
+* **RETURNING\_ASCEND/MOVE\_Z/MOVE\_X:** go back to `spawnPosition`.
+
+# Grabbing & releasing
+
+* **Close** (`closeClaw()`): every 50 ms rotate each finger (`rotation.z -= 0.03`) unless that finger has collided; stop when all three report contact or timeout. Sets `isClosed`.
+* **Grab hook** (during close): query `objectsInteraction.getGrabbableCandidate(2)`; if found and not `isBeingReleased`, mark `isGrabbing=true`, `isHeld=true`.
+* **Rigid link** while held (`applyDirectLink(dt)`): snap object below claw, copy claw linear velocity, zero angular.
+* **Release** (`runReleaseAndReturnSequence()` / `triggerAutoDrop()`):
+
+  * Clear hold flags, increment `deliveredStars`, mark body for clean release (`ignoreClawCollision`, `isBeingReleased`, `releaseStartTime`), zero velocities/forces, open if needed.
+
+# Safety & collision
+
+* **Finger-finger**: AABB checks between finger cylinders; per-finger stop flags prevent interpenetration.
+* **Chute safety**:
+
+  * `startDropSequence()` blocks descent if claw’s AABB overlaps (or too near) `chuteBox`.
+  * `checkClawCollision(velocity)`: predictive AABB sweep per axis; transforms to chute local and queries **BVH** (`geometry.boundsTree`). Zeros offending velocity components.
+* **Drop zone check** (`isInDropZone()`): requires horizontal overlap with `chuteBox` and claw height within a small threshold above it → enables immediate auto-drop.
+
+# Per-frame `update(dt)`
+
+1. Cache last position; update **button** bounce (press-timed) and **joystick** tilt (lerped from `moveState`).
+2. If `isClosing` and not already grabbing, try to grab via `objectsInteraction`.
+3. If holding, apply rigid link.
+4. Run the **state machine** (movement, interpolations, async steps).
+5. Refresh transforms on finger cylinders.
+
+# Public API (practical)
+
+* **Setup:**
+  `setDependencies(machineBox, chuteMesh)` → bounds & chute;
+  `storeInitialTransforms()` → capture base finger poses.
+* **Control:**
+  `setMoving(dir, bool)` for input; `startDropSequence()` to begin a grab attempt; `toggleClaw()`, `resetClawState()`.
+* **Animation helpers:**
+  `openClaw()` / `closeClaw()` return Promises; button/joystick visuals auto-update in `update`.
+* **Scoring:**
+  `getDeliveredStars()`, `resetScore()`, `spendStarAsCoin()`.
+* **Debug/inspect:**
+  `getDebugState()`.
+* **Collision utility:**
+  `checkClawCollision(velocity)` (needs `chuteMesh.geometry.boundsTree`).
+
+# Typical usage (minimal)
 
 ```js
-import * as THREE from 'three';
-import { RigidBody } from './physics_engine.js';
-import { Vec3 } from './physics_engine_vec3.js';
-import { MeshBVH, MeshBVHHelper } from 'three-mesh-bvh';
+controller.setDependencies(machineBox, chuteMesh);
+controller.storeInitialTransforms();
+
+// game loop
+controller.update(dt);
+
+// input
+controller.setMoving('left', keyLeftDown);
+controller.setMoving('forward', keyUpDown);
+
+// on drop button
+controller.startDropSequence();
 ```
 
-* Usa **Three.js** per geometrie, matrici, box di bounding ecc.
-* Importa tipi del motore fisico (`RigidBody`, `Vec3`) — in questo file non sono usati direttamente, ma i *body* degli oggetti presi/restituiti seguono quel modello (campi come `position`, `linearVelocity`, `isHeld`…).
-* Facoltativamente usa **three-mesh-bvh**: serve quando la geometria ha un `boundsTree` per collisioni veloci (vedi `checkClawCollision`).
-
----
-
-
-# Proprietà principali del controller
-
-Nel costruttore ricevi:
-
-* `clawGroup`: gruppo 3D della pinza (usato per posizionamento globale).
-* `cylinders`: lista di mesh cilindriche che compongono le dita/attuatori (usate anche per collisioni fra dita).
-* `clawBones`: oggetto con le tre “ossa”/giunti delle dita `{A,B,C}` (ruotate su `rotation.z` per aprire/chiudere).
-* `scene`: scena Three.js (qui non è usata direttamente).
-* `objectsInteraction`: helper esterno che fornisce un **candidato afferrabile** vicino alla pinza (`getGrabbableCandidate`).
-* `physicsEngine`: riferimento al motore fisico (non usato direttamente qui).
-* `grabbableObjects`: array di oggetti afferrabili, ciascuno con `{ body: RigidBody-like }`.
-* `joystickPivot`, `button`: mesh per animazioni decorative (joystick e pulsante).
-
-Stato interno (i più importanti):
-
-* **Macchina a stati**: `automationState` con valori come
-  `MANUAL_HORIZONTAL → DESCENDING → OPERATING → ASCENDING → (delivery…) → MANUAL_HORIZONTAL`.
-* `moveState`: input (sinistra/destra/avanti/indietro).
-* `moveSpeed`, `moveMargin`: velocità e margine dai bordi.
-* `stopStatus {A,B,C}`: flag di “urto/limite” per ciascuna dita durante la chiusura.
-* `spawnPosition`: dove si trova la pinza al primo avvio (usato per il ritorno).
-* `dropOffPosition`: angolo della macchina dove rilasciare l’oggetto consegnato.
-* `isAnimating`, `isClosed`, `isClosing`, `isGrabbing`, `grabbedObject`: stato della pinza e della presa.
-* `machineBox`: **Box3** dei limiti interni della macchina.
-* `chuteMesh`/`chuteBox`: mesh e bounding box dello **scivolo** (chute) per la consegna automatica.
-* `deliveredStars`: contatore “punti/monete” (incrementa quando consegni).
-* `initialTransforms`: pose iniziali di ossa e cilindri (usate per riaprire la pinza).
-* `buttonPressTime`, `buttonPressDuration`, `joystickTiltAngle`: per le piccole animazioni UI.
-
----
-
-# Macchina a stati (riassunto rapido)
-
-* `MANUAL_HORIZONTAL`: movimento libero su X/Z dentro `machineBox`.
-* `DESCENDING`: discesa verticale fino a `dropTargetY`.
-* `OPERATING`: attesa mentre le dita si chiudono.
-* `ASCENDING`: risalita fino all’altezza iniziale (`returnYPosition`).
-
-  * Se *sta* afferrando → passa alla sequenza di consegna: `DELIVERING_MOVE_X → DELIVERING_MOVE_Z → DELIVERING_DESCEND`.
-  * Se *non* afferra → `RELEASING_OBJECT` (apre e torna manuale).
-* `DELIVERING_MOVE_X/Z`: movimentazione orizzontale verso `dropOffPosition`.
-* `DELIVERING_DESCEND`: piccola discesa e rilascio programmato.
-* `RELEASING_OBJECT`: fase di apertura pinza e “rilascio pulito”.
-* `RETURNING_ASCEND → RETURNING_MOVE_Z → RETURNING_MOVE_X`: ritorno alla posizione di spawn.
-
----
-
-# Metodi (funzioni): cosa fanno e perché
-
-## Costruttore
-
-Inizializza tutte le proprietà sopra, imposta gli stati iniziali e salva le trasformazioni iniziali di ossa/cilindri (per riaprire la pinza con precisione). Prepara anche parametri per animazioni di joystick e pulsante.
-
----
-
-## `setDependencies(machineBox, chuteMesh)`
-
-* Imposta i riferimenti a **box della macchina** e **mesh dello scivolo**.
-* Memorizza `spawnPosition` alla prima chiamata.
-* Calcola `dropOffPosition` (angolo interno della macchina con un piccolo margine).
-* Se c’è lo scivolo, costruisce `chuteBox` (Box3 dallo scivolo) e chiama `createDropZoneIndicator` (qui è un no-op).
-
-**Perché serve:** separa la costruzione della classe dalla conoscenza dei limiti della macchina; senza `machineBox` non può limitare/clampare né scegliere l’angolo di consegna.
-
----
-
-## `storeInitialTransforms()`
-
-* Salva `position`, `rotation`, `scale` di **tutte le ossa** e **tutti i cilindri** in `initialTransforms` (chiave = `obj.name`).
-
-**Perché serve:** quando apri la pinza (`openClaw`) interpoli verso la posa **esatta** iniziale, indipendentemente da come si è chiusa.
-
----
-
-## `toggleClaw()`
-
-* Se non sta animando, apre o chiude la pinza in base a `isClosed`.
-
-**Perché serve:** comodo “toggle” per input/DEBUG.
-
----
-
-## `waitUntilAllStopped(callback)`
-
-* Controlla periodicamente `stopStatus.{A,B,C}` e chiama `callback()` quando tutte e tre sono true.
-
-**Perché serve:** utility per aspettare la condizione “tutte le dita hanno urtato/si sono fermate”. (Nel flusso attuale, la chiusura già si ferma autonomamente; questa è più da debug/retrocompatibilità).
-
----
-
-## `checkFingerCollisions()`
-
-* Prende le tre mesh dei cilindri associati a dita A/B/C.
-* Costruisce la **Box3** di ciascuna e, per ogni coppia, se si **intersecano** marca `stopStatus` per entrambe.
-
-**Perché serve:** impedisce che le dita si compenetrino; la chiusura di ciascuna dita si ferma “per contatto” con un’altra.
-
----
-
-## `spendStarAsCoin()`
-
-* Se `deliveredStars > 0`, lo decrementa e ritorna `true`, altrimenti `false`.
-
-**Perché serve:** meccanica “usa un punto come moneta”.
-
----
-
-## `calculateAndSetDropHeight()`
-
-* Sceglie la quota `dropTargetY` dove **fermarsi in discesa**:
-
-  * Se non ci sono oggetti afferrabili → fallback (`machineBox.min.y + 0.5`).
-  * Altrimenti prende l’**oggetto più alto** non in mano (`!isHeld`), usa la sua `y` e **sottrae** un offset di penetrazione (`-0.15`) per calare leggermente **dentro** la pila.
-  * Clampa sopra il pavimento (`machineBox.min.y + 0.1`).
-
-**Perché serve:** posizione di “attacco” credibile sulla pila di oggetti, senza bucare il pavimento.
-
----
-
-## `startDropSequence()`
-
-* **Blocco sicurezza scivolo:** calcola la **Box3 della pinza** e, con un margine dinamico (metà dimensione pinza), evita di avviare la discesa se la pinza è sopra o troppo vicino alla **chute**.
-* Se lo stato è `MANUAL_HORIZONTAL` e non sta già animando:
-
-  * registra l’istante di pressione del pulsante (per l’animazione),
-  * calcola `dropTargetY`,
-  * imposta `isAnimating`, salva `returnYPosition` (quota di partenza),
-  * passa a `DESCENDING`.
-
-**Perché serve:** innesca la sequenza automatica di presa, ma impedisce errori vicino allo scivolo.
-
----
-
-## `async runCloseSequence()`
-
-* Imposta lo stato `OPERATING`.
-* **Attende** la chiusura (`await closeClaw()`), poi aspetta 300 ms per stabilizzare e passa a `ASCENDING`.
-
-**Perché serve:** sequenza atomica e ordinata: chiudi → risali (senza aprire).
-
----
-
-## `async runReleaseAndReturnSequence()`
-
-* Entra in `RELEASING_OBJECT`.
-* Se stava afferrando:
-
-  * incrementa `deliveredStars`,
-  * rimuove il “pin” logico (`isHeld=false`, `isGrabbing=false`, `grabbedObject=null`),
-  * attiva uno **stato di rilascio pulito** sul corpo (`ignoreClawCollision`, `isBeingReleased`, `releaseStartTime`),
-  * azzera velocità/forze/coppie e sveglia il body.
-* **Apre** la pinza (`await openClaw()`), attende 500 ms, poi passa a `RETURNING_ASCEND`.
-
-**Perché serve:** punto **unico** in cui l’oggetto passa da “in mano” a “rilasciato” in modo fisicamente pulito.
-
----
-
-## `closeClaw() : Promise`
-
-* Imposta `isClosing=true`, azzera `stopStatus`.
-* Ogni 50 ms:
-
-  * ruota ciascuna dita di `-0.03` su `z` **solo se** non è stata fermata da collisioni,
-  * aggiorna le matrici, chiama `checkFingerCollisions()`,
-  * termina a **timeout** (60 step) **o** quando tutte e tre le dita sono in collisione.
-* Alla fine: `isClosed=true`, `isClosing=false`, **resolve** della Promise.
-
-**Perché serve:** animazione di chiusura **autonoma** e autolimitata dalle collisioni tra dita.
-
----
-
-## `openClaw() : Promise`
-
-* Verifica la presenza di ossa e delle pose iniziali memorizzate.
-* Interpola in 30 step (ogni 30 ms) le `rotation.z` di A/B/C dalla posa corrente alla posa iniziale registrata (in `initialTransforms`).
-* Alla fine: `isClosed=false`, **resolve**; se mancano dati, **reject**.
-
-**Perché serve:** riapre la pinza in modo consistente con la posa “di fabbrica”.
-
----
-
-## `resetClawState()`
-
-* Forza lo stato a `MANUAL_HORIZONTAL`, azzera flag di animazione/presa, rilascia il riferimento all’oggetto.
-* Se la pinza è chiusa, prova ad aprirla (con gestione errori).
-
-**Perché serve:** pulsante “PANIC/RESET” per tornare a mano.
-
----
-
-## `getDebugState()`
-
-* Ritorna un piccolo snapshot dello stato interno (stato, flag, presenza oggetto).
-
-**Perché serve:** debug/logging.
-
----
-
-## `applyDirectLink(deltaTime)`
-
-* Se sta afferrando:
-
-  * imposta `isSleeping=false` sul body,
-  * **teletrasporta** la posizione del body al centro della pinza (leggermente sotto: `y - 0.15`),
-  * calcola la velocità della pinza come `(pos - lastClawPosition)/deltaTime` e la copia su `linearVelocity`,
-  * azzera `angularVelocity`.
-
-**Perché serve:** legame “rigido” pinza-oggetto senza ritardi (zero-lag).
-
----
-
-## `isInDropZone()`
-
-* Se non ha oggetto → `false`.
-* Controlla:
-
-  * proiezione **orizzontale** della pinza **dentro** `chuteBox`,
-  * **altezza** della pinza entro `dropZoneThreshold` sopra `chuteBox.max.y`.
-* Ritorna `true` se entrambe vere.
-
-**Perché serve:** rilevare quando è sicuro lasciare cadere **direttamente** nello scivolo.
-
----
-
-## `triggerAutoDrop()`
-
-* Se sta afferrando:
-
-  * incrementa `deliveredStars`,
-  * mette `isHeld=false` sull’oggetto,
-  * gli dà una leggera **velocità verso il basso** e un po’ di **spin** random,
-  * azzera lo stato di presa e, se la pinza era chiusa, la **apre**.
-
-**Perché serve:** rilascio immediato “assistito” nella chute quando la pinza è nella zona corretta.
-
----
-
-## `createDropZoneIndicator()` / `updateDropZoneIndicator()`
-
-* Placeholder: nessun indicatore visivo, tutta logica.
-
-**Perché serve:** lasciato per futuri overlay/marker.
-
----
-
-## `updateButtonAnimation()`
-
-* Se è stato “premuto” (ha `buttonPressTime`), anima la `y` del pulsante con una sinusoide **di andata e ritorno** su `buttonPressDuration` (default 250 ms), poi ripristina.
-
-**Perché serve:** feedback visivo della pressione.
-
----
-
-## `updateJoystickTilt()`
-
-* Legge `moveState` e calcola una rotazione target:
-
-  * avanti/indietro → tilt su **x**,
-  * sinistra/destra → tilt su **z**,
-* Interpola (`lerp`) la rotazione del **pivot** verso i target.
-
-**Perché serve:** feedback visivo del joystick in base al movimento voluto.
-
----
-
-## `update(deltaTime)`
-
-Loop per frame. Esegue, nell’ordine:
-
-1. Aggiorna `lastClawPosition`, animazioni pulsante/joystick.
-2. **Hook presa durante la chiusura**: se `isClosing` e non sta già afferrando, chiede a `objectsInteraction.getGrabbableCandidate(2)` un oggetto vicino; se c’è e **non** è nella fase di rilascio (`isBeingReleased`), setta presa (`isGrabbing=true`, `isHeld=true`).
-3. Se sta afferrando → `applyDirectLink(deltaTime)`.
-4. **Macchina a stati**:
-
-   * `MANUAL_HORIZONTAL`
-     Calcola vettore da `moveState`, muove su X/Z e **clampa** dentro `machineBox` con `moveMargin`.
-   * `DESCENDING`
-     Scende fino a `dropTargetY`, poi chiama `runCloseSequence()`.
-   * `OPERATING`
-     Attesa (la chiusura è asincrona).
-   * `ASCENDING`
-     Risale a `returnYPosition`; se ha un oggetto → `DELIVERING_MOVE_X`, altrimenti → `RELEASING_OBJECT` e avvia `openClaw()` con fallback (al termine torna manuale).
-   * `DELIVERING_MOVE_X / _Z`
-     Interpola posizione verso `dropOffPosition.x` poi `.z` (threshold 0.01).
-   * `DELIVERING_DESCEND`
-     Scende di \~0.5 rispetto a `returnYPosition`, poi avvia `runReleaseAndReturnSequence()`.
-   * `RELEASING_OBJECT`
-     Time-out di sicurezza (3 s) per forzare il ritorno a `MANUAL_HORIZONTAL` se `openClaw()` non risolvesse.
-   * `RETURNING_ASCEND / _MOVE_Z / _MOVE_X`
-     Ritorna in quota, poi **lerp** su Z e X fino a `spawnPosition`, quindi `MANUAL_HORIZONTAL` e `isAnimating=false`.
-5. Aggiorna le matrici dei `cylinders` (coerenza trasformazioni).
-
-**Perché serve:** è il “cervello” per frame: input, presa, fisica “link”, stati, animazioni, movimenti vincolati.
-
----
-
-## `checkClawCollision(velocity)`
-
-* Se non c’è `chuteMesh` → `false`.
-* Recupera `chuteBVH = chuteMesh.geometry.boundsTree` (richiede che la geometria sia stata **preprocessata** con MeshBVH).
-* Per ciascun asse `x/y/z`:
-
-  * costruisce la **Box3** della pinza **spostata** di `velocity[axis]`,
-  * trasforma in locale della chute (`worldToChuteMatrix` invertendo `matrixWorld` della chute),
-  * se il BVH **interseca** la box, azzera la componente di velocità su quell’asse.
-* Applica la **velocità corretta** alla pinza e ritorna `true` se ha bloccato qualcosa.
-
-**Perché serve:** evitare compenetrazioni con la chute in movimenti proposti (utile per controlli “analogici” o AI).
-
-> Nota: perché funzioni, da qualche parte bisogna avere eseguito `MeshBVH.assignBVH(geometry)` (o `geometry.computeBoundsTree()` nella lib), così `geometry.boundsTree` esiste.
-
----
-
-## `setMoving(direction, state)`
-
-* Aggiorna `moveState[direction]` (es. `'left'`, `'right'`, `'forward'`, `'backward'`) con `true/false`.
-
-**Perché serve:** API semplice per input (keydown/keyup o touch).
-
----
-
-## `getDeliveredStars()`
-
-* Ritorna il contatore `deliveredStars`.
-
-**Perché serve:** mostrare il punteggio/monete guadagnate.
-
----
-
-## `resetScore()`
-
-* Azzera `deliveredStars`.
-
-**Perché serve:** ripartenza della partita.
-
----
-
-# Note di comportamento e integrazione
-
-* **Apertura/chiusura** sono **Promise-based**: le sequenze asincrone (`runCloseSequence`, `runReleaseAndReturnSequence`) usano `await` per orchestrare.
-* La presa **avviene** quando `isClosing` e un candidato è disponibile; l’oggetto viene “pinzato” **subito** impostando `isHeld=true` e lo si collega rigidamente con `applyDirectLink`.
-* Il **rilascio pulito** centralizza i cambi di stato del body (`isBeingReleased`, `ignoreClawCollision`, azzeramento velocità/forze) in un unico posto.
-* La **sicurezza** include:
-
-  * stop su **collisione tra dita** durante la chiusura;
-  * **blocco** dell’avvio discesa se la pinza è sopra la **chute** (con margine proporzionale alla dimensione della pinza);
-  * **timeout** durante `RELEASING_OBJECT`.
-* Il movimento manuale è **clampato** dentro `machineBox` con margine `moveMargin`.
-
----
-
-Se vuoi, posso anche aggiungere un **diagramma di stato** compatto o annotare il codice con commenti “riga per riga”.
-
+# Notes & gotchas
+
+* Closing/opening are **async**; higher-level flows await them.
+* Grab occurs during the **closing window** only.
+* Descent is **blocked near the chute**; delivering uses a fixed corner path then releases.
+* BVH chute collisions require preprocessing (e.g., `geometry.computeBoundsTree()` in three-mesh-bvh).
 
 */

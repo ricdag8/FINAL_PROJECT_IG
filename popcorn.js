@@ -289,129 +289,99 @@ export class PopcornManager {
 }
 
 
+
 /* 
+
+Here’s a tight, developer-oriented summary of the **popcorn particle system**.
+
+# Big picture
+
+* **PopcornParticle** = a single popcorn mesh with simple physics (gravity, bounces, friction, settle).
+* **PopcornManager** = a pool of particles that “burst” periodically from a spawn area into a container, with per-frame updates.
 
 # PopcornParticle
 
-### constructor(geometry, baseMaterial, scene, spawnMesh, containerBounds, colliders = \[], gravity = 0.03, baseScale = 0.15)
+**constructor(geometry, baseMaterial, scene, spawnMesh, containerBounds, colliders=\[], gravity=0.03, baseScale=0.15)**
 
-* **Scopo:** crea una singola “particella” di popcorn (mesh + stato fisico) e la aggiunge alla scena.
-* **Parametri:**
+* Creates a mesh (clones `baseMaterial`), enables shadows, sets physics params (`velocity`, `angularVelocity`, `restitution=0.3`, flags) and calls `reset()`.
+* Uses:
 
-  * `geometry` (THREE.BufferGeometry) – geometria condivisa tra i popcorn.
-  * `baseMaterial` (THREE.Material) – viene **clonato** per la particella.
-  * `scene` (THREE.Scene) – dove aggiungere il mesh.
-  * `spawnMesh` (THREE.Object3D) – l’area/oggetto da cui “scoppiano” i popcorn (per calcolare il box di spawn).
-  * `containerBounds` (THREE.Box3 | null) – box del contenitore per vincoli e rimbalzi; se `null`, usa il “pavimento” a Y≈0.1.
-  * `colliders` (THREE.Object3D\[]) – oggetti statici contro cui spingere fuori i popcorn.
-  * `gravity` (number) – accelerazione gravitazionale (unità per secondo²).
-  * `baseScale` (number) – scala iniziale della particella.
-* **Ritorno:** nessuno.
-* **Effetti:** crea `this.mesh` (ombre abilitate), imposta proprietà fisiche (`velocity`, `angularVelocity`, `restitution=0.3`, ecc.) e chiama `reset()`.
+  * `spawnMesh` → where pops originate,
+  * `containerBounds: Box3 | null` → walls/floor/ceiling for bounces,
+  * `colliders: Object3D[]` → extra statics to push out of.
 
-### getSpawnParams()
+**getSpawnParams()**
 
-* **Scopo:** calcolare il bounding box dello `spawnMesh`.
-* **Parametri:** nessuno.
-* **Ritorno:** `THREE.Box3` con i limiti axis-aligned di `spawnMesh`.
+* Returns `Box3` of `spawnMesh`.
 
-### reset()
+**reset()**
 
-* **Scopo:** “rispawning” della particella come se fosse appena scoppiata.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Effetti:**
+* Re-spawns the kernel slightly above spawn center with random XY jitter.
+* Gives it an upward impulse + small horizontal spread and random spin.
+* Restores `isSettled=false`, `visible=true`, `scale=baseScale`.
 
-  * Posiziona la mesh **sopra** il centro dello `spawnMesh` con piccola casualità in X/Z.
-  * Inizializza `velocity` con impulso verso l’alto e leggera dispersione orizzontale.
-  * Inizializza `angularVelocity` casuale.
-  * Ripristina `isSettled = false`, `visible = true`, e scala = `baseScale`.
+**handleContainment()**
 
-### handleContainment()
+* If `containerBounds` and not settled:
 
-* **Scopo:** far rimbalzare/limitare la particella dentro il contenitore; applicare attrito e “deposito”.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Effetti (attivo solo se `containerBounds` esiste e non è `isSettled`):**
+  * **Floor**: clamp Y, invert/dampen `vel.y`, add friction to `vel.x/z` + angular, and **settle** if energy ≪ (|v|² < 1e-4).
+  * **Ceiling**: clamp Y, bounce `vel.y`.
+  * **Walls (X/Z)**: clamp position and flip respective velocity with damping.
 
-  * **Fondo (Y min):** corregge Y, inverte e smorza `vel.y`, applica frizione su `vel.x/z` e rotazioni; se l’energia è **molto bassa** (`vel.lengthSq() < 0.0001`), marca la particella come **deposta** (`isSettled = true`) e azzera velocità/rotazioni.
-  * **Soffitto (Y max):** corregge Y e rimbalza `vel.y`.
-  * **Pareti X/Z:** clampa X/Z e inverte la componente di velocità relativa con smorzamento (`restitution`).
+**handleStaticCollisions()**
 
-### handleStaticCollisions()
+* For each collider:
 
-* **Scopo:** evitare che le particelle penetrino nei collider statici (macchine, strutture).
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Effetti:** per ogni collider:
+  * Expand its `Box3` by particle radius (`baseScale*0.5`).
+  * If inside, push out along the closest axis and invert that velocity (Y → bounce up).
 
-  * Calcola `Box3` dell’oggetto, **espanso** del raggio particella (`baseScale * 0.5`).
-  * Se la posizione è **dentro** il box: determina la faccia più vicina (asse con rapporto relativo maggiore tra X/Y/Z) e spinge la particella **fuori** lungo quell’asse, invertendo la velocità sull’asse scelto (per Y la rimbalza verso l’alto).
+**update(dt)**
 
-### update(dt)
-
-* **Scopo:** avanzare la simulazione della particella (fisica semplice + collisioni).
-* **Parametri:** `dt` (number, secondi trascorsi dall’ultimo frame).
-* **Ritorno:** nessuno.
-* **Effetti:**
-
-  * Se `isSettled` → **non fa nulla**.
-  * Altrimenti: applica gravità a `vel.y`, integra posizione (`position += vel * dt`), aggiorna rotazioni con `angularVelocity * dt`.
-  * Chiama `handleContainment()` e poi `handleStaticCollisions()`.
-  * **Se non c’è contenitore:** collisione con “pavimento” a `y=0.1` → si ferma e diventa `isSettled`.
-  * **Fail-safe:** se esce dal contenitore e scende **oltre** `min.y - 1`, chiama `reset()`.
-
----
+* Early-out if settled.
+* Else: apply gravity, integrate position & rotation, then `handleContainment()` and `handleStaticCollisions()`.
+* If **no container**: snap to floor at `y=0.1` and settle.
+* Fail-safe: if fell below `container.min.y - 1`, call `reset()`.
 
 # PopcornManager
 
-### constructor({ scene, spawnMesh, containerMesh, count = 100, gravity = 0.1, baseScale = 0.15, colliders = \[], burstSize = 15, burstInterval = 500 })
+**constructor({ scene, spawnMesh, containerMesh, count=100, gravity=0.1, baseScale=0.15, colliders=\[], burstSize=15, burstInterval=500 })**
 
-* **Scopo:** crea e gestisce un sistema di particelle “popcorn” (pool di `PopcornParticle`) con burst periodici.
-* **Parametri:**
+* Computes `containerBounds` from `containerMesh` and **shrinks** \~5% to avoid edge penetrations.
+* Creates **one** shared geometry (small icosahedron) and **one** base material (yellowish); instantiates `count` particles (each clones material internally).
+* Starts a `setInterval` that calls `burst(burstSize)` periodically.
 
-  * `scene` (THREE.Scene), `spawnMesh` (Object3D), `containerMesh` (Object3D | null).
-  * `count` (numero di particelle da istanziare).
-  * `gravity`, `baseScale` – passati alle particelle.
-  * `colliders` (array di Object3D) – ostacoli statici condivisi.
-  * `burstSize` – quante particelle “risvegliare” ad ogni burst.
-  * `burstInterval` (ms) – intervallo tra i burst.
-* **Ritorno:** nessuno.
-* **Effetti:**
+**burst(amount=5)**
 
-  * Calcola `containerBounds` da `containerMesh` (se presente) e lo **restringe** di un margine **proporzionale** (5% della dimensione minore del contenitore).
-  * Crea **una sola** `geometry` (Icosaedro 0.1) e **un** `material` base (giallino), poi istanzia `count` particelle passando **la stessa geometria** e **lo stesso materiale** (clonato internamente da ogni particella).
-  * Avvia un `setInterval` che chiama periodicamente `burst(burstSize)`.
+* Finds settled particles and `reset()`s up to `amount`.
 
-### burst(amount = 5)
+**update(dt)**
 
-* **Scopo:** far “scoppiare” un gruppo di particelle già depositate.
-* **Parametri:** `amount` (quante tentare di resettare).
-* **Ritorno:** nessuno.
-* **Effetti:** cerca particelle con `isSettled === true` e chiama `reset()` fino a `amount` elementi disponibili.
+* Calls `particle.update(dt)` for all particles.
 
-### update(dt)
+# Typical usage
 
-* **Scopo:** aggiornare tutte le particelle.
-* **Parametri:** `dt` (secondi).
-* **Ritorno:** nessuno.
-* **Effetti:** itera `this.particles` e chiama `particle.update(dt)`.
+```js
+const popcorn = new PopcornManager({
+  scene, spawnMesh, containerMesh,
+  count: 150, gravity: 0.12, baseScale: 0.14,
+  colliders: [machineBody, glassPane],
+  burstSize: 12, burstInterval: 400
+});
 
----
+function tick(dt /* seconds ) {
+  popcorn.update(dt);
+}
+```
 
-## Appunti, insidie e note utili
+# Notes & gotchas
 
-* **Import non usato:** `MeshBVH` viene importato ma non è utilizzato in questo file.
-* **Unità di tempo:** il codice assume `dt` in **secondi** (perché fa `vel += a * dt` e `pos += vel * dt`). Assicurati che il tuo game loop passi secondi (non millisecondi).
-* **Prestazioni (collider):** `handleStaticCollisions()` fa `new THREE.Box3().setFromObject(mesh)` per **ogni particella e per ogni collider** ad ogni frame → può essere costoso. Valuta di **precalcolare** e riutilizzare i `Box3` (o aggiornarli solo quando i collider si muovono).
-* **Deposito/attrito:** l’attrito orizzontale viene applicato solo quando si tocca il **fondo** del contenitore; contro le **pareti** si rimbalza con poco smorzamento → le particelle possono “vibrare” a lungo se non si depositano. Puoi aumentare lo smorzamento laterale o applicare un drag globale.
-* **Raggio particella:** per i collider si usa `baseScale * 0.5` come raggio **approssimato**; se cambi geometria/scala, taralo di conseguenza.
-* **Material clone per particella:** ogni particella clona il materiale → comodo per variazioni per-particella, ma più costoso. Se non ti serve, passa **lo stesso** materiale e non clonarlo nella particella.
-* **Interval di burst:** viene creato un `setInterval` nel costruttore, ma non c’è un metodo `dispose()` per cancellarlo → aggiungilo se il manager può essere distrutto/cambiato scena.
-* **Spawn box:** `reset()` usa `Box3` di `spawnMesh` ad ogni chiamata (ok), con jitter `± size * 0.5` in X/Z e Y fissata a `bbox.max.y` → se la pentola è molto bassa, potresti generare contatti immediati col coperchio; regola il fattore o aggiungi offset Y.
-* **Contenitore ridotto del 5%:** `expandByScalar(-margin)` evita che le particelle intersechino i bordi, ma riduce lo spazio utile. Per contenitori minuscoli, valuta una percentuale minore o un margine fisso minimo/massimo.
-* **Fallback senza contenitore:** se `containerBounds` è assente, la “collisione pavimento” è un semplice snap a `y=0.1` con stop immediato.
+* **Time units:** `dt` must be in **seconds** (physics uses v += a*dt, p += v*dt).
+* **Performance:** `handleStaticCollisions()` recomputes collider `Box3` per particle per frame; cache those AABBs and update only when colliders move.
+* **Material clones:** each particle clones `baseMaterial` (flexible but heavier). If per-particle variation isn’t needed, avoid cloning.
+* **Settling behavior:** lateral damping is light on wall hits; increase damping or add global drag if kernels “buzz” near walls.
+* **Burst interval:** there’s no `dispose()`—add one to clear the interval and remove meshes when destroying the manager.
+* **Spawn height:** `reset()` uses `spawnMesh` bbox top; for very low lids, add extra Y offset to avoid immediate collisions.
+* **Container margin:** the 5% shrink reduces usable volume; tune for tiny containers.
 
-Se vuoi, posso aggiungere direttamente i commenti **JSDoc** in linea al codice (per IntelliSense e hover) o proporti un piccolo `dispose()` per il manager (clearInterval e rimozione mesh) e una cache dei `Box3` dei collider.
 
 */

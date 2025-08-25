@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /**
- * Third Person Camera System
+ * third Person Camera System
  * follows a target (player) from behind based on their rotation.
  */
 export class ThirdPersonCamera {
@@ -61,7 +61,9 @@ export class ThirdPersonCamera {
         const playerForward = this.target.getForwardDirection();
         
         // calculate ideal camera position (behind player relative to player's rotation)
+        //when rotating, we compute the ideal position of the camera based on the player's forward direction
         const idealPosition = playerPos.clone();
+        //we basically compute the difference between the current camera position and the ideal one, namely the one it is currently facing
         const cameraOffset = playerForward.clone().multiplyScalar(-this.distance);
         idealPosition.add(cameraOffset);
         idealPosition.y += this.height;
@@ -75,10 +77,10 @@ export class ThirdPersonCamera {
         this.camera.lookAt(idealLookAt);
 
 
-        /*  - Animation Priority: Camera animations override normal following
-  - Greeting Freeze: Camera stays still while player greets NPCs/objects
-  - Directional Following: Camera always stays behind player relative to their rotation
-  - Instant Response: No smoothing - camera moves immediately with player
+        /*  animation Priority: camera animations override normal following
+greeting Freeze: Camera stays still while player greets NPCs/objects
+directional Following: Camera always stays behind player relative to their rotation
+instant Response: No smoothing - camera moves immediately with player
 */
     }
 
@@ -104,9 +106,9 @@ export class ThirdPersonCamera {
         });
     }
 
-    // returns camera from object view back to standard behind-player position
-    // creates smooth transition animation with easing for natural movement
+    //returns camera from object view back to standard behind-player position and it creates smooth transition animation with easing for natural movement
     animateToOriginalView(duration) {
+        //Promise is used to make camera animations asynchronous and thus allowing the calling code to wait for the animation to complete before proceeding the rest of the code
         return new Promise(resolve => {
             if (this.isAnimatingView || !this.target) {
                 resolve();
@@ -126,8 +128,7 @@ export class ThirdPersonCamera {
         });
     }
 
-    // provides smooth s-curve easing for camera animations
-    // starts slow, accelerates in middle, decelerates at end for natural feel
+    // basically provides smooth s-curve easing for camera animations and it starts slow, accelerates in middle, decelerates at end for natural feel. this is the function that does all the work
     easeInOutCubic(t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
@@ -139,15 +140,13 @@ export class ThirdPersonCamera {
   }
           */
     
-    // enables or disables the third person camera system
-    // used during mode transitions to prevent conflicting camera updates
+    // enables or disables the third person camera system used during mode transitions to prevent conflicting camera updates
     setEnabled(enabled) {
         this.enabled = enabled;
     }
     
-    // utility methods for runtime adjustment
-    // adjusts how far the camera follows behind the player
-    // larger values create more distant third person view
+    // utility methods for runtime adjustment  adjusts how far the camera follows behind the player larger values create more distant third person view, we can easiliy
+    //modify thisvalue in the construftor of the class
     setDistance(distance) {
         this.distance = distance;
     }
@@ -158,8 +157,7 @@ export class ThirdPersonCamera {
         this.height = height;
     }
     
-    // returns comprehensive debug information about camera state
-    // includes player position, camera position, forward direction, distance and height
+    // debug , remove
     getDebugInfo() {
         if (!this.target) return null;
         
@@ -177,10 +175,8 @@ export class ThirdPersonCamera {
     }
 }
 
-/**
-  camera transition system
- handles smooth transitions between different camera modes
-
+/*
+  camera transition system handles smooth transitions between different camera modes
  */
 export class CameraTransition {
     // initializes smooth camera transition system between different viewing modes
@@ -199,8 +195,7 @@ export class CameraTransition {
         this.onComplete = null;
     }
     
-    // begins smooth camera transition from current position to target position and look-at
-    // captures current state and sets up interpolation parameters for animation
+    // begins smooth camera transition from current position to target position and look-at captures current state and sets up interpolation parameters for animation
     startTransition(endPos, endLookAt, onComplete = null) {
         this.startPosition.copy(this.camera.position);
         this.endPosition.copy(endPos);
@@ -217,8 +212,7 @@ export class CameraTransition {
         
     }
     
-    // processes ongoing camera transition by interpolating position and look-at
-    // applies smooth easing and calls completion callback when finished
+    // processes ongoing camera transition by interpolating position and look-at applies smooth easing and calls completion callback when finished
     update(deltaTime) {
         if (!this.isTransitioning) return;
         
@@ -235,10 +229,11 @@ export class CameraTransition {
             }
         }
         
-        // Smooth easing
+        //smooth easing
         const t = this.easeInOutCubic(this.progress);
         
-        // Interpolate position and look-at
+        //interpolate position and look-at, so that the camera postion changes, not only the look at, in this way it moves accordingly to the point it should
+        //go and it does not just stay still and rotates
         const currentPos = new THREE.Vector3().lerpVectors(this.startPosition, this.endPosition, t);
         const currentLookAt = new THREE.Vector3().lerpVectors(this.startLookAt, this.endLookAt, t);
         
@@ -246,14 +241,12 @@ export class CameraTransition {
         this.camera.lookAt(currentLookAt);
     }
     
-    // applies cubic easing function for smooth transition animations
-    // creates natural acceleration and deceleration curve
+    // applies cubic easing function for smooth transition animations creates natural acceleration and deceleration curve
     easeInOutCubic(t) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
     
-    // changes the duration for all future camera transitions
-    // shorter durations create faster camera movements
+    // changes the duration for all future camera transitions shorter durations create faster camera movements
     setDuration(duration) {
         this.duration = duration;
     }
@@ -264,8 +257,7 @@ export class CameraTransition {
  * central manager for all camera systems 
  */
 export class CameraManager {
-    // central camera management system coordinating all camera modes
-    // handles third-person exploration, first-person machine views, and smooth transitions
+    // central camera management system coordinating all camera modes handles third-person exploration, first-person machine views, and smooth transitions
     constructor(camera) {
         this.camera = camera;
         this.scene = null; // will be set by initialize()
@@ -296,15 +288,14 @@ export class CameraManager {
         
         this.thirdPersonCamera = new ThirdPersonCamera(this.camera, target);
         
-        // Initialize camera position (behind player)
+        // initialize camera position (behind player)
         const initialPlayerPos = target.getPosition();
         this.camera.position.set(initialPlayerPos.x, initialPlayerPos.y + 2.5, initialPlayerPos.z + 4); //we set the initial camera position at a distance z and height y from the player
         this.camera.lookAt(initialPlayerPos.x, initialPlayerPos.y + 1, initialPlayerPos.z);
         
     }
     
-    // main camera update loop called every frame
-    // updates third-person following in exploration mode and processes transitions
+    // main camera update loop called every frame updates third-person following in exploration mode and processes transitions
     update(deltaTime) {
         if (this.currentMode === 'exploration' && this.thirdPersonCamera) {
             this.thirdPersonCamera.update(deltaTime); //if we are in exploration mode, update the camera system
@@ -313,7 +304,7 @@ export class CameraManager {
 
         if (this.cameraTransition) {
             this.cameraTransition.update(deltaTime);
-        }
+        } //otherwise, if we are in transition mode, then update the ongoing transition
     }
     
     // transitions from exploration to first-person machine interaction view
@@ -345,8 +336,7 @@ export class CameraManager {
         }
     }
     
-    // returns from machine view to third-person exploration mode
-    // calculates appropriate behind-player position and re-enables third-person following
+    // returns from machine view to third-person exploration mode, calculates appropriate behind player position and re-enables third person following
     switchToExplorationMode(target, onComplete = null) {
         if (!this.cameraTransition || this.cameraTransition.isTransitioning) return;
         
@@ -364,7 +354,7 @@ export class CameraManager {
         const cameraTarget = playerPos.clone();
         cameraTarget.y += 1;
         
-        // Start transition back to third person
+        // start transition back to third person
         this.cameraTransition.startTransition(cameraPos, cameraTarget, () => {
             // re-enable third person camera
             if (this.thirdPersonCamera) {
@@ -375,11 +365,9 @@ export class CameraManager {
     }
 
 
-//function to update the first person camera reference
-// calculates optimal first-person camera positions for each machine based on their control interfaces.
+//function to update the first person camera reference calculates optimal first-person camera positions for each machine based on their control interfaces.
 
-    // calculates optimal first-person camera positions using machine control interfaces
-    // analyzes reference mesh position to determine best viewing angle and distance
+    // calculates optimal first-person camera positions using machine control interface, analyzes reference mesh position to determine best viewing angle and distance
     setFirstPersonReference(machineType, referenceMesh, machineCenter, machineSize = 3) {
         if (!referenceMesh) {
             return;
@@ -399,7 +387,7 @@ export class CameraManager {
             // force candy machine camera to be in front (positive Z) with extra distance
             sideInfo.side = 'front';
             sideInfo.direction = 'front';
-            sideInfo.offset = new THREE.Vector3(0, 0, 1.5); // extra Z offset to ensure we're well outside
+            sideInfo.offset = new THREE.Vector3(0, 0, 1); // extra Z offset to ensure we're well outside
         }
         
         // calculate first person camera position
@@ -409,11 +397,9 @@ export class CameraManager {
         
     }
     
-    /**
-     * calculate which side of the machine a reference point is on
-     */
-    // determines which side of machine the reference point is on (left/right/front/back)
-    // compares axis displacement to identify primary direction and create offset vector
+
+    // determines which side of machine the reference point is on (left/right/front/back) compares axis displacement to identify primary direction and create offset vector
+   //t his ensures the first-person camera appears where a human would stand to operate the machine, namely on the same side as the controls, not behind or opposite side
     calculateMachineSide(referencePos, machineCenter, machineSize) {
         const dx = referencePos.x - machineCenter.x;
         const dz = referencePos.z - machineCenter.z;
@@ -439,13 +425,10 @@ export class CameraManager {
         }
     }
     
-    /**
-     * calculate first person camera position based on machine side
-     */
-    // computes exact first-person camera position and target with machine-specific adjustments
-    // sets realistic human height (3.8 units) with natural viewing angle towards machine center
+
+    // computes exact first-person camera position and target with machine-specific adjustments 
     calculateFirstPersonPosition(machineCenter, sideInfo, machineSize, machineType = null) {
-        const playerHeight = 3.8; // 🆕 Elevated first person height for better view
+        const playerHeight = 3.8; // elevated first person height for better view
         const baseDistance = machineSize * 0.8; // Increased base distance from machine edge
         
         // MACHINE-SPECIFIC DISTANCE ADJUSTMENTS
@@ -484,7 +467,7 @@ export class CameraManager {
                this.firstPersonPositions.candy_machine !== null;
     }
 
-    /**
+    /*
      *set first person camera height for all machines
      */
     setFirstPersonHeight(height) {
@@ -606,227 +589,25 @@ export const CameraUtils = {
             }
         };
         
-        window.debugCamera = () => {
-            if (cameraManager) {
-                const info = cameraManager.getDebugInfo();
-                
-                if (info.thirdPerson) {
-                    const tp = info.thirdPerson;
-                    const pfd = tp.playerForwardDirection;
-                }
-                
-                // FIRST PERSON DEBUG INFO
-                if (cameraManager.firstPersonPositions.claw_machine) {
-                    const fp = cameraManager.firstPersonPositions.claw_machine;
-                }
-                if (cameraManager.firstPersonPositions.candy_machine) {
-                    const fp = cameraManager.firstPersonPositions.candy_machine;
-                }
-            } else {
-            }
-        };
-        
-        // FIRST PERSON TESTING FUNCTIONS
-        window.testFirstPersonClaw = () => {
-            if (cameraManager && cameraManager.firstPersonPositions.claw_machine) {
-                const fp = cameraManager.firstPersonPositions.claw_machine;
-                cameraManager.camera.position.copy(fp.position);
-                cameraManager.camera.lookAt(fp.target);
-            } else {
-            }
-        };
-        
-        window.testFirstPersonCandy = () => {
-            if (cameraManager && cameraManager.firstPersonPositions.candy_machine) {
-                const fp = cameraManager.firstPersonPositions.candy_machine;
-                cameraManager.camera.position.copy(fp.position);
-                cameraManager.camera.lookAt(fp.target);
-            } else {
-            }
-        };
-        
-        // ENHANCED TESTING FUNCTIONS USING CAMERA MANAGER METHODS
-        window.showFirstPersonHelpers = () => {
-            if (cameraManager) {
-                cameraManager.showFirstPersonHelpers();
-            } else {
-            }
-        };
-        
-        window.hideFirstPersonHelpers = () => {
-            if (cameraManager) {
-                cameraManager.hideFirstPersonHelpers();
-            } else {
-            }
-        };
-        
-        window.testFirstPersonTransition = (machineType = 'claw_machine') => {
-            if (cameraManager) {
-                // we need to pass machine offsets - these will be provided by the main app
-                const machineOffset = new THREE.Vector3(7, 0, 0); // default claw machine offset
-                const candyMachineOffset = new THREE.Vector3(-7, 0, 0); // default candy machine offset
-                
-                const targetOffset = machineType === 'claw_machine' ? machineOffset : candyMachineOffset;
-                cameraManager.testFirstPersonTransition(machineType, targetOffset);
-            } else {
-            }
-        };
-        
-        window.testCandyMachinePosition = () => {
-            if (cameraManager) {
-                const candyMachineOffset = new THREE.Vector3(-7, 0, 0);
-                cameraManager.testCandyMachinePosition(candyMachineOffset);
-            } else {
-            }
-        };
-        
-        window.testRealisticHeights = () => {
-            if (cameraManager) {
-                const machineOffset = new THREE.Vector3(7, 0, 0);
-                cameraManager.testRealisticHeights(machineOffset);
-            } else {
-            }
-        };
-        
-        window.testNewHeight = () => {
-            if (cameraManager) {
-                const machineOffset = new THREE.Vector3(7, 0, 0);
-                const candyMachineOffset = new THREE.Vector3(-7, 0, 0);
-                cameraManager.testNewHeight(machineOffset, candyMachineOffset);
-            } else {
-            }
-        };
-        
-        // FIRST PERSON HEIGHT ADJUSTMENT
-        window.setFirstPersonHeight = (height) => {
-            if (cameraManager) {
-                cameraManager.setFirstPersonHeight(height);
-            } else {
-            }
-        };
-        
-        // QUICK HEIGHT PRESETS - REALISTIC HEIGHTS
-        window.setFirstPersonHeightLow = () => {
-            if (cameraManager) {
-                cameraManager.setFirstPersonHeightLow();
-            } else {
-            }
-        };
-        
-        window.setFirstPersonHeightNormal = () => {
-            if (cameraManager) {
-                cameraManager.setFirstPersonHeightNormal();
-            } else {
-            }
-        };
-        
-        window.setFirstPersonHeightHigh = () => {
-            if (cameraManager) {
-                cameraManager.setFirstPersonHeightHigh();
-            } else {
-            }
-        };
-        
-        window.setFirstPersonHeightTall = () => {
-            if (cameraManager) {
-                cameraManager.setFirstPersonHeightTall();
-            } else {
-            }
-        };
-        
-        window.setFirstPersonHeightGiant = () => {
-            if (cameraManager) {
-                cameraManager.setFirstPersonHeightGiant();
-            } else {
-            }
-        };
-        
-        // FORCE RECALCULATION OF POSITIONS
-        window.recalculateFirstPersonPositions = () => {
-            if (cameraManager) {
-                cameraManager.recalculateFirstPersonPositions();
-            } else {
-            }
-        };
         
     }
 }; 
 
 
-/* 
-
-  constructor(camera) Initializes the camera manager with Three.js camera reference, sets up state variables for third-person and first-person systems,
-  creates storage for pre-calculated machine positions, and establishes 'exploration' as the default camera mode.
-
-  initialize(scene) Stores the Three.js scene reference for future camera calculations and positioning operations. Essential setup method that must be
-  called before other camera operations can function properly.
-
-  initThirdPersonCamera(target)Creates and configures the third-person camera system and transition manager. Positions camera 4 units behind and 2.5 units
-   above the player target, with initial view aimed at player's torso level.
-
-  ** Update & Mode Management
-
-  update(deltaTime) Main update loop that runs every frame. Updates third-person camera positioning when in exploration mode and processes ongoing camera
-  transitions between modes. Ensures smooth camera behavior across all systems.
-
-  switchToMachineMode(machineType, machineOffset, onComplete) Smoothly transitions camera from third-person exploration to first-person machine interaction
-   view. Disables third-person system, retrieves pre-calculated first-person position, and initiates transition animation with completion callback
-  support.
-
-  switchToExplorationMode(target, onComplete) Returns camera from machine interaction to third-person exploration mode. Calculates appropriate third-person
-   position behind player, starts smooth transition animation, and re-enables third-person following system upon completion.
-
-  ** First-Person Position Calculation
-
-  setFirstPersonReference(machineType, referenceMesh, machineCenter, machineSize)Calculates optimal first-person camera positions using machine control
-  interfaces (joystick/button) as reference points. Special handling for candy machine positioning. Stores calculated positions for later use during mode
-  switching.
-
-  calculateMachineSide(referencePos, machineCenter, machineSize)Analyzes reference point position relative to machine center to determine optimal camera
-  placement side (left/right/front/back). Uses axis displacement comparison to identify primary direction and creates positioning offset vector.
-
-  calculateFirstPersonPosition(machineCenter, sideInfo, machineSize, machineType)Computes exact first-person camera position and target using machine
-  center, side information, and machine-specific distance adjustments. Sets camera height at 3.8 units with target at 70% of that height for natural
-  viewing angle.
-
-  ** Utility & Configuration Functions
-
-  isFirstPersonReady()Validation check that returns true when first-person positions are calculated and stored for both claw machine and candy machine.
-  Ensures system readiness before allowing mode transitions.
-
-  setFirstPersonHeight(height)Updates camera height for all calculated first-person positions. Adjusts both camera position Y-coordinate and target height
-   (75% of camera height) to maintain natural viewing angles across all machines.
-
-  setFirstPersonHeightLow() through setFirstPersonHeightGiant()Preset height adjustment methods that set first-person camera heights to predefined values:
-   Low (2.8), Normal (3.8), High (4.5), Tall (5.2), Giant (6.5). Convenient shortcuts for testing different viewing heights.
-
-  recalculateFirstPersonPositions()Forces recalculation of all stored first-person camera positions. Currently iterates through existing positions but
-  implementation is placeholder for future dynamic position updates based on changed machine configurations.
-
-  setThirdPersonDistance(distance)Adjusts the distance between camera and player in third-person mode by calling the underlying ThirdPersonCamera system's
-   setDistance method. Allows runtime adjustment of camera following behavior.
-
-  setThirdPersonHeight(height)Modifies the height of third-person camera above the player by calling the underlying ThirdPersonCamera system's setHeight
-  method. Enables dynamic adjustment of camera elevation during gameplay.
-
-  setTransitionDuration(duration)Configures the speed of camera transitions between different modes by setting the duration parameter in the
-  CameraTransition system. Shorter durations create faster, snappier transitions.
-
-  ** Animation Functions
-
-  animateCameraToObject(duration)Triggers camera animation to focus on objects during third-person exploration mode. Delegates to ThirdPersonCamera's
-  animateToObjectView method and returns Promise for completion handling. Only functions in exploration mode.
-
-  animateCameraToOriginal(duration)Returns camera from object-focused view back to normal third-person following position. Uses ThirdPersonCamera's
-  animateToOriginalView method and returns Promise. Restores standard exploration camera behavior.
-
-  Debug Functions
-
-  getDebugInfo()Returns comprehensive debugging information including current camera mode, position coordinates, transition status, and third-person
-  camera details. Provides snapshot of entire camera system state for development and troubleshooting.
 
 
-*/
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -836,297 +617,138 @@ export const CameraUtils = {
 /* 
 
 
-# ThirdPersonCamera
+Here’s a compact, developer-oriented summary of how the camera system works.
 
-### `constructor(camera, target)`
+# Big picture
 
-* **Cosa fa:** inizializza il sistema di camera in terza persona che segue un “target” (il player).
-* **Parametri:**
+* The **CameraManager** is the conductor. It owns:
 
-  * `camera`: istanza `THREE.Camera`.
-  * `target`: oggetto “player” che deve esporre almeno `getPosition()` e `getForwardDirection()`, ed opzionalmente la flag `isGreeting`.
-* **Imposta:** distanza dietro al player (`distance = 4`), altezza da terra (`height = 4`), stato dell’animazione di “vista speciale” (da/verso l’oggetto), easing, offset iniziale/finale dell’animazione.
+  * a **ThirdPersonCamera** (live follow of the player),
+  * a **CameraTransition** (smooth blends between viewpoints),
+  * and precomputed **first-person “machine” viewpoints** (for claw/candy machines).
+* Two main modes:
 
-### `update(deltaTime)`
+  * **`exploration`** → third-person follow.
+  * **`claw_machine` / `candy_machine`** → first-person, fixed viewpoint facing a machine.
 
-* **Cosa fa:** aggiorna *ogni frame* la posizione/orientamento della camera.
-* **Flusso:**
+# Lifecycle & flow
 
-  1. Se non c’è `target`, esce.
-  2. Se è in corso un’animazione “di vista” (`isAnimatingView`):
+1. **Setup**
 
-     * Avanza il progresso con easing *easeInOutCubic*.
-     * Interpola un offset tra `startOffset` ed `endOffset`, lo somma alla posizione del player e posiziona lì la camera.
-     * Fa il `lookAt` verso la testa del personaggio (`+2.5` in Y).
-     * Alla fine dell’animazione chiama `onAnimationComplete` (se presente).
-     * **Ritorna** subito (salta la logica “normale”).
-  3. Se il player sta salutando (`target.isGreeting`), **blocca** la camera dov’è (non aggiorna).
-  4. Altrimenti, calcola la posizione ideale **dietro** al player:
-     `idealPosition = playerPos + (-forward * distance) + (0, height, 0)`
-  5. Imposta la camera su `idealPosition` e `lookAt` leggermente sopra il player (`+2.5`).
-* **Parametri:** `deltaTime` in **secondi** (coerente con `animationDuration`).
-* **Nota:** niente smoothing nella modalità “normale”: la camera risponde istantaneamente.
+   * `new CameraManager(camera)` → sets defaults.
+   * `initialize(scene)` → stores scene (future queries).
+   * `initThirdPersonCamera(target)` → creates ThirdPerson + Transition and places the camera behind/above the player (seed position).
 
-### `animateToObjectView(duration)`
+2. **Per-frame update**
 
-* **Cosa fa:** avvia un’animazione che porta la camera **davanti** al player (verso la direzione in cui guarda), utile per inquadrare un oggetto/macchina.
-* **Parametri:** `duration` in secondi.
-* **Dettagli:**
+   * `CameraManager.update(dt)`:
 
-  * Salva l’offset attuale della camera rispetto al player (`startOffset`).
-  * Imposta `endOffset` **in avanti**: `playerForward * distance`, poi forza `Y = height`.
-  * Anima da `startOffset` a `endOffset` con l’easing del `update`.
-* **Ritorno:** `Promise` risolta alla fine dell’animazione.
+     * If in **exploration**, calls `ThirdPersonCamera.update(dt)` to follow the player.
+     * Always calls `CameraTransition.update(dt)` to advance any ongoing blend.
 
-### `animateToOriginalView(duration)`
+3. **Mode switches**
 
-* **Cosa fa:** animazione inversa per tornare alla vista **dietro** al player (terza persona “normale”).
-* **Parametri:** `duration` in secondi.
-* **Dettagli:** come sopra, ma `endOffset` = `-playerForward * distance`, Y = `height`.
-* **Ritorno:** `Promise` risolta a fine animazione.
+   * **To a machine (first-person):**
+     `switchToMachineMode(machineType, machineOffset?, onComplete?)`
 
-### `easeInOutCubic(t)`
+     * Reads a precomputed first-person `{position,target}` for that machine.
+     * Starts a smooth **CameraTransition** to it.
+     * Disables third-person updates (manager stops calling its update).
+   * **Back to exploration:**
+     `switchToExplorationMode(target, onComplete?)`
 
-* **Cosa fa:** funzione di easing S-curve (accelerazione/decelerazione) per le animazioni.
-* **Parametri:** `t` ∈ \[0, 1].
-* **Ritorno:** valore interpolato ∈ \[0, 1].
+     * Computes a point **behind** the player (−distance on forward, +height in Y).
+     * Transitions there and resumes third-person updates.
 
-### `setEnabled(enabled)`
+# ThirdPersonCamera (follow system)
 
-* **Cosa fa:** setta una flag interna `this.enabled`.
-* **Nota:** **nel codice attuale la flag non viene letta** dentro `update`. La “disattivazione” effettiva avviene perché il `CameraManager` *non chiama* `update` quando non siamo in `exploration`. (Questa funzione è quindi ridondante allo stato attuale.)
+* **State:** `distance = 4`, `height = 4`, object-view animation flags, easing.
+* **`update(dt)` logic:**
 
-### `setDistance(distance)` / `setHeight(height)`
+  * If an **object-view animation** is active, it eases the camera from current offset to a target offset (and looks slightly above the player), then returns.
+  * If the player is greeting, it holds the camera.
+  * Otherwise it snaps the camera to `playerPos + (-forward * distance) + (0, height, 0)` and looks slightly above the player.
+* **Helpers:**
 
-* **Cosa fa:** aggiorna i parametri di follow in terza persona (distanza dietro e altezza).
+  * `animateToObjectView(duration)` → move camera **in front** of the player.
+  * `animateToOriginalView(duration)` → restore the **behind** view.
+  * `setDistance(d)`, `setHeight(h)`.
+  * `setEnabled(...)` exists but isn’t read inside `update` (the manager handles enabling by mode).
 
-### `getDebugInfo()`
+# CameraTransition (smooth blends)
 
-* **Cosa fa:** restituisce un oggetto con stato utile al debug: posizioni di player/camera, direzione forward del player, `distance`, `height`.
-* **Ritorno:** oggetto o `null` se non c’è `target`.
+* Holds start/end **position** and **lookAt** and a duration (default \~1.5s).
+* `startTransition(endPos, endLookAt, onComplete?)` captures current pos/look as start, sets targets, and arms the transition.
+* `update(dt)` eases `t` (easeInOutCubic), interpolates pos & lookAt, calls `onComplete` at the end.
+* `setDuration(seconds)` to globally change the blend speed.
 
----
+# First-person (machine) viewpoints
 
-# CameraTransition
+* **Goal:** pick a natural “human height” camera spot facing the machine’s controls.
+* **Pipeline:**
 
-Gestisce **transizioni morbide** (posizione + lookAt) tra due inquadrature qualsiasi.
+  1. `setFirstPersonReference(machineType, referenceMesh, machineCenter, machineSize=3)`
 
-### `constructor(camera)`
+     * Converts `referenceMesh` to world space to know **which side** of the machine the interface sits on.
+     * For **candy\_machine**, forces the **front** and adds extra Z distance.
+     * Stores the computed `{ position, target, side }` for later transitions.
+  2. `calculateMachineSide(referencePos, machineCenter, machineSize)`
 
-* **Cosa fa:** salva la camera, prepara stato di transizione, durata (`1.5s` di default), buffer per posizione/target iniziali e finali e callback `onComplete`.
+     * Chooses `left/right/front/back` by comparing |dx| vs |dz|; returns a unit offset vector.
+  3. `calculateFirstPersonPosition(machineCenter, sideInfo, machineSize, machineType?)`
 
-### `startTransition(endPos, endLookAt, onComplete = null)`
+     * Height: **3.8** (human eye level).
+     * Distance: `machineSize * 0.8` + extra (candy +1.5, claw +1.0).
+     * **Target** height \~70% of camera height for a natural downward gaze.
+* **Utilities:**
 
-* **Cosa fa:** prepara una nuova transizione.
-* **Parametri:**
+  * `isFirstPersonReady()` → true when both claw & candy positions are stored.
+  * `setFirstPersonHeight(h)` → updates stored positions (target set to **75%** of `h`).
+  * Presets: Low(2.8), Normal(3.8), High(4.5), Tall(5.2), Giant(6.5).
+  * `recalculateFirstPersonPositions()` → placeholder (future dynamic recompute).
 
-  * `endPos`: `THREE.Vector3` posizione finale.
-  * `endLookAt`: `THREE.Vector3` punto di mira finale.
-  * `onComplete`: callback opzionale.
-* **Dettagli:**
+# Manager convenience APIs
 
-  * `startPosition` = posizione attuale della camera.
-  * `startLookAt` = `camera.position + camera.getWorldDirection()`.
-  * `endPosition`/`endLookAt` come da parametri.
-  * Azzera `progress` e abilita `isTransitioning`.
+* `setThirdPersonDistance(d)` / `setThirdPersonHeight(h)` → forwarders to ThirdPersonCamera.
+* `setTransitionDuration(s)` → updates CameraTransition.
+* `animateCameraToObject(duration)` / `animateCameraToOriginal(duration)`
 
-### `update(deltaTime)`
+  * Work **only in exploration** (wrap ThirdPersonCamera’s animations).
+* `getDebugInfo()` → snapshot of mode, position, transition state, plus third-person debug if present.
 
-* **Cosa fa:** se c’è una transizione in corso, avanza l’interpolazione.
-* **Dettagli:**
+# Notes & gotchas
 
-  * Avanza `progress` con `deltaTime / duration`, clamp a 1.
-  * Applica `easeInOutCubic` al progresso.
-  * Interpola **posizione** e **lookAt** tra start e end.
-  * Alla fine chiama `onComplete`, se presente.
+* The manager’s mode gate is what truly “disables” third-person updates; `setEnabled` on ThirdPersonCamera is currently redundant.
+* Some **CameraUtils** globals reference **non-existent** manager methods (would throw). Either implement those or remove them.
+* There’s a minor inconsistency: first-person target height is **70%** during initial compute but **75%** when adjusted via `setFirstPersonHeight`. Align if desired.
+* `machineOffset` is passed into `switchToMachineMode` but isn’t used.
 
-### `easeInOutCubic(t)`
+# Typical usage (minimal)
 
-* **Come sopra:** funzione S-curve per la transizione.
+```js
+const manager = new CameraManager(camera);
+manager.initialize(scene);
+manager.initThirdPersonCamera(player);
 
-### `setDuration(duration)`
+// per-frame
+manager.update(deltaTime);
 
-* **Cosa fa:** modifica la durata di tutte le prossime transizioni.
+// precompute first-person spots (once per machine)
+manager.setFirstPersonReference('claw_machine', clawJoystick, clawCenter, clawSize);
+manager.setFirstPersonReference('candy_machine', candyButtons, candyCenter, candySize);
 
----
+// later: switch views
+manager.switchToMachineMode('claw_machine');
+manager.switchToExplorationMode(player);
+```
 
-# CameraManager
+That’s the system in a nutshell: third-person follow for exploration, precomputed first-person anchors for machines, and a single transition engine to tie it all together.
 
-“Regista” centrale: istanzia e coordina terza persona, transizioni e viste “first-person” per le macchine.
 
-### `constructor(camera)`
 
-* **Cosa fa:** salva la camera, inizializza stato:
 
-  * `scene` (da settare con `initialize`),
-  * `thirdPersonCamera`, `cameraTransition`,
-  * `currentMode = 'exploration'`,
-  * slot per posizioni first-person: `{ claw_machine: null, candy_machine: null }`.
 
-### `initialize(scene)`
 
-* **Cosa fa:** salva il riferimento alla scena (`THREE.Scene`). Necessario se in futuro servono query sul mondo.
 
-### `initThirdPersonCamera(target)`
-
-* **Cosa fa:** crea `CameraTransition`, crea e configura `ThirdPersonCamera` e **posiziona** la camera iniziale dietro/above il player.
-* **Dettagli:**
-
-  * Posizione iniziale: `playerPos + (0, +2.5, +4)` e `lookAt` al busto (`+1` in Y).
-    *(Nota: qui usa un offset in Z “+4”, non legato al forward; serve solo per lo start.)*
-
-### `update(deltaTime)`
-
-* **Cosa fa:** loop per frame del manager.
-* **Dettagli:**
-
-  * Se `currentMode === 'exploration'` e c’è la terza persona, chiama `thirdPersonCamera.update(deltaTime)`.
-  * A prescindere dalla modalità, chiama `cameraTransition.update(deltaTime)` se esiste.
-
-### `switchToMachineMode(machineType, machineOffset, onComplete = null)`
-
-* **Cosa fa:** passa dalla modalità “esplorazione” a una vista **first-person** verso una macchina (`'claw_machine'` o `'candy_machine'`).
-* **Parametri:**
-
-  * `machineType`: chiave di `firstPersonPositions`.
-  * `machineOffset`: (non usato nel codice corrente).
-  * `onComplete`: callback a fine transizione.
-* **Flusso:**
-
-  * Se non c’è `cameraTransition` o è già in transizione -> esce.
-  * Setta `currentMode = machineType`.
-  * Legge `firstPersonPositions[machineType]` (deve essere stato calcolato prima con `setFirstPersonReference`).
-  * Avvia `cameraTransition.startTransition(fp.position, fp.target, onComplete)`.
-  * Chiama `thirdPersonCamera.setEnabled(false)` (non influisce davvero, vedi nota in ThirdPersonCamera).
-
-### `switchToExplorationMode(target, onComplete = null)`
-
-* **Cosa fa:** ritorna alla vista in terza persona “dietro al player”.
-* **Dettagli:**
-
-  * Calcola una posizione **dietro** al player (`-4` lungo il forward, `+2.5` in Y).
-  * Target = `playerPos` con `+1` in Y.
-  * Avvia una `CameraTransition` verso questi valori; al termine riabilita la terza persona (via `setEnabled(true)`, comunque la terza persona tornerà a ricevere `update` perché `currentMode` diventa `'exploration'`).
-  * Chiama `onComplete` se passato.
-
-### `setFirstPersonReference(machineType, referenceMesh, machineCenter, machineSize = 3)`
-
-* **Cosa fa:** calcola e memorizza **posizione e target** “first-person” per una macchina, usando un *reference mesh* (es. joystick pulsanti) per capire il lato utile.
-* **Parametri:**
-
-  * `referenceMesh`: un `Object3D` posizionato sul lato “interfaccia” della macchina.
-  * `machineCenter`: centro in mondo della macchina (`THREE.Vector3`).
-  * `machineSize`: lato “unitario” della macchina (default 3).
-* **Passi:**
-
-  1. Converte `referenceMesh` in world space.
-  2. Chiama `calculateMachineSide(...)` per sapere se il reference è a sinistra/destra/fronte/retro.
-  3. **Eccezione per `candy_machine`:** forza il lato a **fronte** e aggiunge un offset Z extra per stare più lontani.
-  4. Calcola la posizione finale con `calculateFirstPersonPosition(...)`.
-  5. Salva il risultato in `firstPersonPositions[machineType]`.
-
-### `calculateMachineSide(referencePos, machineCenter, machineSize)`
-
-* **Cosa fa:** determina su **quale lato** della macchina si trova il `referencePos` rispetto al `machineCenter`.
-* **Ritorno:** oggetto `{ side, direction, offset }` dove
-
-  * `side`/`direction` ∈ { `'left'|'right'|'front'|'back'` },
-  * `offset` è un `Vector3` unitario su X o Z (±1, 0, 0) o (0, 0, ±1) che punta verso quel lato.
-* **Logica:** confronta |dx| e |dz| e sceglie l’asse con scostamento maggiore.
-
-### `calculateFirstPersonPosition(machineCenter, sideInfo, machineSize, machineType = null)`
-
-* **Cosa fa:** genera **posizione** e **target** ideali per la first-person di una macchina.
-* **Dettagli:**
-
-  * Altezza camera “umana”: `playerHeight = 3.8`.
-  * Distanza base dalla macchina: `baseDistance = machineSize * 0.8`.
-  * `extraDistance`: +1.5 per `candy_machine`, +1.0 per `claw_machine`, altrimenti 0.
-  * Posizione = `machineCenter + sideInfo.offset * (baseDistance + extraDistance)`, con `y = playerHeight`.
-  * Target = `machineCenter` con `y = playerHeight * 0.7`.
-* **Ritorno:** `{ position, target, side }`.
-
-### `isFirstPersonReady()`
-
-* **Cosa fa:** ritorna `true` se **entrambi** i punti first-person (claw e candy) sono stati calcolati (non null).
-
-### `setFirstPersonHeight(height)`
-
-* **Cosa fa:** aggiorna l’altezza `y` **di tutte** le posizioni first-person memorizzate e alza il target al `75%` dell’altezza (`target.y = height * 0.75`).
-
-### Preset altezza first-person
-
-`setFirstPersonHeightLow()` (2.8), `setFirstPersonHeightNormal()` (3.8), `setFirstPersonHeightHigh()` (4.5), `setFirstPersonHeightTall()` (5.2), `setFirstPersonHeightGiant()` (6.5)
-
-* **Cosa fanno:** shortcut per `setFirstPersonHeight(...)` con valori predefiniti.
-
-### `recalculateFirstPersonPositions()`
-
-* **Cosa fa:** **placeholder** per ricalcolare i punti first-person già presenti (attualmente non implementa la logica di ricalcolo).
-
-### `setThirdPersonDistance(distance)` / `setThirdPersonHeight(height)`
-
-* **Cosa fa:** inoltra i parametri alla `ThirdPersonCamera` (distanza/altezza).
-
-### `setTransitionDuration(duration)`
-
-* **Cosa fa:** imposta la durata delle transizioni in `CameraTransition`.
-
-### `animateCameraToObject(duration)` / `animateCameraToOriginal(duration)`
-
-* **Cosa fa:** wrapper che, **solo in modalità `exploration`**, avviano le animazioni “in avanti” (verso l’oggetto) e “indietro” (vista standard) della `ThirdPersonCamera`.
-* **Ritorno:** `Promise` (o `Promise.resolve()` se non applicabile).
-
-### `getDebugInfo()`
-
-* **Cosa fa:** restituisce uno snapshot dello stato della camera (modalità corrente, posizione, se sta transitando) e, se presente, il `getDebugInfo()` della terza persona.
-
----
-
-# CameraUtils
-
-Espone funzioni globali su `window.*` per test/debug rapido.
-
-### `initGlobalControls(cameraManager)`
-
-* **Cosa fa:** registra vari helper nel `window` che chiamano i metodi del `CameraManager`.
-* **Espone:**
-
-  * `window.setCameraDistance(distance)` → `cameraManager.setThirdPersonDistance(...)`
-  * `window.setCameraHeight(height)` → `cameraManager.setThirdPersonHeight(...)`
-  * `window.setTransitionDuration(duration)` → `cameraManager.setTransitionDuration(...)`
-  * `window.debugCamera()` → stampa info di debug (al momento non logga realmente; la funzione crea variabili ma non le usa).
-  * **Test first-person diretti (senza transizione):**
-
-    * `window.testFirstPersonClaw()` / `window.testFirstPersonCandy()`
-      Copiano posizione/target memorizzati direttamente sulla camera.
-  * **Helper “ENHANCED” (attenzione, vedi nota):**
-
-    * `window.showFirstPersonHelpers()` / `window.hideFirstPersonHelpers()`
-    * `window.testFirstPersonTransition(machineType)`
-    * `window.testCandyMachinePosition()`
-    * `window.testRealisticHeights()`
-    * `window.testNewHeight()`
-
-    > **Nota importante:** queste funzioni chiamano metodi **non presenti** nel `CameraManager` (`showFirstPersonHelpers`, `testFirstPersonTransition`, ecc.). Così come sono, genereranno errori a runtime se usate. Servono implementazioni corrispondenti nel `CameraManager` o vanno rimosse.
-  * **Altezze first-person:**
-
-    * `window.setFirstPersonHeight(height)`
-    * `window.setFirstPersonHeightLow/Normal/High/Tall/Giant()`
-  * **Ricalcolo posizioni:**
-
-    * `window.recalculateFirstPersonPositions()` (chiama il placeholder nel manager).
-
----
-
-## Note e piccoli accorgimenti
-
-* **`ThirdPersonCamera.setEnabled(...)`**: la flag non viene letta in `update()`. Non è dannoso (il `CameraManager` già controlla la modalità prima di chiamare `update`), ma è ridondante; o la si usa in `update` con `if (!this.enabled) return;`, oppure la si può eliminare.
-* **Funzioni `CameraUtils` non implementate nel manager:** come detto, diverse funzioni globali referenziano metodi inesistenti. Implementale oppure rimuovile per evitare eccezioni.
-* **Coerenza altezze first-person:** in `calculateFirstPersonPosition` il target è a `0.7 * height`, mentre in `setFirstPersonHeight` è a `0.75 * height`. Va benissimo se è voluto (target un po’ più alto quando si cambia a runtime), altrimenti uniforma.
-* **`machineOffset` in `switchToMachineMode`**: è passato ma non usato. Se non serve, toglilo per chiarezza.
-* **Delta time:** assicurati che `deltaTime` sia in **secondi** (non millisecondi), perché le durate sono in secondi.
-
-Se vuoi, posso anche aggiungere dei commenti JSDoc sopra ogni funzione direttamente nel codice così li hai “in linea” con l’editor.
 
 */

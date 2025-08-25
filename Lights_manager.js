@@ -697,206 +697,140 @@ export class LightingManager {
     }
 } 
 
+
+
+
+
+
+
 /* 
-constructor()
+Here’s a compact, developer-oriented summary of how the **lighting system** works.
 
-Inizializza lo stato interno: riferimenti alla scena e agli offset delle macchine, tempo per animazioni, raccolta di riferimenti alle varie luci (lightReferences), velocità animazione LED, materiali stanza e mappa dei preset.
+# Big picture
 
-Chiama definePresets() per costruire i profili di illuminazione predefiniti.
+* A **LightingManager** (name implied) owns scene-lighting state, LED animation timing, room materials, and a library of **presets**.
+* It creates ambient/directional/spot/point lights, animated **LED strips** on floor & walls, and **ceiling LED fixtures** loaded from a GLB.
+* A lightweight HTML UI (if present) can drive colors, intensities, LED speed, and room surface colors; presets sync both lights and UI.
 
-update(deltaTime)
+# Setup & dependencies
 
-Avanza il tempo (this.time += deltaTime) e anima i LED contenuti in lightReferences.ledStrips variando l’hue in HSL in base al tempo, alla velocità (ledSpeed) e all’indice di ciascun LED.
+* **constructor()**: initializes timers, offsets for two machines (claw/candy), `lightReferences` (handles to all light groups), LED speed, room materials, and builds presets via `definePresets()`.
+* **initialize(scene, machineOffset, candyMachineOffset)**: stores the Three.js scene and the two machine target positions for spotlights.
 
-Aggiorna sia material.color che material.emissive, dando l’effetto di strisce LED che scorrono/cambiano colore continuamente.
+# Runtime behavior
 
-initialize(scene, machineOffset, candyMachineOffset)
+* **update(deltaTime)**: advances `time` and animates every LED in `lightReferences.ledStrips` by cycling **HSL hue** based on time, `ledSpeed`, and LED index. Updates both `material.color` and `material.emissive` to create a flowing color effect.
 
-Registra i riferimenti fondamentali: la scene Three.js e le posizioni (offset) di due macchine (artiglio e caramelle) usate per posizionare correttamente i fari.
+# Presets
 
-addPaintingLights(lights)
+* **definePresets()**: builds named profiles (`arcade`, `neon`, `warm`, `cool`, `dark`) with color/intensity for:
 
-Salva un array di spot che illuminano quadri/pannelli in lightReferences.paintingSpotlights, così altre funzioni (preset/controlli) possono gestirli.
+  * `ambient`, `claw`, `candy`, `side` (wall washers), `center` (ceiling LEDs), `paintings`,
+  * optional `room` surface colors (`wall`, `floor`, `ceiling`).
+* **applyLightPreset(name)**:
 
-setRoomMaterials(materials)
+  * Looks up the preset; for each light type calls `updateLightColor` + `updateLightIntensity` and mirrors values into the UI (`updateUIForPreset`).
+  * Toggles ambient visibility based on its intensity.
+  * If `room` is present and room materials were registered, applies those `.color.setHex(...)`.
 
-Memorizza i materiali della stanza (tipicamente { wall, floor, ceiling }) per consentire ai preset di cambiare i colori delle superfici.
+# Creating the rig
 
-definePresets()
+* **setupLighting()** (requires `scene` set):
 
-Costruisce this.presets con più profili (“arcade”, “neon”, “warm”, “cool”, “dark”), ognuno con colori/intensità per: ambient, claw, candy, side, center, paintings, e colori base delle superfici stanza (pareti/pavimento/soffitto).
+  * Adds:
 
-applyLightPreset(presetName)
+    * **AmbientLight** (base fill).
+    * **DirectionalLight** (key) with **shadows** (shadow map size and camera frustum tuned).
+    * Two **SpotLight**s targeting the two machine offsets (shadows on).
+    * Pairs of **PointLight** “support” glows for each machine.
+    * A grid of **wall-washer SpotLights** along side and back walls.
+    * Calls **setupCeilingLights()** to place LED fixtures.
+    * Adds an extra **top DirectionalLight** from +Y.
+    * Builds **LED paths** on the floor (**createLedPaths()**) and **wall LED arrays** (**createWallLeds()**).
+  * Populates `lightReferences` (ambient, spots, washers, ceiling, supports, strips).
 
-Recupera il preset; se non esiste esce.
+# Ceiling fixtures
 
-Per ogni tipo di luce del preset (tranne room): chiama updateLightColor, updateLightIntensity e sincronizza la UI con updateUIForPreset.
+* **setupCeilingLights()**:
 
-Aggiorna il toggle della luce ambientale e la visibilità della luce ambientale in base all’intensità del preset.
+  * Loads `glbmodels/led_light.glb` (GLTFLoader), clones it at several positions (y = 7).
+  * For each clone: finds `light1`/`light2` meshes, assigns `MeshStandardMaterial` with white **emissive** (start \~0), and creates colocated **PointLight**s.
+  * Stores `{ light, mesh }` pairs in `lightReferences.ceilingLeds` so color/intensity updates affect both physical light and panel glow.
+  * Logs an error if the GLB fails to load.
 
-Se il preset ha la sezione room e sono stati registrati i materiali della stanza, ne imposta i colori .color.setHex(...).
+# LED strips (floor & walls)
 
-setupLighting()
+* **createLedPaths()**:
 
-Prerequisito: this.scene deve essere già impostata (da initialize).
+  * Builds small upward-facing plane meshes as LED tiles.
+  * Lays segments from a start point toward each machine offset (and forward along Z), samples at `ledSpacing`, creates emissive tiles (≈1.5 intensity), adds to scene and `ledStrips`.
+* **createWallLeds()**:
 
-Crea e aggiunge alla scena:
+  * Defines room size, spacing, wall offsets.
+  * Uses a **sine wave** to modulate LED heights for a wavy pattern.
+  * Orients planes inward on each wall (X and Z faces), populates several height “rings” (y step = 2).
+  * Adds every LED to the scene and to `ledStrips` so **update()** animates them.
 
-AmbientLight di base.
+# UI wiring (optional)
 
-DirectionalLight principale con ombre (configura risoluzione mappa ombre e frustum della shadow camera).
+* **setupLightControls()**: binds a toggle to show/hide the panel; initializes sub-controls. Warns (doesn’t fail) if elements are missing.
+* **setupAmbientLightControls()**: color, intensity, and visible toggle for AmbientLight (reflects into preview + label).
+* **setupColorControls()**: color pickers for `claw`, `candy`, `side`, `center`, `paintings`.
+* **setupIntensityControls()**: intensity sliders for the same groups.
+* **setupLedSpeedControls()**: slider for `ledSpeed` with live label.
+* **setupWallColorControls() / setupFloorColorControls()**: call `window.updateWallColor/FloorColor(color)` if provided (external room-material handling).
+* **updatePreview(previewId, color)**: sets preview swatch BG.
 
-Due SpotLight per le macchine (artiglio e caramelle), con target puntato agli offset; abilita le ombre.
+# Color & intensity application
 
-Coppie di PointLight “supporto” per ciascuna macchina (bagliore laterale).
+* **updateLightColor(type, hex)**:
 
-Una griglia di “wall washers” (più SpotLight) lungo le pareti laterali e la parete di fondo per lavare le superfici con luce radente.
+  * `ambient` → AmbientLight.color
+  * `claw` / `candy` → main SpotLight color + all **support PointLights**
+  * `side` → wall washers’ SpotLight colors
+  * `center` → for each ceiling fixture: PointLight color **and** mesh emissive
+  * `paintings` → painting SpotLights
+* **updateLightIntensity(type, value)** (with tailored scaling):
 
-Chiama setupCeilingLights() per caricare e posizionare elementi luminosi a soffitto.
+  * `ambient`: 1×
+  * `claw`/`candy`: main spots **2×**, support points **1×**
+  * `side`: washers **1.5×**
+  * `center`: PointLight **0.8×**, panel emissive **1×**
+  * `paintings`: 1×
+* **updateUIForPreset(type, color, intensity)**: syncs color inputs, sliders, labels, and previews.
 
-Aggiunge una DirectionalLight dall’alto (luce diretta dall’asse Y+).
+# Misc utilities
 
-Salva nei riferimenti gli array dei supporti.
+* **setupShadows(renderer)**: enables shadows and sets **PCFSoftShadowMap**.
+* **setLedSpeed(speed)**: programmatic LED speed + UI label sync.
+* **setRoomMaterials(materials)**: registers `{ wall, floor, ceiling }` materials for preset room color changes.
+* **addPaintingLights(lights)**: registers painting spotlights in references.
+* **getLightReferences()**: exposes the internal handles for debugging/custom tweaks.
 
-Chiama createLedPaths() (LED a pavimento / linee) e createWallLeds() (LED sulle pareti).
+# Typical usage
 
-Popola lightReferences (ambient, spot, washers, ceiling, supporti, strips).
+```js
+// creation & scene hook
+lights.initialize(scene, clawOffset, candyOffset);
+lights.setupLighting();
+lights.setupShadows(renderer);
 
-setupCeilingLights()
+// (optional) UI
+lights.setupLightControls();
 
-Carica asincronamente un modello GLB (glbmodels/led_light.glb) con GLTFLoader.
+// presets
+lights.applyLightPreset('arcade'); // or 'warm', 'cool', ...
 
-Clona il template in più posizioni predefinite (diversi Vector3 a Y=7).
+// game loop
+lights.update(deltaTime);
+```
 
-Per ciascun modello a soffitto:
+# Notes & gotchas
 
-Cerca light1 e light2 nel grafo, imposta un MeshStandardMaterial con emissive bianco (intensità iniziale 0.0).
+* Call **initialize → setupLighting** before applying presets; many references are created in `setupLighting()`.
+* **GLB loading is async**: ceiling LEDs appear after the model loads; preset re-apply or color hooks should tolerate late arrivals.
+* LED animation works by **HSL hue rotation**; ensure LED materials use emissive and aren’t shared with non-LED meshes unless intended.
+* Room color changes only apply if you called **setRoomMaterials(...)** or provide external handlers via `window.update*Color`.
 
-Crea PointLight posizionati come i mesh di luce e li aggiunge al modello.
 
-Inserisce in lightReferences.ceilingLeds oggetti { light, mesh } per gestire in seguito colore/intensità sia del punto luce che dell’emissive del pannello.
-
-Logga errore in caso di fallimento del caricamento.
-
-createLedPaths()
-
-Definisce piccoli piani (plane) rivolti verso l’alto (ruota la geometria) come tasselli LED.
-
-Costruisce uno o più segmenti dal “punto di partenza” verso gli offset delle macchine (artiglio e, se presente, caramelle), con un secondo segmento che prosegue in Z verso la macchina.
-
-Campiona i segmenti a passo ledSpacing e, per ogni campione, istanzia un Mesh con materiale emissivo (intensità 1.5), lo posiziona e lo aggiunge alla scena.
-
-Ogni LED creato viene pushato in lightReferences.ledStrips così update() potrà animarne il colore.
-
-createWallLeds()
-
-Disegna matrici/onde di piccoli LED sulle quattro pareti della stanza:
-
-Definisce dimensioni stanza, spaziatura e offset dalle pareti.
-
-Usa una sinusoide per modulare l’altezza dei LED (waveAmplitude/waveFrequency) creando un pattern ondeggiante.
-
-Crea piani rivolti verso l’interno (orientamento diverso per pareti X e Z).
-
-In anelli a diverse altezze (yBase a step di 2), popola le pareti davanti/dietro (ciclando su X) e sinistra/destra (ciclando su Z).
-
-Ogni LED viene aggiunto alla scena e anche a lightReferences.ledStrips, quindi partecipa all’animazione cromatica di update().
-
-setupLightControls()
-
-Collega la UI HTML (se presente) per mostrare/nascondere il pannello controlli (#toggleLightControls, #lightControls).
-
-Inizializza i vari gruppi di controlli: ambient, colore, intensità, velocità LED, colore pareti, colore pavimento, delegando ai metodi dedicati.
-
-Se gli elementi non esistono, logga un warning ma non interrompe l’esecuzione.
-
-setupAmbientLightControls()
-
-Aggancia gli input UI per colore (#ambientLightColor), intensità (#ambientLightIntensity) e toggle visibilità (#ambientLightToggle) della luce ambientale.
-
-Su input:
-
-Cambia il colore via updateLightColor('ambient', ...) e aggiorna un riquadro di preview.
-
-Cambia l’intensità via updateLightIntensity('ambient', ...) e aggiorna il valore testuale.
-
-Mostra/nasconde la AmbientLight impostandone .visible.
-
-setupColorControls()
-
-Aggancia una serie di color picker per tipi di luce: claw, candy, side, center, paintings.
-
-Ogni input invoca updateLightColor(tipo, colore) e aggiorna la relativa preview.
-
-setupIntensityControls()
-
-Aggancia slider di intensità per: claw, candy, side, center, paintings.
-
-Ogni input invoca updateLightIntensity(tipo, valore) e aggiorna il testo col valore corrente.
-
-setupLedSpeedControls()
-
-Collega lo slider #ledSpeedControl e l’etichetta #ledSpeedValue.
-
-Aggiorna this.ledSpeed in tempo reale per accelerare/rallentare l’animazione LED.
-
-setupWallColorControls()
-
-Collega #wallColorPicker; alla modifica chiama (se presente) window.updateWallColor(color) per demandare il cambio colore delle pareti a codice esterno.
-
-setupFloorColorControls()
-
-Collega #floorColorPicker; alla modifica chiama (se presente) window.updateFloorColor(color) per demandare il cambio colore del pavimento.
-
-updatePreview(previewId, color)
-
-Utility UI: imposta lo sfondo dell’elemento di preview (es. un quadratino) al colore scelto.
-
-updateLightColor(lightType, colorHex)
-
-Converte colorHex in THREE.Color e applica il colore a seconda del tipo:
-
-ambient: cambia .color della AmbientLight.
-
-claw/candy: cambia .color dello spotlight principale e di tutti i point light di supporto.
-
-side: aggiorna il colore di tutte le wall washers.
-
-center: per ogni elemento in ceilingLeds, imposta il colore della PointLight e l’emissive del mesh relativo.
-
-paintings: aggiorna il colore di tutti gli spot per i quadri.
-
-Effetto: sincronizza le componenti luminose “fisiche” (Point/Spot/Directional) e le superfici emissive dove previsto.
-
-updateLightIntensity(lightType, intensity)
-
-Applica la nuova intensità per tipo, con scaling specifici:
-
-ambient: intensità diretta.
-
-claw/candy: raddoppia per gli spot principali (* 2) e usa il valore “puro” per i point di supporto.
-
-side: aumenta del 50% per le wall washers (* 1.5) per un wash più evidente.
-
-center: riduce leggermente la PointLight (* 0.8) ma usa il valore pieno per l’emissive del pannello LED (mesh).
-
-paintings: applica direttamente sugli spot dei quadri.
-
-Garantisce coerenza tra luce reale e “bagliore” dei materiali emissivi.
-
-updateUIForPreset(lightType, color, intensity)
-
-Sincronizza i controlli UI (input colore, slider intensità, label valore, preview) con i valori imposti da un preset per il tipo di luce indicato.
-
-setupShadows(renderer)
-
-Abilita le ombre sul renderer e imposta il tipo PCFSoftShadowMap per bordi più morbidi.
-
-setLedSpeed(speed)
-
-Imposta programmaticamente la velocità degli effetti LED e aggiorna (se presenti) lo slider e la label della UI.
-
-getLightReferences()
-
-Ritorna l’oggetto lightReferences, utile per accedere dall’esterno alle luci create (per debug o personalizzazioni avanzate).
 */

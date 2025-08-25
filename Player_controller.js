@@ -629,250 +629,132 @@ export class PlayerTestUtils {
     }
 }
 
-/* 
-Di seguito trovi, funzione per funzione, cosa fa, con parametri, valore di ritorno ed effetti collaterali (quando rilevanti). Ho raggruppato per classe.
 
-# PlayerController
 
-### constructor(scene, physicsEngine, roomSetupManager = null, audioManager = null)
 
-* **Scopo:** inizializza il controller del personaggio e tutti gli stati interni (movimento, animazioni, riferimenti a scena/physics/room/audio).
-* **Parametri:**
-  `scene` (THREE.Scene), `physicsEngine` (istanza del tuo motore fisico), `roomSetupManager` (opzionale), `audioManager` (opzionale).
-* **Ritorno:** nessuno.
-* **Note:** imposta velocità di movimento/rotazione, stato animazioni e flag utili (es. `isGreeting`).
 
-### loadCharacter(modelUrl, characterName)
 
-* **Scopo:** carica un modello GLTF del personaggio e ne prepara animazioni e mesh.
-* **Parametri:** `modelUrl` (string), `characterName` (string, usato anche per gli effetti audio).
-* **Ritorno:** `Promise<void>`.
-* **Effetti:** su successo chiama `setupCharacterModel(gltf)`; su errore crea un “fallback” con `createFallbackMesh()` e **reject**.
 
-### setupCharacterModel(gltf)
 
-* **Scopo:** inserisce il modello GLTF nella scena, abilita ombre, prepara il mixer e le clip di animazione.
-* **Parametri:** `gltf` (GLTF result del loader).
-* **Ritorno:** nessuno.
-* **Effetti:** rimuove eventuale mesh di fallback, posiziona e scala il modello, crea `THREE.AnimationMixer`, pulisce i nomi delle animazioni (rimuove il prefisso prima di `|`, e lowercase) e salva le azioni in `this.animations`. Se esiste, parte da `idle`. Imposta `isLoaded = true`.
 
-### createFallbackMesh()
 
-* **Scopo:** crea un mesh di emergenza (capsula) quando il GLTF non si carica.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Effetti:** genera `THREE.CapsuleGeometry`, abilita ombre, la posiziona, prova a costruire un BVH (`MeshBVH`) per eventuali collisioni geometriche, e aggiunge alla scena. Imposta `isLoaded = true`.
 
-### setMoving(direction, state)
 
-* **Scopo:** accende/spegne le flag di movimento in base ai tasti (W, A, D).
-* **Parametri:** `direction` ('forward' | 'left' | 'right'), `state` (boolean).
-* **Ritorno:** nessuno.
-* **Effetti:** ignorata se `isGreeting` è true (durante l’animazione di saluto).
+/*
 
-### switchToAnimation(animationName)
+# What this module does (and how it all fits together)
 
-* **Scopo:** gestisce il passaggio morbido (fade) tra animazioni.
-* **Parametri:** `animationName` (string, es. 'idle', 'walk', 'wave', 'death'… **minuscolo**).
-* **Ritorno:** nessuno.
-* **Effetti:** fa fade-out dell’azione corrente e fade-in della nuova (`0.3s`), aggiorna `currentAnimation`.
+This code implements a **player character system for a Three.js scene** with three main pieces:
 
-### update(deltaTime)
+1. a **PlayerController** that loads (or falls back to) a model, drives movement and rotation, swaps animations with fades, keeps the avatar inside a rectangular room, and prevents walking into nearby “machines” (claw/candy/popcorn);
+2. a **PlayerInputHandler** that maps keyboard events to the controller and to game-mode toggles/interactions;
+3. a small **PlayerTestUtils** helper for quick testing (speed tweaks, animation cycling, status/diagnostics).
 
-* **Scopo:** aggiorna rotazione, movimento, collisioni e stato animazione in ogni frame.
-* **Parametri:** `deltaTime` (secondi).
-* **Ritorno:** nessuno.
-* **Effetti:**
-
-  * Ruota con A/D.
-  * Se W è premuto: avanza nella direzione di `getForwardDirection()`.
-  * Poi chiama `handleMachineCollisions()` e `constrainToRoom()` per tenere il player fuori dalle macchine e dentro la stanza.
-  * Cambia animazione tra `walk` e `idle` a seconda del movimento.
-  * Forza `position.y` a `0` (se c’è animazione `idle`) altrimenti `0.5`.
-  * **Nota:** il mixer **non** viene aggiornato qui (vedi `updateAnimation`).
-
-### updateAnimation(deltaTime)
-
-* **Scopo:** aggiorna solo il mixer delle animazioni.
-* **Parametri:** `deltaTime` (secondi).
-* **Ritorno:** nessuno.
-* **Effetti:** `this.mixer.update(deltaTime)` se il mixer esiste. Da chiamare nel loop principale di rendering.
-
-### async performGreeting(cameraManager)
-
-* **Scopo:** esegue una “scena di saluto”: ferma i movimenti, anima la camera, riproduce suono e animazione `wave`, poi ripristina la camera.
-* **Parametri:** `cameraManager` (oggetto con `animateCameraToObject(dur)` e `animateCameraToOriginal(dur)`).
-* **Ritorno:** `Promise<void>`.
-* **Effetti:** imposta `isGreeting` a true per bloccare altri input, riproduce suono `${characterName}_wave` tramite `audioManager`, torna a `idle` alla fine.
-
-### playOneShotAnimation(animationName)
-
-* **Scopo:** riproduce una clip **una sola volta** e poi torna a `idle`.
-* **Parametri:** `animationName` (string).
-* **Ritorno:** `Promise<void>`.
-* **Effetti:** setta l’azione in `LoopOnce`, `clampWhenFinished = true`, fa fade in/out rapido e usa un `setTimeout` lungo quanto la durata della clip per tornare a `idle`.
-  **Nota:** il timer è a tempo reale; se cambi la velocità del mixer, il timeout non si aggiorna di conseguenza.
-
-### handleMachineCollisions()
-
-* **Scopo:** impedisce al player di entrare in zone rettangolari intorno alle macchine (claw, candy, popcorn) con “spinta” morbida o correzione dura.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Effetti:**
-
-  * Costruisce una lista di “macchine” (da `roomSetupManager` se presente, altrimenti posizioni hardcoded).
-  * Calcola un riquadro per ciascuna (con raggio giocatore `playerRadius = 0.5`).
-  * Se il player entra, applica una piccola spinta nella via di fuga più vicina; se è “dentro parecchio”, corregge la posizione con un margine di sicurezza.
-
-### constrainToRoom()
-
-* **Scopo:** mantiene il player entro i limiti della stanza (40×20 → X: -20..20, Z: -10..10).
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Effetti:**
-
-  * Applica una “spinta” morbida quando il player si avvicina ai bordi (buffer 0.2).
-  * Poi esegue un clamping duro con `THREE.MathUtils.clamp`.
-
-### getPosition()
-
-* **Scopo:** ottenere la posizione attuale del personaggio.
-* **Parametri:** nessuno.
-* **Ritorno:** `THREE.Vector3` (clone).
-
-### getForwardDirection()
-
-* **Scopo:** ottenere il vettore avanti del personaggio in base alla sua rotazione.
-* **Parametri:** nessuno.
-* **Ritorno:** `THREE.Vector3` (0,0,1) trasformato dalla `quaternion` della mesh.
-
-### enableDebug() / disableDebug()
-
-* **Scopo:** abilita/disabilita messaggi di debug interni.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-
-### debugAnimationState()
-
-* **Scopo:** stampa a console alcune info diagnostiche sulle animazioni (placeholder).
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Nota:** al momento stampa solo separatori; sembra pensata per essere estesa.
-
-### listAvailableAnimations()
-
-* **Scopo:** elenca le animazioni caricate e indica quella attiva.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno (log in console).
-* **Nota:** il confronto “attiva/non attiva” usa `getClip().name.toLowerCase()`; se i nomi originali avevano il prefisso `"armature|..."`, il match con il nome “pulito” potrebbe non coincidere visivamente.
-
-### forceAnimation(animationName)
-
-* **Scopo:** forza il passaggio a una specifica animazione (comodo per test).
-* **Parametri:** `animationName` (string).
-* **Ritorno:** nessuno (logga l’azione).
-
-### playDeathAnimation(onComplete)
-
-* **Scopo:** riproduce l’animazione di morte (`'death'`) una volta e poi esegue un callback.
-* **Parametri:** `onComplete` (funzione opzionale).
-* **Ritorno:** nessuno.
-* **Effetti:** fa uno switch “brusco” (fade 0) sull’animazione `'death'`, imposta `LoopOnce` + `clampWhenFinished`. Al termine del timer chiama `onComplete`.
-  **Nota:** non torna automaticamente a `idle`.
-
-### checkAnimationSystem()
-
-* **Scopo:** stampa un report diagnostico sul sistema animazioni.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno (log a console con suggerimenti).
+It also defines a few **integration points** (room layout, camera rails, audio hooks, game state) and lists some **gotchas** you should be aware of.
 
 ---
 
-# PlayerInputHandler
+## 1) PlayerController — the brain of the avatar
 
-### constructor(playerController, gameStateManager, modeManager, cameraManager)
+**Purpose & state**
 
-* **Scopo:** collega la gestione input a controller, stato di gioco, modal manager e camera.
-* **Parametri:** istanze dei 4 componenti.
-* **Ritorno:** nessuno.
+* Holds references to `scene`, an external `physicsEngine` (not used directly here), optional `roomSetupManager` (machine positions), and optional `audioManager`.
+* Tracks input flags (`moveForward/Left/Right`), movement speeds, animation dictionary (`this.animations`), current `THREE.AnimationMixer` and action, and utility flags (`isLoaded`, `isGreeting`, `debugEnabled`).
 
-### handleKeyDown(e)
+**Loading & model setup**
 
-* **Scopo:** gestisce la pressione tasti.
-* **Parametri:** `e` (KeyboardEvent).
-* **Ritorno:** nessuno.
-* **Effetti:**
+* `loadCharacter(modelUrl, characterName)` loads a GLTF; on success it calls `setupCharacterModel`, on failure creates a **capsule fallback** via `createFallbackMesh()` and rejects.
+* `setupCharacterModel(gltf)` inserts the model, enables shadows, builds an `AnimationMixer`, and **normalizes clip names** to lowercase and (if present) strips any prefix before `|` (e.g., `"armature|idle"` → `"idle"`). Starts on `idle` if available.
+* `createFallbackMesh()` makes a royal-blue **CapsuleGeometry** with shadows and tries to attach a **MeshBVH** to the geometry (prepping it for potential geometric collision queries). This mesh is placed in the scene so the avatar still “exists” if loading fails.
 
-  * Previene il default su: W, S, A, D, E, Esc, T, X, L.
-  * **W:** `forward = true`.
-  * **A:** `left = true`.
-  * **D:** `right = true`.
-  * **E:** se `gameStateManager.currentZone` esiste e non è un auto-repeat, entra in modalità macchina: `modeManager.enterMachineMode(currentZone.machineType)`.
-  * **T:** (non repeat) avvia `performGreeting` sul controller.
-  * **X:** (non repeat, e solo se **non** vicino a una macchina) chiama `togglePopcornMode()`.
-  * **L:** (non repeat, e solo se **non** vicino a una macchina) chiama `toggleDiscoMode()`.
-    **Note:** “KeyS” e “Escape” sono prevenuti ma non hanno logica associata qui; non c’è movimento indietro.
+**Movement, rotation, and constraints**
 
-### handleKeyUp(e)
+* `setMoving(direction, state)` flips movement flags unless a greeting scene is in progress.
+* `update(deltaTime)` is the per-frame logic:
 
-* **Scopo:** gestisce il rilascio tasti.
-* **Parametri:** `e` (KeyboardEvent).
-* **Ritorno:** nessuno.
-* **Effetti:** **W/A/D** → imposta a `false` i rispettivi flag di movimento.
+  * rotates left/right with **A/D**;
+  * moves forward along the avatar’s quaternion with **W**;
+  * applies **machine collision avoidance** (`handleMachineCollisions`) and **room bounds** (`constrainToRoom`);
+  * switches animation between `'walk'` and `'idle'` with a fade via `switchToAnimation`;
+  * pins `position.y` to `0` (if `idle` exists) or `0.5` (fallback mesh height).
+  * **Note:** it does **not** tick the mixer; that’s done in `updateAnimation`.
+* `constrainToRoom()` keeps the player inside a **40×20** area (X ∈ \[−20, 20], Z ∈ \[−10, 10]) with a gentle pushback near edges plus a hard clamp.
+* `handleMachineCollisions()` defines **axis-aligned exclusion rectangles** around machines. Machine centers are read from `roomSetupManager` when present (else hardcoded), expanded by a small **playerRadius**. If inside, the controller either nudges the player **out softly** (small penetration) or **snaps** to the nearest safe edge (deep penetration).
 
-### togglePopcornMode()
+**Animation system**
 
-* **Scopo:** abilita/disabilita la “modalità popcorn” globale.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Effetti:** chiama `window.togglePopcornMode()` se presente; altrimenti logga un messaggio.
+* `switchToAnimation(name)` fades out the current action and fades in the target over **0.3s**.
+* `updateAnimation(deltaTime)` advances the `AnimationMixer` and should be called every frame by your main loop.
+* **One-shot clips & scenes**
 
-### toggleDiscoMode()
+  * `playOneShotAnimation(name)` plays a clip once (`LoopOnce`, clamped on finish), then returns to `idle`. It uses a **setTimeout** equal to the clip’s nominal duration to decide when to switch back.
+  * `performGreeting(cameraManager)` runs a **mini cut-scene**: stops input, animates the camera in/out via `cameraManager`, plays `${characterName}_wave` on the `audioManager` (if present), plays the `wave` animation once, then restores normal control.
+  * `playDeathAnimation(onComplete)` hard-switches to `'death'` (LoopOnce, clamped) and calls `onComplete` after the clip’s duration. It **does not** return to `idle`.
 
-* **Scopo:** abilita/disabilita la “modalità disco” globale.
-* **Parametri:** nessuno.
-* **Ritorno:** nessuno.
-* **Effetti:** chiama `window.toggleDiscoMode()` se presente; altrimenti logga un messaggio.
+**Utilities**
+
+* `getPosition()` returns a clone of the current position; `getForwardDirection()` returns the avatar’s “forward” vector from its quaternion.
+* `enableDebug()/disableDebug()`, `debugAnimationState()`, `listAvailableAnimations()`, `forceAnimation(name)`, `checkAnimationSystem()` exist for logging/diagnostics (most logs are currently stubbed out).
 
 ---
 
-# PlayerTestUtils (metodi statici)
+## 2) PlayerInputHandler — keyboard → game actions
 
-### setPlayerSpeed(playerController, speed)
+**Purpose**
 
-* **Scopo:** cambia la velocità di movimento del player (comodo per test).
-* **Parametri:** `playerController`, `speed` (numero).
-* **Ritorno:** nessuno (logga la nuova velocità).
+* Bridges user input to the controller and to the wider game (mode changes, special effects, camera greeting).
 
-### testCharacterAnimations(playerController)
+**Key bindings**
 
-* **Scopo:** sequenza di test che prova in loop le animazioni `idle`, `walk`, `run` ogni 2s.
-* **Parametri:** `playerController`.
-* **Ritorno:** nessuno (log a console).
-* **Note:** se `run` non esiste, `switchToAnimation` non farà nulla per quella voce; serve modello con clip corrispondenti.
-
-### getCharacterStatus(playerController)
-
-* **Scopo:** stampa un riepilogo dello stato del personaggio (caricamento, numero animazioni, animazione attuale, posizione, movimento).
-* **Parametri:** `playerController`.
-* **Ritorno:** nessuno (log a console con alcuni “comandi suggeriti”).
-
-### checkAnimationSystem(playerController)
-
-* **Scopo:** “proxy” verso `playerController.checkAnimationSystem()`.
-* **Parametri:** `playerController`.
-* **Ritorno:** nessuno.
+* Prevents default browser behavior for **W/S/A/D/E/Esc/T/X/L**.
+* **W/A/D:** set/unset movement flags on keydown/keyup (no backward move on **S**—it’s prevented but unused).
+* **E:** when `gameStateManager.currentZone` exists and it’s not an auto-repeat, calls
+  `modeManager.enterMachineMode(currentZone.machineType)`.
+* **T:** triggers `playerController.performGreeting(cameraManager)` (single-shot).
+* **X / L:** when **not** near a machine (`currentZone === null`), call global `window.togglePopcornMode()` / `window.toggleDiscoMode()` if defined.
 
 ---
 
-## Appunti e piccole insidie
+## 3) PlayerTestUtils — quick testing helpers
 
-* L’import `RigidBody` non è usato in questo file.
-* La marcatura dell’animazione attiva in `listAvailableAnimations()` può non combaciare se il nome originale del clip contiene prefisso (il confronto usa il nome **non** pulito).
-* `playOneShotAnimation` e `playDeathAnimation` basano la fine sull’orologio reale (`setTimeout`), non sul tempo del mixer: cambi di playbackRate non sono considerati.
-* In `update`, la variabile `previousPosition` è calcolata ma non utilizzata.
-* Non c’è supporto per camminare all’indietro; “S” è solo nel preventDefault.
+* `setPlayerSpeed(controller, speed)`: change run speed on the fly.
+* `testCharacterAnimations(controller)`: cycles `'idle' → 'walk' → 'run'` every 2 seconds (if clips exist), useful to sanity-check retargeted clips.
+* `getCharacterStatus(controller)`: (stubbed) intended to log load state, active animation, position, and movement flags.
+* `checkAnimationSystem(controller)`: proxies to the controller’s diagnostics.
 
+---
+
+## Integration contracts & data flow
+
+* **Main loop:** call **both** `playerController.update(dt)` (movement/constraints/anim switching) **and** `playerController.updateAnimation(dt)` (mixer tick) every frame.
+* **Room/Machines:** if you have a `roomSetupManager`, it should expose
+  `getMachineOffset()` and `getCandyMachineOffset()` (and ideally one for the popcorn machine—currently hardcoded).
+* **Camera:** a `cameraManager` with
+  `animateCameraToObject(duration)` and `animateCameraToOriginal(duration)` powers the greeting scene rails.
+* **Audio:** an `audioManager` with `playSound(name)` lets greetings auto-play `${characterName}_wave`.
+* **Game state & modes:** `gameStateManager.currentZone` (with a `machineType`) enables **E** to enter machine mode via a `modeManager`.
+
+---
+
+## Notable limitations & gotchas (called out in the notes)
+
+* **No backward walking:** key **S** is prevented but there’s no logic to move backward.
+* **Timing of one-shots:** `playOneShotAnimation` and `playDeathAnimation` use **real time** (`setTimeout`) instead of animation-mixer time/events. If you change the mixer playback rate, these timers may **desync**. (Best practice: listen for `finished` events on the action or mixer.)
+* **Animation name matching:** `listAvailableAnimations()` compares using `action.getClip().name.toLowerCase()`; if your raw clip names still include prefixes (e.g., `"armature|idle"`), the “active” indication can appear inconsistent relative to the cleaned keys.
+* **Physics isn’t driving motion:** despite importing `RigidBody`, movement and collisions here are **kinematic** (AABB pushbacks and clamps). Gravity is faked by forcing `y` rather than simulating.
+* **Fallback specifics:** the fallback capsule sets `y ≈ 0.5` and attaches a BVH to the **geometry** (helpful if you later use triangle-level queries), but the controller currently only uses rectangle-based exclusion zones.
+* **Minor stubs:** some debug/status methods and logs are placeholders; `previousPosition` is computed then unused in `update`.
+
+---
+
+## Quick mental model
+
+* **Press W/A/D** → `PlayerInputHandler` sets movement flags → `PlayerController.update(dt)` rotates and moves, pushes you out of machine rectangles, keeps you in bounds, and swaps `'idle'`/`'walk'` with fades → `PlayerController.updateAnimation(dt)` advances the mixer so the clips actually play.
+* **Press E** near a machine → game switches to that machine’s mode.
+* **Press T** → short greeting cut-scene (camera in, wave + sound, camera out).
+* **Press X/L** away from machines → global popcorn/disco effects toggle if provided.
+
+That’s the whole system: **model/animation management**, **kinematic locomotion with soft collision fences**, **room confinement**, **scripted greeting**, **key mapping**, and **small test hooks**—cleanly separated so you can swap in your own room/camera/audio/game-mode implementations.
 
 
 */
