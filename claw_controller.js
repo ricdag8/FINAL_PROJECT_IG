@@ -767,6 +767,11 @@ openClaw() {
                     console.warn('RELEASING_OBJECT timeout - forcing reset to MANUAL_HORIZONTAL');
                     this.automationState = 'MANUAL_HORIZONTAL';
                     this.isAnimating = false;
+                    // ensure claw is open and clean state
+                    this.isClosed = false;
+                    this.isClosing = false;
+                    this.isGrabbing = false;
+                    this.grabbedObject = null;
                 }
                 break;
             }
@@ -800,6 +805,11 @@ openClaw() {
                     this.clawGroup.position.copy(this.spawnPosition);
                     this.automationState = 'MANUAL_HORIZONTAL';
                     this.isAnimating = false;
+                    // ensure clean state after return
+                    this.isClosed = false;
+                    this.isClosing = false;
+                    this.isGrabbing = false;
+                    this.grabbedObject = null;
                 }
                 break;
             }
@@ -856,5 +866,22 @@ openClaw() {
     
     resetScore() {
         this.deliveredStars = 0;
+    }
+
+    // Debug method to force reset claw state if it gets stuck
+    forceResetState() {
+        console.log('Force resetting claw state');
+        this.automationState = 'MANUAL_HORIZONTAL';
+        this.isAnimating = false;
+        this.isClosed = false;
+        this.isClosing = false;
+        this.isGrabbing = false;
+        this.grabbedObject = null;
+        this.releasingObjectStartTime = 0;
+        this.buttonPressTime = 0;
+        // ensure claw returns to spawn position
+        if (this.spawnPosition.lengthSq() > 0) {
+            this.clawGroup.position.copy(this.spawnPosition);
+        }
     }
 } 

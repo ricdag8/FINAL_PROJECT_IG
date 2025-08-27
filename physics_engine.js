@@ -199,7 +199,7 @@ export class PhysicsEngine {
 
 
         //handle collisions with machine parts using closest-point queries
-        this.resolveStaticCollisions();
+       // this.resolveStaticCollisions();
 
       /*
 // for each body vs static collider:
@@ -382,7 +382,7 @@ export class PhysicsEngine {
 
 
 
-    getBodyPairsToCheck() {
+    getBodyPairsToCheck() { 
         const pairs = [];
         for (let i = 0; i < this.bodies.length; i++) {
             const A = this.bodies[i];
@@ -500,6 +500,40 @@ resolveBodyCollisions() {
     });
 }
 
+
+/*
+Prende le coppie da getBodyPairsToCheck().
+
+Narrow phase preciso con BVH:
+
+Costruisce la matrice locale-A → locale-B (matAB).
+
+Usa boundsTree.intersectsGeometry per verificare intersezione geometrica reale.
+
+Se niente intersezione → salta.
+
+Calcola normale fra centri, distanza, penetrazione (con slop).
+
+Correzione posizioni:
+
+Sceglie un correctionFactor (più alto per candies-candies, più basso per stars, medio se uno è cinematico).
+
+Sposta A e B lungo la normale in proporzione alle masse (via inverseMass).
+
+Impulso di collisione:
+
+Prende la velocità relativa sulla normale.
+
+Se si stanno allontanando, esce.
+
+Determina la restitution effettiva con soglia (più bouncy per candies).
+
+Calcola l’impulso e aggiorna le velocità lineari di A e B.
+
+Sveglia entrambi (reset dei timer sleep).
+
+Qui non usa i box-limite: è oggetto↔oggetto con intersezione geometrica (BVH).
+*/
 spendStarAsCoin() {
     if (this.deliveredStars > 0) {
         this.deliveredStars--;
@@ -514,95 +548,6 @@ spendStarAsCoin() {
     }
 
 
-
-
-    //collisions between dynamic bodies and static machine parts
-  resolveStaticCollisions() {
-    if (this.staticColliders.length === 0) return;
-
-    const bodyWorldPos = new THREE.Vector3();
-    const bodyLocalPos = new THREE.Vector3();
-    const closestPoint = new THREE.Vector3();
-    const worldClosestPoint = new THREE.Vector3();
-    const normal = new Vec3();
-    const invStaticMatrix = new THREE.Matrix4();
-
-    this.bodies.forEach(body => {
-        //if a body is allowed to fall through the chute, we must disable
-        //all its collisions with static machine parts to let it pass.
-        if (body.canFallThrough) {
-            return;
-        }
-
-        //skip bodies in special states (including clean release and being held)
-        if (body.inverseMass === 0 || body.isSleeping || body.isBlocked || body.isBeingDispensed || body.isBeingReleased || body.isHeld) return;
-
-        bodyWorldPos.copy(body.position);
-
-        this.staticColliders.forEach(staticMesh => {
-            const matrix = new THREE.Matrix4()
-                .copy(staticMesh.matrixWorld).invert()
-                .multiply(body.mesh.matrixWorld);
-
-            const intersects = body.mesh.geometry.boundsTree
-                .intersectsGeometry(staticMesh.geometry, matrix);
-
-            if (!intersects) return;
-
-            body.isSleeping = false;
-            body.sleepyTimer = 0;
-
-            //we find the local position of the body within the static mesh
-            invStaticMatrix.copy(staticMesh.matrixWorld).invert();
-            bodyLocalPos.copy(bodyWorldPos).applyMatrix4(invStaticMatrix);
-
-            //find the closest point on the static mesh to the body
-            staticMesh.geometry.boundsTree.closestPointToPoint(bodyLocalPos, closestPoint);
-            worldClosestPoint.copy(closestPoint).applyMatrix4(staticMesh.matrixWorld);
-
-            normal.copy(bodyWorldPos).sub(worldClosestPoint);
-            const dist = normal.length();
-
-            if (dist < 1e-6) {
-                normal.set(0, 1, 0);
-            } else {
-                normal.normalize();
-            }
-
-            const penetrationDepth = body.boundingRadius - dist;
-            if (penetrationDepth > 0) {
-
-                const correctionFactor = 2.0;
-                const correctionVector = normal.clone().multiplyScalar(penetrationDepth * correctionFactor);
-                body.position.add(correctionVector);
-
-
-                if (penetrationDepth > body.boundingRadius * 0.9) {
-                    body.linearVelocity.set(0, -2, 0); 
-                    body.angularVelocity.set(0, 0, 0);
-                }
-
-
-                const springStiffness = 500; // RIDOTTO: da 1000 per forze più delicate
-                const dampingFactor = 1.2; // AUMENTATO: da 0.9 per maggiore smorzamento
-
-                const penaltyForceMag = penetrationDepth * springStiffness;
-                const penaltyForce = normal.clone().multiplyScalar(penaltyForceMag);
-
-                const velocityAlongNormal = body.linearVelocity.dot(normal);
-                const dampingForceMag = velocityAlongNormal * dampingFactor;
-                const dampingForce = normal.clone().multiplyScalar(-dampingForceMag);
-
-                const totalForce = penaltyForce.add(dampingForce);
-                const contactPointRelative = new Vec3().copy(worldClosestPoint).sub(body.position);
-                const torque = new Vec3().crossVectors(contactPointRelative, totalForce);
-
-                body.force.add(totalForce);
-                body.torque.add(torque);
-            }
-        });
-    });
-}
 
     _applyCandyConstraints(body) {
 

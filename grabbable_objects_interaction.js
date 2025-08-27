@@ -185,7 +185,7 @@ Outputs you use: the normal, the closest surface point, and the penetration dept
         return {
             contactPoint: contactPoint,
             normal: normal,
-            penetrationDepth: penetrationDeptt // we basically return this informations in order to get a more precise response
+            penetrationDepth: penetrationDepth // we basically return this informations in order to get a more precise response
         };
     }
 
