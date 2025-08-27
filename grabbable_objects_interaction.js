@@ -72,8 +72,9 @@ skips objects that are:
         if (!objectBVH) {
             return;
         }
-        
+        //update world matrices, since BVH relies on them
         objectMesh.updateMatrixWorld(true);
+
 
         this.cylinders.forEach(fingerMesh => {
             const fingerBVH = fingerMesh.geometry.boundsTree;
@@ -98,6 +99,7 @@ skips objects that are:
                     }
 
                     //calculate contact point and resolve collision
+                    //depending on the contact point, we'll have a particular behavior
                     const contactInfo = this.calculateContactPoint(objectBVH, fingerMesh, objectMesh);
                     
                     if (contactInfo) {
@@ -283,7 +285,7 @@ Effect: Applies force (push out) and torque (spin if off-center) for a firm, non
         const touchCounts = new Map();
         const touchedObjects = new Map();
 
-        // Count how many *named* fingers are touching each object
+        // Count how many named fingers are touching each object
         for (const finger in this.cylinderToFinger) {
             const fingerName = this.cylinderToFinger[finger]; // A, B, or C
             const object = this.collisionDetails[fingerName];

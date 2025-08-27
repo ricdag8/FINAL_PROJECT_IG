@@ -69,6 +69,7 @@ export class ClawController {
             this.spawnPosition.copy(this.clawGroup.position);
         }
 
+        //we compute then the drop-off position
         if (this.machineBox) {
 
             this.dropOffPosition.set(
@@ -77,8 +78,8 @@ export class ClawController {
                 this.machineBox.max.z - this.moveMargin - 0.1
             );
         }
-        
 
+        //create a chute box in order to detect when objects fall into the chute
         if (this.chuteMesh) {
             this.chuteMesh.updateWorldMatrix(true, false);
             this.chuteBox = new THREE.Box3().setFromObject(this.chuteMesh);
@@ -90,12 +91,13 @@ export class ClawController {
             const chuteSize = new THREE.Vector3();
             this.chuteBox.getSize(chuteSize);
             
-            // Use a smaller, more precise safety radius to avoid interfering with claw operation
+           
+            // Use a smaller, more precise safety radius to avoid interfering with claw operation, so that claw does not interfer with the chute
             const safetyRadius = Math.max(chuteSize.x, chuteSize.z) * 0.4; // 40% of the larger dimension
             this.physicsEngine.setChuteSafetyZone(chuteCenter, safetyRadius);
         }
         
-        // Initialize cable after spawn position is set
+        // initialize cable after spawn position is set
         this.createCable();
     }
 
@@ -106,17 +108,15 @@ export class ClawController {
     createCable() {
         // Only create cable if spawn position is set
         if (this.spawnPosition.lengthSq() === 0) {
-            console.warn('Cable creation skipped - spawn position not set');
+
             return;
         }
         
-        // Set cable top position - inside machine near the ceiling
+        // set cable top position - inside machine near the ceiling
         this.cableTopPosition.copy(this.spawnPosition);
         if (this.machineBox) {
-            this.cableTopPosition.y = this.machineBox.max.y ; // Just inside the machine ceiling
-        } else {
-            this.cableTopPosition.y = this.spawnPosition.y + 2.0; // Fallback height
-        }
+            this.cableTopPosition.y = this.machineBox.max.y ; // just inside the machine ceiling
+        } 
         
         // create initial cable points - straight vertical line
         const points = [];
@@ -124,11 +124,12 @@ export class ClawController {
         
         // cable extends/retracts based on claw height - only as long as needed
         const cableLength = this.cableTopPosition.y - clawPosition.y;
-        const segmentsToUse = Math.max(2, Math.floor(this.cableSegments * (cableLength / 4.0))); // Dynamic segments
+        const segmentsToUse = Math.max(2, Math.floor(this.cableSegments * (cableLength / 4.0))); // dynamic segments
         
         for (let i = 0; i <= segmentsToUse; i++) {
             const t = i / segmentsToUse;
             // straight vertical line
+            // we basically build a line between the top position and the claw position
             const point = new THREE.Vector3().lerpVectors(this.cableTopPosition, clawPosition, t);
             points.push(point);
         }
@@ -147,6 +148,10 @@ export class ClawController {
         
 
     }
+
+    //si prende la distanza verticale attuale, si decide quanti segmenti servono (più è lungo, più segmenti), 
+    // si generano punti equispaziati tra “soffitto” e claw usando l’interpolazione 
+    // lineare (lerpVectors), e questi punti diventano la geometria della linea (il cavo).
 
     updateCable() {
         // create cable if it doesn't exist and spawn position is now available
@@ -182,6 +187,10 @@ export class ClawController {
         const points = [];
         for (let i = 0; i <= segmentsNeeded; i++) {
             const t = i / segmentsNeeded;
+            /*
+            Top = (0, 10, 0), Claw = (0, 6, 0), segments = 4
+            t = 0, 0.25, 0.5, 0.75, 1 → y = 10, 9, 8, 7, 6
+            */
             const point = new THREE.Vector3().lerpVectors(this.cableTopPosition, clawPosition, t);
             points.push(point);
         }
@@ -265,10 +274,14 @@ export class ClawController {
 }
 
 //function used in order to check which should be the correct drop height for the claw
+
+// calculates a safe drop target y for the claw by scanning unheld grabbable objects and clamping above the floor.
+
 calculateAndSetDropHeight() {
     const fallbackHeight = this.machineBox ? this.machineBox.min.y + 0.5 : 0;
+    // drop at an height of 0.5
 
-    //if dont have any grabbable objcects, then we set the drop height to a fallback value, because we need a valid target
+    //if we dont have any grabbable objcects, then we set the drop height to a fallback value, because we need a valid target
     if (!this.grabbableObjects || this.grabbableObjects.length === 0) {
         this.dropTargetY = fallbackHeight;
         return;
@@ -290,6 +303,7 @@ calculateAndSetDropHeight() {
         return;
     }
 
+    // apply a small penetration offset to ensure the claw goes slightly below the object's top
     const penetrationOffset = -0.15; //penetration value
     this.dropTargetY = highestY - penetrationOffset; //subtract the offset instead of adding it
 
@@ -300,7 +314,7 @@ calculateAndSetDropHeight() {
 
 }
 
-
+// before starting a drop, blocks the descent if the claw is horizontally over the chute (with a safety margin).
 startDropSequence() {
 
     if (this.chuteBox) {
@@ -328,6 +342,7 @@ startDropSequence() {
         }
     }
 
+    //when in drop sequence, we basically start the automation progress, and at every update call we let the machine state advance
 
 
     if (this.automationState === 'MANUAL_HORIZONTAL' && !this.isAnimating) { //
@@ -335,6 +350,7 @@ startDropSequence() {
         if (this.button) { //
             this.buttonPressTime = Date.now(); //
         }
+        //we save our current position along the y, we pass to the next state descending after we've started the drop animation
 
         this.calculateAndSetDropHeight();  //
         this.isAnimating = true; //
@@ -346,23 +362,20 @@ startDropSequence() {
 
 async runCloseSequence() {
     this.automationState = 'OPERATING';
-
+//this new state is operating, and we need to close the claw
     await this.closeClaw(); 
-    
-
+//we have to wait for the claw to close before proceeding, also setting a small timer before proceeding
     await new Promise(resolve => setTimeout(resolve, 300));
-
 
     this.automationState = 'ASCENDING';
 }
-
 
 
 async runReleaseAndReturnSequence() {
     this.automationState = 'RELEASING_OBJECT';
 
 
-    // this is now the only place where the object's state transitions from "held" to "released"
+    //this is now the only place where the object's state transitions from "held" to "released"
     if (this.isGrabbing && this.grabbedObject) {
         this.deliveredStars++;
 
@@ -387,7 +400,7 @@ async runReleaseAndReturnSequence() {
         
     }
 
-    
+    //we then open the claw
     await this.openClaw();
     await new Promise(resolve => setTimeout(resolve, 500)); 
     
@@ -409,7 +422,7 @@ closeClaw() {
         const grabInterval = setInterval(() => {
             rotationSteps++;
 
-            //we check for collisions and also we add the closing value 
+            //we continue rotating fingers until they stop
             if (this.clawBones.A && !this.stopStatus.A) {
                 this.clawBones.A.rotation.z -= closeStep;
             }
@@ -422,10 +435,11 @@ closeClaw() {
             
             this.cylinders.forEach(c => c.updateMatrixWorld(true));
 
-
+            // check for collisions if we don't collect anything
             this.checkFingerCollisions();
 
-
+            // if all fingers have collided, or we've reached max steps, we stop
+            //so basically either ways we are going to stop
             const allFingersCollided = this.stopStatus.A && this.stopStatus.B && this.stopStatus.C;
 
             if (rotationSteps >= maxSteps || allFingersCollided) {
@@ -451,7 +465,7 @@ openClaw() {
                 reject(new Error('Missing claw bones'));
                 return;
             }
-
+            // we store the starting rotations, in fact these are the ones we want to go back to
             const startRotations = {
                 A: this.clawBones.A.rotation.z,
                 B: this.clawBones.B.rotation.z,
@@ -472,7 +486,7 @@ openClaw() {
                 B: this.initialTransforms[this.clawBones.B.name].rotation.z,
                 C: this.initialTransforms[this.clawBones.C.name].rotation.z
             };
-            //we basically go back to the initial position by reverting the rotation using lerp
+            //we basically go back to the initial position by reverting the rotation using lerp, thus interpolating up to the initial value
         const openInterval = setInterval(() => {
             currentStep++;
             const progress = currentStep / openSteps;
@@ -489,13 +503,14 @@ openClaw() {
         }, 30);
         
         } catch (error) {
-            console.error('ClawController: Error in openClaw():', error);
+
             reject(error);
         }
     });
 }
 
-
+    //now we set a direct link between the claw and the grabbed object, so that it follows the claw without lag
+    // i had problems in implementing this, so i had to basically fix it also to get deliver something inside the chute
     applyDirectLink(deltaTime) {
         if (!this.isGrabbing || !this.grabbedObject) {
             return;
@@ -520,7 +535,7 @@ openClaw() {
             .sub(this.lastClawPosition)
             .divideScalar(deltaTime);
 
-        //directly set the object's velocity to match the claw's
+        //directly set the object's velocity to match the claw's, so that it will follow the claw
         objectBody.linearVelocity.copy(clawVelocity);
         
         //also, kill any rotation for stability
@@ -585,7 +600,8 @@ openClaw() {
         const pressDepth = -0.05; ////quanto scende il pulsante
 
         if (elapsed < this.buttonPressDuration) {
-            //use a sinusoidal curve for smooth in-out movement
+            //use a sinusoidal curve for smooth in-out movement, so that the button
+            //goes up and down in a singular movement without stopping
             const progress = Math.sin((elapsed / this.buttonPressDuration) * Math.PI);
             this.button.position.y = this.initialButtonPosition.y + progress * pressDepth;
         } else {
@@ -617,7 +633,7 @@ openClaw() {
         this.joystickTiltTarget.z = targetTiltZ;
 
         // move the pivoy
-        this.joystickPivot.rotation.x = THREE.MathUtils.lerp(this.joystickPivot.rotation.x, this.joystickTiltTarget.x, 0.1);
+        this.joystickPivot.rotation.x = THREE.MathUtils.lerp(this.joystickPivot.rotation.x, this.joystickTiltTarget.x, 0.1); //we also add a smoothing factor in order to have a better result
         this.joystickPivot.rotation.z = THREE.MathUtils.lerp(this.joystickPivot.rotation.z, this.joystickTiltTarget.z, 0.1);
     }
 
@@ -632,7 +648,7 @@ openClaw() {
         this.updateCable();
         
         if (this.isClosing && !this.isGrabbing) {
-            const potentialObject = this.objectsInteraction.getGrabbableCandidate(2);
+            const potentialObject = this.objectsInteraction.getGrabbableCandidate(2); //so if at least 2 fingers are touching the object, we grab it
             if (potentialObject) {
                 // don't grab objects that are being released
                 if (potentialObject.body.isBeingReleased) {
@@ -685,7 +701,7 @@ openClaw() {
             }
 
             case 'OPERATING': {
-
+//the job is done by the closeClaw function
                 break;
             }
 
@@ -842,105 +858,3 @@ openClaw() {
         this.deliveredStars = 0;
     }
 } 
-
-/*
-
-# Big picture
-
-* Controls a claw crane head inside a bounded machine volume.
-* Two layers:
-
-  1. **Manual movement** on X/Z within `machineBox`; drop sequence on button.
-  2. **Automations** (descend → close → lift → deliver/release → return).
-* Integrates with external systems:
-
-  * `objectsInteraction` for finding a nearby grabbable during closing,
-  * physics-like bodies on objects (`isHeld`, velocities, flags),
-  * optional **BVH** on the chute for precise collision checks.
-
-# Key inputs & deps
-
-* Constructor gets: `clawGroup` (transform root), finger **bones** `{A,B,C}`, finger **cylinders** (collision between fingers), `scene`, `objectsInteraction`, `physicsEngine` (ref), `grabbableObjects`, and UI meshes (`joystickPivot`, `button`).
-* `setDependencies(machineBox, chuteMesh)`:
-
-  * Stores machine bounds (`Box3`), first `spawnPosition`, computes `dropOffPosition` (corner), builds `chuteBox` (and uses `geometry.boundsTree` if present).
-
-# State machine (high level)
-
-`MANUAL_HORIZONTAL → DESCENDING → OPERATING → ASCENDING → (deliver or release) → RETURNING_* → MANUAL_HORIZONTAL`
-
-* **MANUAL\_HORIZONTAL**: free X/Z move (clamped to `machineBox` with `moveMargin`).
-* **DESCENDING**: go to `dropTargetY` (computed above the highest unheld object; clamped off the floor).
-* **OPERATING**: wait for fingers to finish closing (async).
-* **ASCENDING**: rise to `returnYPosition`. If holding → **DELIVERING\_MOVE\_X/Z** then **DELIVERING\_DESCEND**; else → **RELEASING\_OBJECT**.
-* **DELIVERING\_\*:** move to `dropOffPosition` (X then Z), short descend, then release.
-* **RELEASING\_OBJECT:** open, clean release, safety timeout.
-* **RETURNING\_ASCEND/MOVE\_Z/MOVE\_X:** go back to `spawnPosition`.
-
-# Grabbing & releasing
-
-* **Close** (`closeClaw()`): every 50 ms rotate each finger (`rotation.z -= 0.03`) unless that finger has collided; stop when all three report contact or timeout. Sets `isClosed`.
-* **Grab hook** (during close): query `objectsInteraction.getGrabbableCandidate(2)`; if found and not `isBeingReleased`, mark `isGrabbing=true`, `isHeld=true`.
-* **Rigid link** while held (`applyDirectLink(dt)`): snap object below claw, copy claw linear velocity, zero angular.
-* **Release** (`runReleaseAndReturnSequence()` / `triggerAutoDrop()`):
-
-  * Clear hold flags, increment `deliveredStars`, mark body for clean release (`ignoreClawCollision`, `isBeingReleased`, `releaseStartTime`), zero velocities/forces, open if needed.
-
-# Safety & collision
-
-* **Finger-finger**: AABB checks between finger cylinders; per-finger stop flags prevent interpenetration.
-* **Chute safety**:
-
-  * `startDropSequence()` blocks descent if claw’s AABB overlaps (or too near) `chuteBox`.
-  * `checkClawCollision(velocity)`: predictive AABB sweep per axis; transforms to chute local and queries **BVH** (`geometry.boundsTree`). Zeros offending velocity components.
-* **Drop zone check** (`isInDropZone()`): requires horizontal overlap with `chuteBox` and claw height within a small threshold above it → enables immediate auto-drop.
-
-# Per-frame `update(dt)`
-
-1. Cache last position; update **button** bounce (press-timed) and **joystick** tilt (lerped from `moveState`).
-2. If `isClosing` and not already grabbing, try to grab via `objectsInteraction`.
-3. If holding, apply rigid link.
-4. Run the **state machine** (movement, interpolations, async steps).
-5. Refresh transforms on finger cylinders.
-
-# Public API (practical)
-
-* **Setup:**
-  `setDependencies(machineBox, chuteMesh)` → bounds & chute;
-  `storeInitialTransforms()` → capture base finger poses.
-* **Control:**
-  `setMoving(dir, bool)` for input; `startDropSequence()` to begin a grab attempt; `toggleClaw()`, `resetClawState()`.
-* **Animation helpers:**
-  `openClaw()` / `closeClaw()` return Promises; button/joystick visuals auto-update in `update`.
-* **Scoring:**
-  `getDeliveredStars()`, `resetScore()`, `spendStarAsCoin()`.
-* **Debug/inspect:**
-  `getDebugState()`.
-* **Collision utility:**
-  `checkClawCollision(velocity)` (needs `chuteMesh.geometry.boundsTree`).
-
-# Typical usage (minimal)
-
-```js
-controller.setDependencies(machineBox, chuteMesh);
-controller.storeInitialTransforms();
-
-// game loop
-controller.update(dt);
-
-// input
-controller.setMoving('left', keyLeftDown);
-controller.setMoving('forward', keyUpDown);
-
-// on drop button
-controller.startDropSequence();
-```
-
-# Notes & gotchas
-
-* Closing/opening are **async**; higher-level flows await them.
-* Grab occurs during the **closing window** only.
-* Descent is **blocked near the chute**; delivering uses a fixed corner path then releases.
-* BVH chute collisions require preprocessing (e.g., `geometry.computeBoundsTree()` in three-mesh-bvh).
-
-*/

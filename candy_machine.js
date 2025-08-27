@@ -66,7 +66,7 @@ this.coinIsFlying = false;
         const pivotPointLocal = new THREE.Vector3(
             (bbox.min.x + bbox.max.x) / 2,
             (bbox.min.y + bbox.max.y) / 2,
-            bbox.max.z 
+            bbox.max.z // we add the pivot to be at a max coordinate along the z-axis
         );
 
         // create the pivot Group and position it where the hinge should be in the world.
@@ -76,7 +76,9 @@ this.coinIsFlying = false;
         this.scene.add(this.releaseDoorPivot);
 
         // attach the door to the pivot, this makes the door a child of the pivot
-        // while maintaining its current world position.
+        // while maintaining its current world position, thus allowing correct rotation around the hinge
+        //by rotating the parent, we then also rotate the children
+        
         this.releaseDoorPivot.attach(this.releaseDoor);
 
         // calculate descent target and create its helper here 
@@ -380,7 +382,7 @@ insertCoin() {
         }
     }
 
-    _updateDispensingAnimation(deltaTime) {
+    updateDispensingAnimation(deltaTime) {
         const animationSpeed = 2.0; //animation speed multiplier, this appeared to be the right value
 
         switch (this.dispensingStage) {
@@ -497,8 +499,7 @@ insertCoin() {
 
                 if (open_t >= 1) {
                     this.dispensingStage = 'ejecting_candy'; //next, animate the candy out
-                }
-                break;
+                }                break;
                 
             case 'ejecting_candy':
                 //this stage animates the candy along a two-part exit path with a parabola, in fact it needs to go from bottom to up 
@@ -651,7 +652,7 @@ insertCoin() {
 
     // handle the dispensing state machine
     if (this.isDispensing) {
-        this._updateDispensingAnimation(deltaTime);
+        this.updateDispensingAnimation(deltaTime);
     }
 
     // handle knob animation

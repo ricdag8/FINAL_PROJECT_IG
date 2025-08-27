@@ -271,6 +271,12 @@ export class CameraManager {
             candy_machine: null
         };
         
+        // TOP-DOWN CAMERA SYSTEM
+        this.clawCameraMode = 'normal'; // 'normal', 'top_down'
+        this.normalCameraPosition = null;
+        this.normalCameraTarget = null;
+        this.clawGroup = null; // Will be set by setClawReference
+        
     }
     
     // INITIALIZE WITH SCENE REFERENCE
@@ -555,6 +561,101 @@ export class CameraManager {
         }
         
         return info;
+    }
+    
+    // TOP-DOWN CAMERA SYSTEM METHODS
+    
+    // Set reference to claw group for top-down camera functionality
+    setClawReference(clawGroup) {
+        this.clawGroup = clawGroup;
+    }
+    
+    // Toggle between normal first-person view and top-down view when in claw machine mode
+    toggleClawCameraMode() {
+        if (this.currentMode !== 'claw_machine' || !this.clawGroup) {
+            console.warn('Cannot toggle claw camera: not in claw machine mode or claw reference missing');
+            return false;
+        }
+        
+        if (this.clawCameraMode === 'normal') {
+            // Save current camera position and target
+            this.normalCameraPosition = this.camera.position.clone();
+            this.normalCameraTarget = new THREE.Vector3();
+            this.camera.getWorldDirection(this.normalCameraTarget);
+            this.normalCameraTarget.add(this.camera.position);
+            
+            // Switch to top-down view
+            this.switchToTopDownView();
+            this.clawCameraMode = 'top_down';
+        } else {
+            // Switch back to normal view
+            this.switchToNormalView();
+            this.clawCameraMode = 'normal';
+        }
+        
+        return true; // Successfully toggled
+    }
+    
+    // Switch camera to top-down view positioned above the claw
+    switchToTopDownView() {
+        if (!this.clawGroup) return;
+        
+        // Get the claw's current position
+        const clawPosition = this.clawGroup.position.clone();
+        
+        // Position camera above the claw
+        const cameraHeight = 1.5; // Height above the claw
+        const cameraPos = new THREE.Vector3(
+            clawPosition.x,
+            clawPosition.y + cameraHeight,
+            clawPosition.z
+        );
+        
+        // Set camera position and look down at the claw
+        this.camera.position.copy(cameraPos);
+        this.camera.lookAt(clawPosition);
+        
+        // Enable camera following for real-time claw tracking
+        this.camera.userData.followClaw = true;
+    }
+    
+    // Restore camera to the saved normal view position and orientation
+    switchToNormalView() {
+        if (!this.normalCameraPosition || !this.normalCameraTarget) return;
+        
+        // Restore the original camera position and target
+        this.camera.position.copy(this.normalCameraPosition);
+        this.camera.lookAt(this.normalCameraTarget);
+        
+        // Stop following the claw
+        this.camera.userData.followClaw = false;
+    }
+    
+    // Update camera position when in top-down following mode (call this in main render loop)
+    updateTopDownCamera() {
+        if (this.camera.userData.followClaw && this.clawGroup) {
+            const clawPosition = this.clawGroup.position.clone();
+            const cameraHeight = 0.03; // Very close to claw in follow mode
+            this.camera.position.set(
+                clawPosition.x,
+                clawPosition.y + cameraHeight,
+                clawPosition.z
+            );
+            this.camera.lookAt(clawPosition);
+        }
+    }
+    
+    // Get current claw camera mode for UI display
+    getClawCameraMode() {
+        return this.clawCameraMode;
+    }
+    
+    // Reset claw camera to normal mode when exiting machine
+    resetClawCamera() {
+        this.clawCameraMode = 'normal';
+        this.camera.userData.followClaw = false;
+        this.normalCameraPosition = null;
+        this.normalCameraTarget = null;
     }
 }
 

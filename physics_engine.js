@@ -414,7 +414,8 @@ export class PhysicsEngine {
 resolveBodyCollisions() {
     const pairs = this.getBodyPairsToCheck(); //we check which objects are potentially colliding 
 
-    const dynamicCorrectionFactor = 0.01; // Reduced from 0.02 for gentler star-star collisions
+    const starCorrectionFactor = 0.01; // Gentle for star-star collisions
+    const candyCorrectionFactor = 0.06; // Stronger for candy-candy to prevent penetration
 
     const kinematicCorrectionFactor = 0.25; // Reduced from 0.4 for gentler wall interactions
 
@@ -442,7 +443,16 @@ resolveBodyCollisions() {
 
         //we are checking if one of the two objects is kinematic (static or infinite mass), depending on this situation we'll have different behaviours
         const isKinematicCollision = (A.inverseMass === 0 || B.inverseMass === 0);
-        const correctionFactor = isKinematicCollision ? kinematicCorrectionFactor : dynamicCorrectionFactor;
+        
+        // Choose correction factor based on object types
+        let correctionFactor;
+        if (isKinematicCollision) {
+            correctionFactor = kinematicCorrectionFactor;
+        } else if (A.isCandy && B.isCandy) {
+            correctionFactor = candyCorrectionFactor; // Stronger for candy-candy collisions
+        } else {
+            correctionFactor = starCorrectionFactor; // Gentle for star-star and mixed collisions
+        }
 
         //we compute the correction amount and apply it
         const correctionAmount = Math.max(0, penetration - slop);
@@ -462,7 +472,14 @@ resolveBodyCollisions() {
         //we compute the restitution based on the two objects, we also apply a threshold to avoid small bounces
         let e = Math.min(A.restitution, B.restitution);
 
-        const velocityRestitutionThreshold = 0.5; //increased from 0.2, more collisions become non-bouncy
+        // Different thresholds for different object types
+        let velocityRestitutionThreshold;
+        if (A.isCandy && B.isCandy) {
+            velocityRestitutionThreshold = 0.3; // Lower threshold for candies - more bouncy to prevent sticking
+        } else {
+            velocityRestitutionThreshold = 0.5; // Higher threshold for stars - more gentle
+        }
+        
         //when we have bounces below this threshold, we set restitution to 0
         if (Math.abs(velAlongNormal) < velocityRestitutionThreshold) {
             e = 0;

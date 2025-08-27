@@ -244,7 +244,7 @@ export class RoomSetupManager {
             loader.load(p.file, (gltf) => {
                 const model = gltf.scene;
 
-                // Applica trasformazioni
+                //applico trasformazioni
                 model.position.copy(p.position);
                 model.rotation.y = p.rotationY;
                 model.scale.setScalar(p.scale);
@@ -261,11 +261,11 @@ export class RoomSetupManager {
 
                 const spotlight = new THREE.SpotLight(0xffffff, 2.5, 15, Math.PI / 6, 0.4);
                 
-                // Posiziona la luce sopra il quadro e un po' in avanti
+                //spotlights for paintings
                 const lightPosition = p.position.clone();
                 lightPosition.y += 2.5;
                 
-                // Calcola la normale della parete per spostare la luce in avanti
+
                 const wallNormal = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), p.rotationY + Math.PI);
                 lightPosition.add(wallNormal.multiplyScalar(0.5));
 
@@ -276,7 +276,7 @@ export class RoomSetupManager {
                 this.scene.add(spotlight);
                 this.scene.add(spotlight.target);
 
-                // Salva lo spotlight per la gestione centralizzata
+
                 this.paintingSpotlights.push(spotlight);
 
             }, undefined, (error) => {
@@ -403,7 +403,7 @@ export class RoomSetupManager {
             color: 0x00ff00, 
             transparent: true, 
             opacity: 0.3,
-            visible: true 
+            visible: false 
         });
         this.triggerVolume = new THREE.Mesh(triggerGeometry, triggerMaterial);
         this.triggerVolume.position.copy(center);
@@ -416,7 +416,7 @@ export class RoomSetupManager {
             color: 0xff0000, 
             transparent: true, 
             opacity: 0.3,
-            visible: true 
+            visible: false 
         });
         this.finalPrizeHelper = new THREE.Mesh(finalPrizeGeometry, finalPrizeMaterial);
         this.finalPrizeHelper.position.copy(center);
@@ -544,7 +544,7 @@ export class RoomSetupManager {
 
                     model.traverse(child => {
                         if (child.isMesh) {
-                            // 🍬 ADD COLLISION TO ALL CANDY MACHINE MESHES (except specific exclusions)
+                            // ADD COLLISION TO ALL CANDY MACHINE MESHES (except specific exclusions)
                             const excludedMeshes = ['Object_2']; // Container mesh - keep this traversable
                             if (!excludedMeshes.includes(child.name)) {
                                 child.geometry.computeVertexNormals();
@@ -585,7 +585,7 @@ export class RoomSetupManager {
                     candyGeometry.boundsTree = new MeshBVH(candyGeometry);
 
                     if (candyContainerMesh) {
-                        this.candyMachine.populate(candyContainerMesh, 20, candyGeometry, this.scene);
+                        this.candyMachine.populate(candyContainerMesh, 150, candyGeometry, this.scene);
                     } else {
                     }
                     
