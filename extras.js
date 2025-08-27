@@ -8,14 +8,14 @@ let lightShowActive = false, lightShowTimer = 0, originalLightColors = {};
 let discoMode = false, discoTimer = 0, discoOriginalColors = {};
 let popcornMode = false;
 
-// Initialize function to receive dependencies from main.js
+// initialize function to receive dependencies from main.js
 export function initializeExtras(dependencies) {
     scene = dependencies.scene;
     lightingManager = dependencies.lightingManager;
     physicsEngine = dependencies.physicsEngine;
 }
 
-// Export getters for state variables
+// export getters for state variables
 export function getExtrasState() {
     return {
         lightShowActive,
@@ -24,7 +24,7 @@ export function getExtrasState() {
     };
 }
 
-// 🍿 POPCORN MODE TOGGLE FUNCTION
+// POPCORN MODE TOGGLE FUNCTION
 export function togglePopcornMode(updateModeIndicator) {
     popcornMode = !popcornMode;
     if (popcornMode) {
@@ -39,15 +39,15 @@ export function togglePopcornMode(updateModeIndicator) {
 //CEILING POPCORN FUNCTIONS
 function startCeilingPopcorn() {
     if (!scene) return;
-    
-    // Create a ceiling spawn area across the whole room
-    const ceilingHeight = 5.0; // Height above the room
+
+    // create a ceiling spawn area across the whole room, we basically are creating an invisible mesh from where popcorns are spawned
+    const ceilingHeight = 5.0; // height above the room
     const roomBounds = {
         minX: -20, maxX: 20,
         minZ: -10, maxZ: 10
     };
     
-    // Create virtual ceiling spawn mesh
+    // create virtual ceiling spawn mesh
     const ceilingGeometry = new THREE.PlaneGeometry(
         roomBounds.maxX - roomBounds.minX, 
         roomBounds.maxZ - roomBounds.minZ
@@ -65,19 +65,19 @@ function startCeilingPopcorn() {
     ceilingPopcornManager = new PopcornManager({
         scene: scene,
         spawnMesh: ceilingSpawnMesh,
-        containerMesh: null, // No container - they fall to the floor
-        count: 5000, // Much more popcorn for intense rain effect
-        gravity: 0.5, // Much stronger gravity for faster falling
-        baseScale: 0.08, // Slightly smaller for more realistic look
-        colliders: staticColliders, // Pass all static colliders for collision
-        burstSize: 10, // Much larger bursts for heavy rain
-        burstInterval: 200 // Much more frequent bursts (every 0.2 seconds)
+        containerMesh: null, // no container - they fall to the floor
+        count: 1000, // much more popcorn for intense rain effect
+        gravity: 0.5, // much stronger gravity for faster falling
+        baseScale: 0.08, // slightly smaller for more realistic look
+        colliders: staticColliders, // pass all static colliders for collision
+        burstSize: 10, // much larger bursts for heavy rain
+        burstInterval: 200 // much more frequent bursts (every 0.2 seconds)
     });
 }
 
 function stopCeilingPopcorn() {
     if (ceilingPopcornManager) {
-        // Clean up all popcorn particles
+        // lean up all popcorn particles
         ceilingPopcornManager.particles.forEach(particle => {
             scene.remove(particle.mesh);
         });
@@ -99,7 +99,7 @@ export function startLightShow() {
     lightShowActive = true;
     lightShowTimer = 0;
     
-    // Store original light colors
+    // store original light colors
     const lightRefs = lightingManager.getLightReferences();
     if (lightRefs) {
         originalLightColors = {
@@ -116,18 +116,18 @@ export function updateLightShow(deltaTime) {
     if (!lightShowActive || !lightingManager) return;
     
     lightShowTimer += deltaTime;
-    const flashSpeed = 8; // Flashes per second
+    const flashSpeed = 15; // flashes per second
     const showDuration = 3.0; // 3 seconds total
     
-    // Calculate flash intensity using sine wave
+    //calculate flash intensity using sine wave
     const flashIntensity = Math.abs(Math.sin(lightShowTimer * flashSpeed * Math.PI));
-    const yellowIntensity = 0.5 + flashIntensity * 1.5; // Flash between 0.5 and 2.0 (much brighter!)
+    const yellowIntensity = 0.5 + flashIntensity * 2.5; // flash between 0.5 and 2.0 
     
-    // Much brighter yellow colors for the light show
+    //brighter yellow colors for the light show
     const brightYellow = new THREE.Color(2, 2, 0); // Super bright yellow (over 1.0 values)
     const dimYellow = new THREE.Color(yellowIntensity, yellowIntensity, 0);
     
-    // Apply much brighter yellow flashing to all lights
+    //apply much brighter yellow flashing to all lights
     const lightRefs = lightingManager.getLightReferences();
     if (lightRefs) {
         if (lightRefs.ambientLight) lightRefs.ambientLight.color.copy(dimYellow);
@@ -137,7 +137,7 @@ export function updateLightShow(deltaTime) {
         if (lightRefs.centerLight) lightRefs.centerLight.color.copy(brightYellow);
     }
     
-    // End light show after duration
+    //end light show after duration
     if (lightShowTimer >= showDuration) {
         stopLightShow();
     }
@@ -149,7 +149,7 @@ function stopLightShow() {
     lightShowActive = false;
     lightShowTimer = 0;
     
-    // Restore original light colors
+    //restore original light colors
     const lightRefs = lightingManager.getLightReferences();
     if (lightRefs && originalLightColors) {
         if (lightRefs.ambientLight && originalLightColors.ambientLight) {
@@ -170,7 +170,7 @@ function stopLightShow() {
     }
 }
 
-// 🎉 DISCO LIGHT MODE FUNCTIONS
+// DISCO LIGHT MODE FUNCTIONS
 export function toggleDiscoMode(updateModeIndicator) {
     discoMode = !discoMode;
     if (discoMode) {
@@ -187,7 +187,7 @@ function startDiscoLights() {
     
     discoTimer = 0;
     
-    // Store original light colors
+    //store original light colors
     const lightRefs = lightingManager.getLightReferences();
     if (lightRefs) {
         discoOriginalColors = {
@@ -210,21 +210,24 @@ export function updateDiscoLights(deltaTime) {
     const speed2 = 3; // Medium flashing  
     const speed3 = 2; // Slow flashing
     const speed4 = 5; // Very fast flashing
-    
-    // Generate different colors using different sine wave frequencies
+
+    //generate different colors using different sine wave frequencies, so that each color has its own flashing pattern
     const red = Math.abs(Math.sin(discoTimer * speed1));
     const green = Math.abs(Math.sin(discoTimer * speed2 + 2));
     const blue = Math.abs(Math.sin(discoTimer * speed3 + 4));
     const purple = Math.abs(Math.sin(discoTimer * speed4 + 1));
-    
-    // Create vibrant disco colors (boosted intensity)
+
+    //create  disco colors with higher intensity
+    // combines color components into 5 different disco colors
+    // multiplied by 2 for extra brightness (values > 1.0)
+    // each color has unique combination pattern
     const discoColor1 = new THREE.Color(red * 2, 0, blue * 2); // Red-Blue
     const discoColor2 = new THREE.Color(0, green * 2, purple * 2); // Green-Purple
     const discoColor3 = new THREE.Color(red * 2, green * 2, 0); // Red-Green
     const discoColor4 = new THREE.Color(purple * 2, 0, green * 2); // Purple-Green
     const discoColor5 = new THREE.Color(blue * 2, red * 2, purple * 2); // Blue-Red-Purple
     
-    // Apply different colors to different lights for variety
+    // apply different colors to different lights for variety
     const lightRefs = lightingManager.getLightReferences();
     if (lightRefs) {
         if (lightRefs.ambientLight) lightRefs.ambientLight.color.copy(discoColor5);
@@ -241,7 +244,7 @@ function stopDiscoLights() {
     discoMode = false;
     discoTimer = 0;
     
-    // Restore original light colors
+    // restore original light colors
     const lightRefs = lightingManager.getLightReferences();
     if (lightRefs && discoOriginalColors) {
         if (lightRefs.ambientLight && discoOriginalColors.ambientLight) {

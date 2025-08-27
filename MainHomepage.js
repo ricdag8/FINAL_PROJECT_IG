@@ -121,13 +121,7 @@ export class MainHomepage {
         cards.forEach((card, index) => {
             card.style.animationDelay = `${index * 0.2}s`;
             
-            // Add hover sound effect (if audio system is available)
-            card.addEventListener('mouseenter', () => {
-                if (window.audioManager) {
-                    // Play a subtle hover sound
-                    this.playHoverSound();
-                }
-            });
+            
         });
 
         // Add particle effect to the title
@@ -135,7 +129,7 @@ export class MainHomepage {
     }
 
     addTitleParticles() {
-        // Add floating emoji particles around the title
+        // adding floating emoji particles around the title
         const title = document.querySelector('.homepage-title');
         if (!title) return;
 
@@ -170,7 +164,7 @@ export class MainHomepage {
     // Method to programmatically change machine images
     setMachineImage(machineType, imagePath) {
         if (this.machineImages[machineType] === undefined) {
-            console.error(`Invalid machine type: ${machineType}. Valid types: claw, candy, popcorn`);
+
             return;
         }
 
@@ -184,7 +178,7 @@ export class MainHomepage {
             }
         }
         
-        console.log(`✅ ${machineType} machine image updated to: ${imagePath}`);
+
     }
 
     // Method to get current image paths

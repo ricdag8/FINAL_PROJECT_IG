@@ -24,7 +24,7 @@ export class LightingManager {
             paintingSpotlights: [] // 🆕 Aggiungi questo
         };
         
-        // 🆕 LED Speed control
+        // LED Speed control
         this.ledSpeed = 1.0;
         
         this.roomMaterials = null;
@@ -268,15 +268,15 @@ export class LightingManager {
         loader.load('glbmodels/led_light.glb', (gltf) => {
             const ledTemplate = gltf.scene;
 
-            //  AGGIUNGI PIÙ POSIZIONI PER LE LUCI
+
             const positions = [
                 new THREE.Vector3(0, 7, 0),
                 new THREE.Vector3(-6, 7, 0),
                 new THREE.Vector3(6, 7, 0),
-                new THREE.Vector3(-3, 7, 0), // 🆕 Nuova posizione
-                new THREE.Vector3(3, 7, 0),  // 🆕 Nuova posizione
-                new THREE.Vector3(0, 7, -3), // 🆕 Nuova posizione
-                new THREE.Vector3(0, 7, 3)   // 🆕 Nuova posizione
+                new THREE.Vector3(-3, 7, 0), 
+                new THREE.Vector3(3, 7, 0),  
+                new THREE.Vector3(0, 7, -3), 
+                new THREE.Vector3(0, 7, 3)  
             ];
 
             positions.forEach(pos => {
@@ -310,7 +310,7 @@ export class LightingManager {
             
 
         }, undefined, (error) => {
-            console.error("❌ Failed to load glbmodels/led_light.glb for ceiling", error);
+
         });
     }
 
@@ -412,7 +412,7 @@ export class LightingManager {
         const lightControls = document.getElementById('lightControls');
         
         if (!toggleButton || !lightControls) {
-            console.warn("⚠️ Light control UI elements not found");
+
             return;
         }
         

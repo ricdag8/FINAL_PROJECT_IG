@@ -8,7 +8,19 @@ export class GrabbableObjectsInteraction {
         this.collisions = { A: false, B: false, C: false };
         this.collisionDetails = { A: null, B: null, C: null }; //store which object each finger is touching
         this.cylinderToFinger = { 'Cylinder': 'A', 'Cylinder003': 'B', 'Cylinder008': 'C' };
+        
+
+        this.makeCylindersInvisible();
     }
+
+    makeCylindersInvisible() {
+        this.cylinders.forEach(cylinder => {
+            if (cylinder && cylinder.material) {
+                cylinder.material.visible = false;
+            }
+        });
+    }
+
 
     addGrabbableObject(body, name) {
         this.objects.push({
@@ -22,8 +34,18 @@ export class GrabbableObjectsInteraction {
         this.objects = this.objects.filter(obj => obj.name !== name);
     } 
 
+
+/* 
+skips objects that are:
+    - missing body/mesh
+    - static (inverseMass === 0)
+    - already held (body.isHeld)
+    - ignoring claw collision (body.ignoreClawCollision)
+   check Collisions: Tests each valid object against claw fingers
+*/
+    
     update() {
-        // Reset collision states
+        // reset collision states
         Object.keys(this.collisions).forEach(k => {
             this.collisions[k] = false;
             this.collisionDetails[k] = null;
@@ -32,7 +54,7 @@ export class GrabbableObjectsInteraction {
         //check collisions with all grabbable objects
         this.objects.forEach(obj => {
             if (!obj.body || !obj.mesh || obj.body.inverseMass === 0 || obj.body.isHeld || obj.body.ignoreClawCollision) {
-    return; // Salta le collisioni con la claw se richiesto
+    return; //salta le collisioni con la claw 
 }
 
             
@@ -40,6 +62,9 @@ export class GrabbableObjectsInteraction {
         });
     }
     //andiamo a controllare se ci siano collisioni tra gli oggetti e i cilindri della claw
+    /*
+    tests each finger cylinder against the object uses intersectsGeometry method for precise collision detection
+    */
     checkCollisionsWithObject(obj) {
         const objectMesh = obj.mesh;
         const objectBVH = objectMesh.geometry.boundsTree;
@@ -59,7 +84,7 @@ export class GrabbableObjectsInteraction {
             fingerMesh.updateMatrixWorld(true);
 
             try {
-                // Use intersectsGeometry method
+                //use intersectsGeometry method
                 const fingerToObject = new THREE.Matrix4();
                 fingerToObject.copy(objectMesh.matrixWorld).invert().multiply(fingerMesh.matrixWorld);
                 
@@ -69,10 +94,10 @@ export class GrabbableObjectsInteraction {
                     const fingerName = this.cylinderToFinger[fingerMesh.name];
                     if (fingerName) {
                         this.collisions[fingerName] = true;
-                        this.collisionDetails[fingerName] = obj; // Store which object is being touched
+                        this.collisionDetails[fingerName] = obj; //store which object is being touched
                     }
 
-                    // Calculate contact point and resolve collision
+                    //calculate contact point and resolve collision
                     const contactInfo = this.calculateContactPoint(objectBVH, fingerMesh, objectMesh);
                     
                     if (contactInfo) {
@@ -83,6 +108,30 @@ export class GrabbableObjectsInteraction {
             }
         });
     }
+
+    /*
+Compute a robust contact between a claw finger and an object—direction, point, and depth—so you can apply realistic collision/force responses.
+
+Key inputs: objectMesh, fingerCenter (world), fingerRadius, and the object’s BVH (objectBVH).
+
+
+Bounding boxes
+Ensure objectMesh.geometry.computeBoundingBox() is available (same for the finger if needed) to get reliable centers.
+
+World-space centers
+boundingBox.getCenter(vec).applyMatrix4(objectMesh.matrixWorld) to obtain the object’s center in world coordinates (accounts for position/rotation/scale).
+
+Collision normal
+normal = objectCenter.clone().sub(fingerCenter).normalize() ,push direction from finger toward object.
+
+Precise contact point (BVH)
+objectBVH.closestPointToPoint(objectLocalPoint, closestPoint) ,exact nearest point on the mesh surface (far more accurate than center-to-center; works for complex shapes).
+
+Penetration depth
+penetrationDepth = Math.max(0.005, fingerRadius*0.5 - actualDistance + 0.01) , how far the finger “sinks” in; clamped with a small minimum to avoid zero-force jitter.
+
+Outputs you use: the normal, the closest surface point, and the penetration depth—feed these into your force/impulse or constraint logic for stable, believable contact.
+    */
 
     calculateContactPoint(objectBVH, fingerMesh, objectMesh) {
         // Ensure bounding boxes are computed
@@ -138,6 +187,45 @@ export class GrabbableObjectsInteraction {
         };
     }
 
+
+
+
+
+
+/*
+Purpose: Apply a spring–damper collision response so objects are pushed away from claw fingers with stable forces and realistic spin.
+
+Key inputs: objectBody (pos/vel/sleep), normal (unit, from finger → object), penetrationDepth, relativeVelocity, contactPoint, constants springStiffness=20, damping=0.8.
+
+Main steps / methods:
+
+Wake the body
+
+objectBody.isSleeping = false; objectBody.sleepyTimer = 0;
+Ensures the object reacts immediately (no “stuck asleep” bodies).
+
+Spring (penalty) force
+
+penaltyForce = normal * (penetrationDepth * springStiffness)
+Deeper penetration ⇒ stronger push along the collision normal.
+
+Damping along the normal
+
+velocityAlongNormal = relativeVelocity · normal
+dampingForce = -normal * (damping * velocityAlongNormal)
+Opposes motion toward the finger, removing bounce/oscillation.
+
+Total force & torque
+
+totalForce = penaltyForce + dampingForce
+r = contactPoint - objectBody.position
+torque = r × totalForce
+Off-center pushes induce realistic rotation/tumbling.
+
+Effect: Applies force (push out) and torque (spin if off-center) for a firm, non-bouncy response that quickly settles.
+ */
+
+    
     resolveCollision(objectBody, contactPoint, normal, penetrationDepth) {
         objectBody.isSleeping = false;
         objectBody.sleepyTimer = 0;
@@ -178,13 +266,13 @@ export class GrabbableObjectsInteraction {
         return Array.from(touchedObjects);
     }
 
-    // Check if any objects are being touched
-    hasCollisions() {
-        const result = this.collisions.A || this.collisions.B || this.collisions.C;
-        if (result) {
-        }
-        return result;
-    }
+    // // Check if any objects are being touched
+    // hasCollisions() {
+    //     const result = this.collisions.A || this.collisions.B || this.collisions.C;
+    //     if (result) {
+    //     }
+    //     return result;
+    // }
 
     // Get which fingers are touching objects
     getCollidingFingers() {

@@ -21,7 +21,7 @@ export class LightingManager {
             clawSupports: [],
             candySupports: [],
             ledStrips: [],
-            paintingSpotlights: [] // 🆕 Aggiungi questo
+            paintingSpotlights: [] 
         };
         
         this.ledSpeed = 1.0;
@@ -628,7 +628,7 @@ export class LightingManager {
                     if (led.mesh) led.mesh.material.emissive.copy(color);
                 });
                 break;
-            case 'paintings': // 🆕
+            case 'paintings': 
                 if (this.lightReferences.paintingSpotlights) {
                     this.lightReferences.paintingSpotlights.forEach(light => light.color.copy(color));
                 }
@@ -698,139 +698,3 @@ export class LightingManager {
 } 
 
 
-
-
-
-
-
-/* 
-Here’s a compact, developer-oriented summary of how the **lighting system** works.
-
-# Big picture
-
-* A **LightingManager** (name implied) owns scene-lighting state, LED animation timing, room materials, and a library of **presets**.
-* It creates ambient/directional/spot/point lights, animated **LED strips** on floor & walls, and **ceiling LED fixtures** loaded from a GLB.
-* A lightweight HTML UI (if present) can drive colors, intensities, LED speed, and room surface colors; presets sync both lights and UI.
-
-# Setup & dependencies
-
-* **constructor()**: initializes timers, offsets for two machines (claw/candy), `lightReferences` (handles to all light groups), LED speed, room materials, and builds presets via `definePresets()`.
-* **initialize(scene, machineOffset, candyMachineOffset)**: stores the Three.js scene and the two machine target positions for spotlights.
-
-# Runtime behavior
-
-* **update(deltaTime)**: advances `time` and animates every LED in `lightReferences.ledStrips` by cycling **HSL hue** based on time, `ledSpeed`, and LED index. Updates both `material.color` and `material.emissive` to create a flowing color effect.
-
-# Presets
-
-* **definePresets()**: builds named profiles (`arcade`, `neon`, `warm`, `cool`, `dark`) with color/intensity for:
-
-  * `ambient`, `claw`, `candy`, `side` (wall washers), `center` (ceiling LEDs), `paintings`,
-  * optional `room` surface colors (`wall`, `floor`, `ceiling`).
-* **applyLightPreset(name)**:
-
-  * Looks up the preset; for each light type calls `updateLightColor` + `updateLightIntensity` and mirrors values into the UI (`updateUIForPreset`).
-  * Toggles ambient visibility based on its intensity.
-  * If `room` is present and room materials were registered, applies those `.color.setHex(...)`.
-
-# Creating the rig
-
-* **setupLighting()** (requires `scene` set):
-
-  * Adds:
-
-    * **AmbientLight** (base fill).
-    * **DirectionalLight** (key) with **shadows** (shadow map size and camera frustum tuned).
-    * Two **SpotLight**s targeting the two machine offsets (shadows on).
-    * Pairs of **PointLight** “support” glows for each machine.
-    * A grid of **wall-washer SpotLights** along side and back walls.
-    * Calls **setupCeilingLights()** to place LED fixtures.
-    * Adds an extra **top DirectionalLight** from +Y.
-    * Builds **LED paths** on the floor (**createLedPaths()**) and **wall LED arrays** (**createWallLeds()**).
-  * Populates `lightReferences` (ambient, spots, washers, ceiling, supports, strips).
-
-# Ceiling fixtures
-
-* **setupCeilingLights()**:
-
-  * Loads `glbmodels/led_light.glb` (GLTFLoader), clones it at several positions (y = 7).
-  * For each clone: finds `light1`/`light2` meshes, assigns `MeshStandardMaterial` with white **emissive** (start \~0), and creates colocated **PointLight**s.
-  * Stores `{ light, mesh }` pairs in `lightReferences.ceilingLeds` so color/intensity updates affect both physical light and panel glow.
-  * Logs an error if the GLB fails to load.
-
-# LED strips (floor & walls)
-
-* **createLedPaths()**:
-
-  * Builds small upward-facing plane meshes as LED tiles.
-  * Lays segments from a start point toward each machine offset (and forward along Z), samples at `ledSpacing`, creates emissive tiles (≈1.5 intensity), adds to scene and `ledStrips`.
-* **createWallLeds()**:
-
-  * Defines room size, spacing, wall offsets.
-  * Uses a **sine wave** to modulate LED heights for a wavy pattern.
-  * Orients planes inward on each wall (X and Z faces), populates several height “rings” (y step = 2).
-  * Adds every LED to the scene and to `ledStrips` so **update()** animates them.
-
-# UI wiring (optional)
-
-* **setupLightControls()**: binds a toggle to show/hide the panel; initializes sub-controls. Warns (doesn’t fail) if elements are missing.
-* **setupAmbientLightControls()**: color, intensity, and visible toggle for AmbientLight (reflects into preview + label).
-* **setupColorControls()**: color pickers for `claw`, `candy`, `side`, `center`, `paintings`.
-* **setupIntensityControls()**: intensity sliders for the same groups.
-* **setupLedSpeedControls()**: slider for `ledSpeed` with live label.
-* **setupWallColorControls() / setupFloorColorControls()**: call `window.updateWallColor/FloorColor(color)` if provided (external room-material handling).
-* **updatePreview(previewId, color)**: sets preview swatch BG.
-
-# Color & intensity application
-
-* **updateLightColor(type, hex)**:
-
-  * `ambient` → AmbientLight.color
-  * `claw` / `candy` → main SpotLight color + all **support PointLights**
-  * `side` → wall washers’ SpotLight colors
-  * `center` → for each ceiling fixture: PointLight color **and** mesh emissive
-  * `paintings` → painting SpotLights
-* **updateLightIntensity(type, value)** (with tailored scaling):
-
-  * `ambient`: 1×
-  * `claw`/`candy`: main spots **2×**, support points **1×**
-  * `side`: washers **1.5×**
-  * `center`: PointLight **0.8×**, panel emissive **1×**
-  * `paintings`: 1×
-* **updateUIForPreset(type, color, intensity)**: syncs color inputs, sliders, labels, and previews.
-
-# Misc utilities
-
-* **setupShadows(renderer)**: enables shadows and sets **PCFSoftShadowMap**.
-* **setLedSpeed(speed)**: programmatic LED speed + UI label sync.
-* **setRoomMaterials(materials)**: registers `{ wall, floor, ceiling }` materials for preset room color changes.
-* **addPaintingLights(lights)**: registers painting spotlights in references.
-* **getLightReferences()**: exposes the internal handles for debugging/custom tweaks.
-
-# Typical usage
-
-```js
-// creation & scene hook
-lights.initialize(scene, clawOffset, candyOffset);
-lights.setupLighting();
-lights.setupShadows(renderer);
-
-// (optional) UI
-lights.setupLightControls();
-
-// presets
-lights.applyLightPreset('arcade'); // or 'warm', 'cool', ...
-
-// game loop
-lights.update(deltaTime);
-```
-
-# Notes & gotchas
-
-* Call **initialize → setupLighting** before applying presets; many references are created in `setupLighting()`.
-* **GLB loading is async**: ceiling LEDs appear after the model loads; preset re-apply or color hooks should tolerate late arrivals.
-* LED animation works by **HSL hue rotation**; ensure LED materials use emissive and aren’t shared with non-LED meshes unless intended.
-* Room color changes only apply if you called **setRoomMaterials(...)** or provide external handlers via `window.update*Color`.
-
-
-*/

@@ -88,6 +88,18 @@ export class HomepageManager {
         this.isActive = true;
         this.selectionScreenElement.style.display = 'flex';
 
+        // Reset all characters to default state when showing selection screen
+        this.characterModels.forEach((charData, i) => {
+            if (charData && charData.model) {
+                charData.model.scale.setScalar(1.2); // Reset to default size
+                // Let the update method handle rotation
+            }
+        });
+        
+        // Reset selection and select middle character by default
+        this.selectedCharacterIndex = -1;
+        this._selectCharacter(1); // Select middle character (Businessman)
+
         document.getElementById('startGameBtn').onclick = () => this._startGame();
         
         this.selectionScreenElement.addEventListener('mousedown', this._onMouseDown);
@@ -101,18 +113,22 @@ export class HomepageManager {
             return;
         }
 
-        // Deselect the previously selected character
-        if (this.selectedCharacterIndex !== -1 && this.characterModels[this.selectedCharacterIndex]) {
-            this.characterModels[this.selectedCharacterIndex].model.scale.setScalar(1.2); // 🆕 Scalato a 1.8
-        }
+        // Reset all characters to default state first
+        this.characterModels.forEach((charData, i) => {
+            if (charData && charData.model) {
+                charData.model.scale.setScalar(1.2); // Reset to default size
+                // Don't reset rotation here - let the update method handle it
+            }
+        });
 
         // Select the new character
         this.selectedCharacterIndex = index;
 
+        // Apply selection effects to the new character
         if (this.characterModels[this.selectedCharacterIndex]) {
             const selectedModelData = this.characterModels[this.selectedCharacterIndex];
-            selectedModelData.model.scale.setScalar(1.5); // 🆕 Scalato a 2.0
-            selectedModelData.model.rotation.y = 0;
+            selectedModelData.model.scale.setScalar(1.5); // Scale up selected character
+            selectedModelData.model.rotation.y = 0; // Face forward
         }
     }
 
@@ -143,13 +159,28 @@ export class HomepageManager {
 
         if (intersects.length > 0) {
             let selectedObject = intersects[0].object;
+            
+            // Find the root model by traversing up the parent hierarchy
             while (selectedObject.parent && selectedObject.userData.index === undefined) {
                 selectedObject = selectedObject.parent;
             }
+            
+            // If we still don't have an index, check if this object belongs to any character model
+            if (selectedObject.userData.index === undefined) {
+                // Find which character model this object belongs to
+                for (let i = 0; i < this.characterModels.length; i++) {
+                    if (this.characterModels[i].model.getObjectById(intersects[0].object.id)) {
+                        selectedObject.userData.index = i;
+                        break;
+                    }
+                }
+            }
+            
             if (selectedObject.userData.index !== undefined) {
-                // Select the character and THEN play the greeting for the clicked character
-                this._selectCharacter(selectedObject.userData.index);
-                this._playGreeting(selectedObject.userData.index);
+                const clickedIndex = selectedObject.userData.index;
+                // Select the character and play the greeting for the clicked character
+                this._selectCharacter(clickedIndex);
+                this._playGreeting(clickedIndex);
             }
         }
         

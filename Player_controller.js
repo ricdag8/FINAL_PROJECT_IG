@@ -7,9 +7,9 @@ export class PlayerController {
     constructor(scene, physicsEngine, roomSetupManager = null, audioManager = null) {
         this.scene = scene;
         this.physicsEngine = physicsEngine;
-        this.roomSetupManager = roomSetupManager; // 🆕 Reference to room setup manager
-        this.audioManager = audioManager; // 🆕 Store the audio manager
-        this.moveSpeed = 3.0; // 🆕 Reduced speed for more controlled movement
+        this.roomSetupManager = roomSetupManager; // Reference to room setup manager
+        this.audioManager = audioManager; //  Store the audio manager
+        this.moveSpeed = 3.0; //  Reduced speed for more controlled movement
         this.rotationSpeed = 3.0;
         
         // Movement state
@@ -26,10 +26,8 @@ export class PlayerController {
         this.isLoaded = false;
         this.debugEnabled = false;
         this.isGreeting = false; // Add this state
-        this.characterName = null; // 🆕 To store the character's name for sounds
-        
-        // Create/load player character
-        // REMOVED: this.loadCharacter();
+        this.characterName = null; //  To store the character's name for sounds
+
         
     }
     
@@ -39,7 +37,7 @@ export class PlayerController {
             const loader = new GLTFLoader();
             loader.load(modelUrl, 
                 (gltf) => {
-                    // 🆕 Use the provided name directly, this is more robust
+                    //  Use the provided name directly, this is more robust
                     this.characterName = characterName;
                     this.setupCharacterModel(gltf);
                     resolve();
@@ -78,11 +76,10 @@ export class PlayerController {
             const loadedAnimationNames = [];
             
             gltf.animations.forEach((clip) => {
-                // 🆕 REMOVE PREFIX FROM ANIMATION NAMES
                 // Handle names like "characterarmature|idle" -> "idle"
                 let cleanName = clip.name.toLowerCase();
                 if (cleanName.includes('|')) {
-                    cleanName = cleanName.split('|')[1]; // Take part after the '|'
+                    cleanName = cleanName.split('|')[1]; // Take part after the '|', we are basically normalizing the name
                 }
                 
                 this.animations[cleanName] = this.mixer.clipAction(clip);
@@ -101,34 +98,7 @@ export class PlayerController {
         this.scene.add(this.mesh);
         this.isLoaded = true;
     }
-    
-    createFallbackMesh() {
-        // Simple capsule for the player (fallback)
-        const geometry = new THREE.CapsuleGeometry(0.3, 1.2, 4, 8);
-        const material = new THREE.MeshStandardMaterial({ 
-            color: 0x4169E1, // Royal blue
-            roughness: 0.7,
-            metalness: 0.1
-        });
-        
-        // 🆕 CONFIGURE GEOMETRY FOR PHYSICS COLLISIONS
-        geometry.computeVertexNormals();
-        geometry.computeBoundingBox();
-        
-        // Create BVH tree for collision detection
-        try {
-            geometry.boundsTree = new MeshBVH(geometry);
-        } catch (error) {
-        }
-        
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.castShadow = true;
-        this.mesh.receiveShadow = true;
-        this.mesh.position.set(0, 0.5, 3); // Starting position
-        this.scene.add(this.mesh);
-        this.isLoaded = true;
-        
-    }
+
     
     setMoving(direction, state) {
         if (this.isGreeting) return;
@@ -139,10 +109,6 @@ export class PlayerController {
             case 'right': this.moveRight = state; break;
         }
         
-        // DEBUG - Log movement changes (will be reduced after testing)
-        if (this.debugEnabled) {
-            const isPressingAnyKey = this.moveForward || this.moveLeft || this.moveRight;
-        }
     }
     
     switchToAnimation(animationName) {
@@ -174,8 +140,8 @@ export class PlayerController {
         
         // Handle rotation from A/D keys
         let rotation = 0;
-        if (this.moveLeft) rotation = 1;  // A key for counter-clockwise rotation (left)
-        if (this.moveRight) rotation = -1; // D key for clockwise rotation (right)
+        if (this.moveLeft) rotation = 1;  // A key for counter-clockwise rotation 
+        if (this.moveRight) rotation = -1; // D key for clockwise rotation
         
         this.mesh.rotation.y += rotation * this.rotationSpeed * deltaTime;
             
@@ -201,13 +167,13 @@ export class PlayerController {
             this.currentAnimationState = desiredAnimation;
             this.switchToAnimation(this.currentAnimationState);
             }
-            
-        // REMOVED: mixer update will be handled by the main animate loop
         
-        this.mesh.position.y = this.isLoaded && this.animations.idle ? 0 : 0.5;
+        this.mesh.position.y = 0;
     }
     
-    // 🆕 NEW METHOD TO UPDATE ONLY THE MIXER
+    //mixer advances all active animations by 0.016 seconds
+   //  Advances animations: Moves animation forward by deltaTime seconds
+  //Handles transitions: Smoothly blends between different animations
     updateAnimation(deltaTime) {
         if (this.mixer) {
             this.mixer.update(deltaTime);
@@ -226,7 +192,7 @@ export class PlayerController {
 
         await cameraManager.animateCameraToObject(1.0);
 
-        // 🆕 Play sound when greeting
+        // Play sound when greeting
         if (this.audioManager && this.characterName) {
             this.audioManager.playSound(`${this.characterName}_wave`);
         }
@@ -272,9 +238,9 @@ export class PlayerController {
     }
 
     handleMachineCollisions() {
-        const playerRadius = 0.5; // Collision radius around player
+        const playerRadius = 0.7; // collision radius around player
         
-        // Get machine positions dynamically from RoomSetupManager if available
+        //get machine positions dynamically from RoomSetupManager if available
         let machines;
         if (this.roomSetupManager) {
             machines = [
@@ -290,12 +256,12 @@ export class PlayerController {
                 },
                 {
                     name: 'Popcorn Machine',
-                    center: new THREE.Vector3(-3, 0.7, -2), // Position from main.js:686
-                    size: { x: 2, z: 2 } //  Scaled down size (0.5 scale factor)
+                    center: new THREE.Vector3(-3, 0.7, -2), // position from main.js
+                    size: { x: 2, z: 2 } //  scaled down size (0.5 scale factor)
                 }
             ];
         } else {
-            // Fallback to hardcoded positions if no room manager available
+            // fallback to hardcoded positions if no room manager available
             machines = [
                 {
                     name: 'Claw Machine',
@@ -321,26 +287,26 @@ export class PlayerController {
             const machineMinZ = machine.center.z - machine.size.z / 2 - playerRadius;
             const machineMaxZ = machine.center.z + machine.size.z / 2 + playerRadius;
             
-            // If player is inside the machine's exclusion zone, apply pushback
+            // ff player is inside the machine's exclusion zone, apply pushback
             if (this.mesh.position.x >= machineMinX && this.mesh.position.x <= machineMaxX &&
                 this.mesh.position.z >= machineMinZ && this.mesh.position.z <= machineMaxZ) {
                 
-                // Calculate penetration distances for each side
+                // calculate penetration distances for each side
                 const penetrationLeft = this.mesh.position.x - machineMinX;
                 const penetrationRight = machineMaxX - this.mesh.position.x;
                 const penetrationFront = this.mesh.position.z - machineMinZ;
                 const penetrationBack = machineMaxZ - this.mesh.position.z;
                 
-                // Find the minimum penetration (closest exit)
+                // find the minimum penetration (closest exit)
                 const minPenetration = Math.min(penetrationLeft, penetrationRight, penetrationFront, penetrationBack);
                 
-                // If penetration is very small, use smooth pushback
+                // if penetration is very small, use smooth pushback
                 if (minPenetration > 0.05) {
                     const pushbackStrength = 0.15;
                     const maxPushback = 0.2;
                     const pushbackForce = Math.min(minPenetration * pushbackStrength, maxPushback);
                     
-                    // Apply gradual pushback in the direction of least resistance
+                    // apply gradual pushback in the direction of least resistance, thus we are applying a sort of soft collision response/friction that makes the player slide
                     if (minPenetration === penetrationLeft) {
                         this.mesh.position.x -= pushbackForce;
                     } else if (minPenetration === penetrationRight) {
@@ -368,19 +334,19 @@ export class PlayerController {
     }
     
     constrainToRoom() {
-        // Define room bounds (adjusted to match new room size: 40x20)
+
         const roomBounds = {
-            minX: -20,  // Half of width (40/2 = 20)
-            maxX: 20,   // Half of width
-            minZ: -10,  // Half of depth (20/2 = 10) 
-            maxZ: 10    // Half of depth
+            minX: -20,  
+            maxX: 20,
+            minZ: -10,
+            maxZ: 10    
         };
         
-        // Smooth boundary constraint with soft pushback
-        const boundaryPushback = 0.1; // Gentle pushback force for room boundaries
-        const boundaryBuffer = 0.2; // Buffer zone before applying pushback
+        // smooth boundary constraint with soft pushback
+        const boundaryPushback = 0.1; //gentle pushback force for room boundaries
+        const boundaryBuffer = 0.2; //buffer zone before applying pushback
         
-        // Smooth X axis constraint
+        //smooth X axis constraint
         if (this.mesh.position.x < roomBounds.minX + boundaryBuffer) {
             const penetration = (roomBounds.minX + boundaryBuffer) - this.mesh.position.x;
             this.mesh.position.x += Math.min(penetration * boundaryPushback, 0.05);
@@ -389,7 +355,7 @@ export class PlayerController {
             this.mesh.position.x -= Math.min(penetration * boundaryPushback, 0.05);
         }
         
-        // Smooth Z axis constraint
+        //smooth Z axis constraint
         if (this.mesh.position.z < roomBounds.minZ + boundaryBuffer) {
             const penetration = (roomBounds.minZ + boundaryBuffer) - this.mesh.position.z;
             this.mesh.position.z += Math.min(penetration * boundaryPushback, 0.05);
@@ -398,7 +364,7 @@ export class PlayerController {
             this.mesh.position.z -= Math.min(penetration * boundaryPushback, 0.05);
         }
         
-        // Hard boundaries as fallback (in case player somehow gets too far)
+        //hard boundaries as fallback (in case player somehow gets too far)
         this.mesh.position.x = THREE.MathUtils.clamp(this.mesh.position.x, roomBounds.minX, roomBounds.maxX);
         this.mesh.position.z = THREE.MathUtils.clamp(this.mesh.position.z, roomBounds.minZ, roomBounds.maxZ);
     }
@@ -411,23 +377,7 @@ export class PlayerController {
     getForwardDirection() {
         return this.mesh ? new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion) : new THREE.Vector3(0, 0, 1);
     }
-    
-    // DEBUG AND TESTING METHODS
-    enableDebug() {
-        this.debugEnabled = true;
-    }
-    
-    disableDebug() {
-        this.debugEnabled = false;
-    }
-    
-    debugAnimationState() {
-        if (!this.isLoaded) {
 
-            return;
-        }      
-
-    }
     
     listAvailableAnimations() {
         if (!this.isLoaded || !this.animations) {
@@ -467,13 +417,13 @@ export class PlayerController {
             return;
         }
 
-        // Force an abrupt switch using fades with zero duration. This is often more reliable.
+        // force an abrupt switch using fades with zero duration. This is often more reliable.
         if (this.currentAnimation) {
             this.currentAnimation.fadeOut(0);
         }
         
         deathAnimation.reset().setLoop(THREE.LoopOnce, 1).fadeIn(0).play();
-        deathAnimation.clampWhenFinished = true; // This will hold the final frame of the animation.
+        deathAnimation.clampWhenFinished = true; //this will hold the final frame of the animation.
         this.currentAnimation = deathAnimation;
 
         const durationInMs = clip.duration * 1000;
@@ -577,55 +527,7 @@ export class PlayerTestUtils {
     static setPlayerSpeed(playerController, speed) {
         if (playerController) {
             playerController.moveSpeed = speed;
-
-        } else {
-
         }
-    }
-    
-    static testCharacterAnimations(playerController) {
-        if (!playerController || !playerController.isLoaded) {
-
-            return;
-        } 
-
-        playerController.listAvailableAnimations();
-        
-        const animations = ['idle', 'walk', 'run'];
-        let index = 0;
-        
-        function testNext() {
-            if (index >= animations.length) {
-
-                return;
-            }
-            
-            const animName = animations[index];
-
-            playerController.forceAnimation(animName);
-            
-            index++;
-            setTimeout(testNext, 2000);
-        }
-        
-        testNext();
-    }
-    
-    static getCharacterStatus(playerController) {
-        if (!playerController) {
-            return;
-        }
-        const movement = [];
-        if (playerController.moveForward) movement.push('Forward');
-        if (playerController.moveLeft) movement.push('Left');
-        if (playerController.moveRight) movement.push('Right');
-    }
-
-    static checkAnimationSystem(playerController) {
-        if (!playerController) {  
-            return;
-        }
-        playerController.checkAnimationSystem();
     }
 }
 
