@@ -9,6 +9,19 @@ import { CameraUtils } from './Camera_manager.js';
 import { PlayerInputHandler } from './Player_controller.js';
 import { getExtrasState, startLightShow, updateLightShow, updateDiscoLights, updateCeilingPopcorn } from './extras.js';
 import { initializeGame } from './game_initialization.js';
+import { 
+    startPrizeAnimation,
+    updatePrizeAnimations,
+    startCandyDisappearanceAnimation,
+    updateCandyAnimations,
+    updateExplosions,
+    resetAnimations
+} from './animation.js';
+import {
+    handleKeyDown as eventHandleKeyDown,
+    handleKeyUp as eventHandleKeyUp,
+    setEventHandlerState
+} from './event_handler.js';
 
 
 
@@ -17,9 +30,6 @@ let scene, camera, renderer, controls;
 let physicsEngine;
 let grabbableObjects = [];
 let clawController, objectsInteraction;
-let animatingPrizes = [];
-let activeExplosions = [];  
-let animatingCandies = [];
 let candyMachinePrizeAreaBox = null;
 
 
@@ -192,263 +202,23 @@ function updateGameUI() {
 }
 
 
-// Funzione per creare un sistema di particelle per l'esplosione
-function createExplosion(position, color = new THREE.Color(0xffdd00)) {
-    const particleCount = 100;
-    const particles = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    const particleData = [];
-
-    for (let i = 0; i < particleCount; i++) {
-        // Assegna una velocità casuale verso l'esterno a ogni particella
-        const velocity = new THREE.Vector3(
-            (Math.random() - 0.5) * 2,
-            (Math.random() - 0.5) * 2,
-            (Math.random() - 0.5) * 2
-        ).normalize().multiplyScalar(Math.random() * 3 + 1); // Velocità tra 1 e 4
-
-        particleData.push({
-            velocity: velocity,
-            lifetime: Math.random() * 1.5 + 0.5 // Durata da 0.5 a 2 secondi
-        });
-    }
-
-    particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    
-    const material = new THREE.PointsMaterial({
-        color: color,
-        size: 0.05,
-        transparent: true,
-        opacity: 1,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-    });
-
-    const explosion = new THREE.Points(particles, material);
-    explosion.position.copy(position);
-    explosion.userData.particles = particleData; // Salva i dati delle particelle
-    explosion.userData.time = 0; // Tempo trascorso per l'esplosione
-
-    activeExplosions.push(explosion);
-    scene.add(explosion);
-}
-
-
-function updateExplosions(deltaTime) {
-    const gravity = 5.0;
-
-    activeExplosions.forEach((explosion, index) => {
-        explosion.userData.time += deltaTime;
-        const positions = explosion.geometry.attributes.position.array;
-        const particles = explosion.userData.particles;
-        let activeParticles = 0;
-
-        for (let i = 0; i < particles.length; i++) {
-            if (explosion.userData.time < particles[i].lifetime) {
-                const p = particles[i];
-                // Applica la velocità
-                positions[i * 3] += p.velocity.x * deltaTime;
-                positions[i * 3 + 1] += p.velocity.y * deltaTime;
-                positions[i * 3 + 2] += p.velocity.z * deltaTime;
-                // Applica la gravità
-                p.velocity.y -= gravity * deltaTime;
-                activeParticles++;
-            }
-        }
-        
-        // Dissolvenza dell'esplosione
-        explosion.material.opacity = 1.0 - (explosion.userData.time / 2.0);
-
-        if (activeParticles === 0 || explosion.userData.time > 2.0) {
-            // Rimuovi l'esplosione quando è finita
-            scene.remove(explosion);
-            activeExplosions.splice(index, 1);
-        } else {
-            explosion.geometry.attributes.position.needsUpdate = true;
-        }
-    });
-}
 
 
 
-function startPrizeAnimation(body) {
-    
 
+
+function startPrizeAnimationLocal(body) {
+    body.isAnimating = true;
     audioManager.playSound('prizeWin');
-
-
     startLightShow();
-
-
-    animatingPrizes.push({
-        body: body,
-        state: 'moving_out', // update the state
-    });
-}
-
-
-function updatePrizeAnimations(deltaTime) {
-    if (!clawTopBox) return;
-
-    const moveSpeed = 0.5;
-    const targetZ = clawTopBox.max.z + 0.5;
-
-    animatingPrizes.forEach(prize => {
-        const body = prize.body;
-        const mesh = body.mesh;
-        
-        switch (prize.state) {
-            //  The star moves out of the machine
-            case 'moving_out':
-                // We now animate the physics body's position.
-                body.position.z += moveSpeed * deltaTime;
-                if (body.position.z >= targetZ) {
-                    prize.state = 'choose_destruction'; // move to the selection state
-                }
-                break;
-            
-            // we choose an animation
-            case 'choose_destruction':
-                const animations = ['explode', 'shrink', 'fly_up'];
-                const choice = animations[Math.floor(Math.random() * animations.length)];
-
-                if (choice === 'explode') {
-
-                    createExplosion(body.position, mesh.material.color);
-                    scene.remove(mesh);
-                    prize.state = 'disappeared'; 
-                } else {
-                    mesh.material.transparent = true; 
-                    if (choice === 'shrinking') {
-                        prize.state = 'shrinking';
-                    } else { // fly_up
-                        prize.state = 'flying_up';
-                    }
-                }
-                break;
-
-
-            case 'shrinking':
-                mesh.scale.multiplyScalar(1 - (deltaTime * 2.5)); 
-                mesh.material.opacity -= deltaTime * 2;           
-
-                if (mesh.scale.x < 0.001) {
-                    scene.remove(mesh);
-                    prize.state = 'disappeared';
-                }
-                break;
-
-
-            case 'flying_up':
-
-                body.position.y += deltaTime * 3.0;    
-                mesh.material.opacity -= deltaTime * 1.5; 
-
-                if (mesh.material.opacity <= 0) {
-                    scene.remove(mesh);
-                    prize.state = 'disappeared';
-                }
-                break;
-        }
-    });
-
-    //once the animation is completed, we remove it from the list
-    animatingPrizes = animatingPrizes.filter(p => p.state !== 'disappeared');
+    startPrizeAnimation(body, clawTopBox);
 }
 
 
 
-function startCandyDisappearanceAnimation(candyBody) {
- //gotta disable the candy phisics in order to make it do the animation 
-    physicsEngine.removeBody(candyBody);
 
-    //as before, we just choose one animation out of the ones available 
-    const animations = ['confetti', 'ribbons'];
-    const choice = animations[Math.floor(Math.random() * animations.length)];
-    
 
-   //we add the candy to the list of actions that need to be executed
-    animatingCandies.push({
-        body: candyBody,
-        state: choice,
-        lifetime: 0,
-       
-    });
-}
 
-//for each frame, we update the behaviour of the candy animations
-function updateCandyAnimations(deltaTime) {
-    const gravity = 3.0; 
-
-    for (let i = animatingCandies.length - 1; i >= 0; i--) {
-        const candyAnim = animatingCandies[i];
-        candyAnim.lifetime += deltaTime;
-            //we added tha candy to the list of animations, and now we have to execute it
-        switch (candyAnim.state) {
-            case 'confetti':
-                //we pass the candy color and then we create the explosion
-                createExplosion(candyAnim.body.mesh.position, candyAnim.body.mesh.material.color);
-                scene.remove(candyAnim.body.mesh);
-                animatingCandies.splice(i, 1); // then we remove the candy from the list
-                
-                break;
-
-            case 'ribbons':
-                if (!candyAnim.ribbons) {
-                    // if this animation is chosen, then we create ribbons, it is a particle animation of course
-                    candyAnim.ribbons = [];
-                    const count = 15;
-                    for (let j = 0; j < count; j++) {
-                        const ribbonGeo = new THREE.BoxGeometry(0.02, 0.4, 0.02);
-                        const ribbonMat = candyAnim.body.mesh.material.clone(); //we also clone the original material in order to have the same effects
-                        ribbonMat.transparent = true;
-
-                        const ribbon = new THREE.Mesh(ribbonGeo, ribbonMat);
-                        ribbon.position.copy(candyAnim.body.mesh.position); //the ribbons start at the candy position
-                        
-
-                        const velocity = new THREE.Vector3(
-                            (Math.random() - 0.5) * 2,
-                            Math.random() * 2 + 1,
-                            (Math.random() - 0.5) * 2
-                        ); //we give to the ribbon an initial velocity going up, and in particular the velocity is different for each ribbon
-                        ribbon.userData.velocity = velocity;
-                        ribbon.userData.angularVelocity = new THREE.Vector3(Math.random()*4-2, Math.random()*4-2, Math.random()*4-2);
-
-                        candyAnim.ribbons.push(ribbon);
-                        scene.add(ribbon); //then we push back the ribbons inside a vector and then we add them to the scene
-                    }
-                    scene.remove(candyAnim.body.mesh); // Rimuovi la caramella originale
-                } else {
-
-                    let allFaded = true;
-                    candyAnim.ribbons.forEach(ribbon => {
-                        // after the ribbons are created, this function runs at each iteration 
-                        ribbon.userData.velocity.y -= gravity * deltaTime;
-                        ribbon.position.add(ribbon.userData.velocity.clone().multiplyScalar(deltaTime));
-                        
-                        // we apply a linear and angular velocity to make the ribbons move
-                        ribbon.rotation.x += ribbon.userData.angularVelocity.x * deltaTime;
-                        ribbon.rotation.y += ribbon.userData.angularVelocity.y * deltaTime;
-                        ribbon.rotation.z += ribbon.userData.angularVelocity.z * deltaTime;
-
-                        // and then they dissolve
-                        if (ribbon.material.opacity > 0) {
-                            ribbon.material.opacity -= deltaTime * 0.5;
-                            allFaded = false;
-                        }
-                    });
-
-                    // once they are faded or after a short period of time, ribbons are removed
-                    if (allFaded || candyAnim.lifetime > 3.0) {
-                        candyAnim.ribbons.forEach(r => scene.remove(r));
-                        animatingCandies.splice(i, 1);
-                    }
-                }
-                break;
-        }
-    }
-}
 
 
 //we have two triggers, so we check for the second trigger to then trigger the whole animation
@@ -474,7 +244,7 @@ function checkFinalPrizeTrigger() {
                 body.canFallThrough = false; //the star can basically do nothing, it becomes a still body 
 
 
-                startPrizeAnimation(body); // then once we've set all the conditions, we stop the star 
+                startPrizeAnimationLocal(body); 
             }
         }
     });
@@ -582,10 +352,7 @@ function resetObjects() {
     const startZ = clawTopBox.min.z + 0.3; 
     const baseY = clawTopBox.min.y + 0.1;
 
-    animatingPrizes = [];
-    activeExplosions.forEach(exp => scene.remove(exp));
-    //we cleanup the scene after initializing or resetting 
-    activeExplosions = [];
+    resetAnimations();
 
     grabbableObjects.forEach((objData, idx) => {
         const b = objData.body;
@@ -1105,9 +872,9 @@ function animate() {
       }
       
     
-      updatePrizeAnimations(deltaTime);
-      updateCandyAnimations(deltaTime);
-      updateExplosions(deltaTime);
+      updatePrizeAnimations(deltaTime, clawTopBox, scene, physicsEngine);
+      updateCandyAnimations(deltaTime, scene);
+      updateExplosions(deltaTime, scene);
       
 
       physicsEngine?.update(deltaTime);
@@ -1251,138 +1018,44 @@ function switchToNormalView() {
 
 
 function handleKeyDown(e) {
-    if (e.code === 'KeyH' && !e.repeat) {
-        togglePauseMenu();
-        return;
-    }
-
-    if (isGamePaused) return;
-
-    switch(gameMode) {
-        case 'exploration':
-            if (playerInputHandler) {
-                playerInputHandler.handleKeyDown(e);
-            }
-            break;
-        case 'claw_machine':
-            handleClawMachineKeyDown(e);
-            break;
-        case 'candy_machine':
-            handleCandyMachineKeyDown(e);
-            break;
-    }
+    const callbacks = {
+        togglePauseMenu,
+        toggleClawCameraMode,
+        exitMachineMode,
+        updateCoinsDisplay: (newCoins) => { coins = newCoins; }
+    };
+    
+    setEventHandlerState({
+        gameMode,
+        isGamePaused,
+        clawController,
+        playerInputHandler,
+        candyMachine,
+        coins,
+        isGameOver
+    });
+    
+    eventHandleKeyDown(e, callbacks);
 }
 
 function handleKeyUp(e) {
-    switch(gameMode) {
-        case 'exploration':
-            if (playerInputHandler) {
-                playerInputHandler.handleKeyUp(e);
-            }
-            break;
-        case 'claw_machine':
-            handleClawMachineKeyUp(e);
-            break;
-        case 'candy_machine':
-            handleCandyMachineKeyUp(e);
-            break;
-    }
-}
-
-function handleClawMachineKeyDown(e) {
-    if (!clawController) return;
+    setEventHandlerState({
+        gameMode,
+        isGamePaused,
+        clawController,
+        playerInputHandler,
+        candyMachine,
+        coins,
+        isGameOver
+    });
     
-
-    if (['ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyS', 'KeyA', 'KeyD', 'KeyP', 'Escape'].includes(e.code)) {
-        e.preventDefault();
-    }
-
-    switch (e.code) {
-        case 'ArrowLeft':
-        case 'KeyA':       
-            clawController.setMoving('left', true); 
-            break;
-        case 'ArrowRight':
-        case 'KeyD':       
-            clawController.setMoving('right', true); 
-            break;
-        case 'KeyW':       
-            clawController.setMoving('forward', true); 
-            break;
-        case 'KeyS':       
-            clawController.setMoving('backward', true);
-            break;
-        case 'ArrowDown':
-            if (!e.repeat && !isGameOver && !clawController.isAnimating) {
-                if (coins > 0) {
-                    coins--;
-                    clawController.startDropSequence();
-                }
-            }
-            break;
-        case 'KeyP':
-            if (!e.repeat) {
-                toggleClawCameraMode();
-            }
-            break;
-        case 'Escape':
-            if (!e.repeat) {
-                exitMachineMode();
-            }
-            break;
-    }
-}
-
-function handleClawMachineKeyUp(e) {
-    if (!clawController) return;
-    
-    switch (e.code) {
-        case 'ArrowLeft':
-        case 'KeyA':       
-            clawController.setMoving('left', false); 
-            break;
-        case 'ArrowRight':
-        case 'KeyD':       
-            clawController.setMoving('right', false); 
-            break;
-        case 'KeyW':       
-            clawController.setMoving('forward', false); 
-            break;
-        case 'KeyS':       
-            clawController.setMoving('backward', false); 
-            break;
-    }
+    eventHandleKeyUp(e);
 }
 
 
-function handleCandyMachineKeyDown(e) {
-    // Prevent default for keys we use
-    if (['KeyM', 'KeyC', 'Escape'].includes(e.code)) {
-        e.preventDefault();
-    }
-    
-    switch (e.code) {
-        case 'KeyM':
-            if (!e.repeat) {
-                candyMachine?.startCandyDispensing();
-            }
-            break;
-        case 'KeyC':
-            if (!e.repeat) {
-                candyMachine?.insertCoin();
-            }
-            break;
-        case 'Escape':
-            if (!e.repeat) {
-                exitMachineMode();
-            }
-            break;
-    }
-}
 
-function handleCandyMachineKeyUp(e) {
-    // no key up actions needed for candy machine
-}
+
+
 
 function togglePauseMenu() {
     isGamePaused = !isGamePaused;
