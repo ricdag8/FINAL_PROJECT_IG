@@ -91,7 +91,7 @@ skips objects that are:
                 
                 const intersection = objectBVH.intersectsGeometry(fingerMesh.geometry, fingerToObject);
                 
-                if (intersection) {
+                if (intersection) { //if an intersection is found, then we store the data
                     const fingerName = this.cylinderToFinger[fingerMesh.name];
                     if (fingerName) {
                         this.collisions[fingerName] = true;
@@ -144,14 +144,14 @@ Outputs you use: the normal, the closest surface point, and the penetration dept
             fingerMesh.geometry.computeBoundingBox();
         }
 
-        // Get centers in world space
+        // Get centers in world space of both finger and object
         const objectCenter = new THREE.Vector3();
         objectMesh.geometry.boundingBox.getCenter(objectCenter).applyMatrix4(objectMesh.matrixWorld);
 
         const fingerCenter = new THREE.Vector3();
         fingerMesh.geometry.boundingBox.getCenter(fingerCenter).applyMatrix4(fingerMesh.matrixWorld);
 
-        // Calculate direction from finger to object
+        // Calculate direction from finger to object, in order to get a proper response thanks to the physics
         const normal = objectCenter.clone().sub(fingerCenter);
         const distance = normal.length();
         normal.normalize();
@@ -185,7 +185,7 @@ Outputs you use: the normal, the closest surface point, and the penetration dept
         return {
             contactPoint: contactPoint,
             normal: normal,
-            penetrationDepth: penetrationDepth
+            penetrationDepth: penetrationDeptt // we basically return this informations in order to get a more precise response
         };
     }
 
@@ -232,24 +232,24 @@ Effect: Applies force (push out) and torque (spin if off-center) for a firm, non
         objectBody.isSleeping = false;
         objectBody.sleepyTimer = 0;
 
-        // A spring-damper system provides a stable and realistic interaction.
+        // A spring-damper system provides a stable  interaction.
         
-        // 1. Spring Force (Penalty Force): Pushes the object out based on penetration depth.
-        const springStiffness = 20; // Increased stiffness for a firmer push.
+        // 1 spring Force (penalty force): pushes the object out based on penetration depth.
+        const springStiffness = 20; // increased stiffness for a firmer push
         const penaltyForceMagnitude = penetrationDepth * springStiffness;
         const penaltyForce = new Vec3().copy(normal).multiplyScalar(penaltyForceMagnitude);
 
-        // 2. Damping Force: Resists velocity along the normal to prevent oscillation and bounciness.
-        const dampingFactor = 0.8; // A higher damping factor reduces bounciness.
-        const relativeVelocity = objectBody.linearVelocity; // Finger's velocity is considered zero.
+        // 2 damping force: tesists velocity along the normal to prevent oscillation and bounciness
+        const dampingFactor = 0.8; // a higher damping factor reduces bounciness
+        const relativeVelocity = objectBody.linearVelocity; // finger's velocity is considered zero.
         const velocityAlongNormal = relativeVelocity.dot(normal);
         const dampingForceMagnitude = velocityAlongNormal * dampingFactor;
         const dampingForce = new Vec3().copy(normal).multiplyScalar(-dampingForceMagnitude);
 
-        // Combine forces
+        // combine forces, where we combine both damping and penalty/spring to produce the resulting force
         const totalForce = new Vec3().copy(penaltyForce).add(dampingForce);
 
-        // Apply force and the resulting torque for natural rotation
+        // spply force and the resulting torque for natural rotation
         const contactPointRelative = new Vec3().copy(contactPoint).sub(objectBody.position);
         const torque = new Vec3().crossVectors(contactPointRelative, totalForce);
         

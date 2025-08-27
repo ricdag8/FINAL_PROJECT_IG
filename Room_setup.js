@@ -585,7 +585,7 @@ export class RoomSetupManager {
                     candyGeometry.boundsTree = new MeshBVH(candyGeometry);
 
                     if (candyContainerMesh) {
-                        this.candyMachine.populate(candyContainerMesh, 150, candyGeometry, this.scene);
+                        this.candyMachine.populate(candyContainerMesh, 50, candyGeometry, this.scene);
                     } else {
                     }
                     

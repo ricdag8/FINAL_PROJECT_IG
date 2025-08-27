@@ -4,6 +4,9 @@ import * as THREE from 'three';
  * third Person Camera System
  * follows a target (player) from behind based on their rotation.
  */
+
+
+//thirdpersoncamera always follows the player from behind, while the 
 export class ThirdPersonCamera {
     // initializes third person camera system that follows a target player from behind
     // sets up camera distance (4.0), height (4.0), and animation state for smooth transitions
@@ -30,19 +33,19 @@ export class ThirdPersonCamera {
         if (!this.target) return;
 
         const playerPos = this.target.getPosition(); // at every update we get the position of the player in order for the camera to follow it
-        if (this.isAnimatingView) { // if the camera is animating, we interpolate the current position and the desired one, ideally we want the camera to look at a specific location 
+
+      //isanimatingView becomes true only when specific parts of the code set it to true, otherwise we are not animating anything
+        if (this.isAnimatingView) { // if the camera is animating, we interpolate the current position and the desired one, ideally we want the camera to look at a specific location  
             this.animationProgress += deltaTime / this.animationDuration;
             const t = this.easeInOutCubic(this.animationProgress);
-
             const currentOffset = new THREE.Vector3().lerpVectors(this.startOffset, this.endOffset, t);
             const idealPosition = playerPos.clone().add(currentOffset);
-            
             this.camera.position.copy(idealPosition);
-
             const idealLookAt = playerPos.clone();
-            idealLookAt.y += 2.5; // look at the character's face
+            idealLookAt.y += 2.5; // look at the character's face level
             this.camera.lookAt(idealLookAt);
 
+            //at t>1 the animation is finished, thus we can reset everything
             if (this.animationProgress >= 1.0) {
                 this.isAnimatingView = false;
                 if (this.onAnimationComplete) {
@@ -58,23 +61,31 @@ export class ThirdPersonCamera {
             return;
         }
         // if the player is moving forward, then use the normal camera
+        
+        
+        
+        
+        
         const playerForward = this.target.getForwardDirection();
         
         // calculate ideal camera position (behind player relative to player's rotation)
         //when rotating, we compute the ideal position of the camera based on the player's forward direction
         const idealPosition = playerPos.clone();
         //we basically compute the difference between the current camera position and the ideal one, namely the one it is currently facing
-        const cameraOffset = playerForward.clone().multiplyScalar(-this.distance);
+        const cameraOffset = playerForward.clone().multiplyScalar(-this.distance); //we place the camera behind the player, at distance -4
         idealPosition.add(cameraOffset);
         idealPosition.y += this.height;
-        
+        //when computing the ideal position, we also need to account for the camera's height,
+        // we basically let the camere be above the player while it is rotating
+
         // calculate ideal look-at point (slightly above player)
         const idealLookAt = playerPos.clone();
-        idealLookAt.y += 2.5;
-        
+        idealLookAt.y += 2.5; //this allows basically the camera to look at the player's face level, thus pointing down
+
         // apply position and look-at directly for a fixed camera without interpolation
         this.camera.position.copy(idealPosition);
         this.camera.lookAt(idealLookAt);
+
 
 
         /*  animation Priority: camera animations override normal following
@@ -177,7 +188,9 @@ instant response: no smoothing - camera moves immediately with player
 
 /*
   camera transition system handles smooth transitions between different camera modes
+  it allows to interpolate from position+look-at to position+look-at
  */
+
 export class CameraTransition {
     // initializes smooth camera transition system between different viewing modes
     // manages interpolation of camera position and look-at target over time
@@ -255,6 +268,7 @@ export class CameraTransition {
 /**
  * camera Manager
  * central manager for all camera systems 
+ * basically is the one which decides which camera to use and when
  */
 export class CameraManager {
     // central camera management system coordinating all camera modes handles third-person exploration, first-person machine views, and smooth transitions
@@ -292,19 +306,21 @@ export class CameraManager {
         // INITIALIZE CAMERA TRANSITION FIRST
         this.cameraTransition = new CameraTransition(this.camera);
         
+        // THEN INITIALIZE THIRD PERSON CAMERA
         this.thirdPersonCamera = new ThirdPersonCamera(this.camera, target);
         
         // initialize camera position (behind player)
         const initialPlayerPos = target.getPosition();
         this.camera.position.set(initialPlayerPos.x, initialPlayerPos.y + 2.5, initialPlayerPos.z + 4); //we set the initial camera position at a distance z and height y from the player
-        this.camera.lookAt(initialPlayerPos.x, initialPlayerPos.y + 1, initialPlayerPos.z);
-        
+        this.camera.lookAt(initialPlayerPos.x, initialPlayerPos.y + 1, initialPlayerPos.z); //we set the camera to look at the player's face level, slightly downwards
+
     }
     
     // main camera update loop called every frame updates third-person following in exploration mode and processes transitions
     update(deltaTime) {
         if (this.currentMode === 'exploration' && this.thirdPersonCamera) {
             this.thirdPersonCamera.update(deltaTime); //if we are in exploration mode, update the camera system
+            //in exploratoin mode, just update the camera position
         }
         
 
@@ -312,27 +328,26 @@ export class CameraManager {
             this.cameraTransition.update(deltaTime);
         } //otherwise, if we are in transition mode, then update the ongoing transition
     }
+
+
     
+   
     // transitions from exploration to first-person machine interaction view
     // disables third-person system and smoothly moves to pre-calculated machine position
     switchToMachineMode(machineType, machineOffset, onComplete = null) {
         if (!this.cameraTransition) {
             return;
-        } 
-        
+        }  
         if (this.cameraTransition.isTransitioning) {
             return;
-        }
-        
-        this.currentMode = machineType;
-        
+        } 
+        this.currentMode = machineType; //depending on the machine, we'll get a state
         // use first person positions
         const firstPersonData = this.firstPersonPositions[machineType];
         
         if (!firstPersonData) {
             return;
         }
-        
         // start camera transition to first person position
         this.cameraTransition.startTransition(firstPersonData.position, firstPersonData.target, onComplete);
         
@@ -341,6 +356,9 @@ export class CameraManager {
             this.thirdPersonCamera.setEnabled(false);
         }
     }
+    
+
+
     
     // returns from machine view to third-person exploration mode, calculates appropriate behind player position and re-enables third person following
     switchToExplorationMode(target, onComplete = null) {
@@ -360,7 +378,7 @@ export class CameraManager {
         const cameraTarget = playerPos.clone();
         cameraTarget.y += 1;
         
-        // start transition back to third person
+        // start transition back to third person, so it uses the interpolation in order to get back to the position behind the player
         this.cameraTransition.startTransition(cameraPos, cameraTarget, () => {
             // re-enable third person camera
             if (this.thirdPersonCamera) {
@@ -370,23 +388,35 @@ export class CameraManager {
         });
     }
 
+/*
+  The
+  CameraTransition system handles the smooth movement:
+  - Captures current camera position and look-at direction
+  - Retrieves  pre-calculated first-person position for the machine
+  - Interpolates smoothly over 1.5 seconds usingeasing curve (easeInOutCubic)
+  - Updates both  camera position AND look-at target every frame
+*/
 
-//function to update the first person camera reference calculates optimal first-person camera positions for each machine based on their control interfaces.
+
+
+
+//function to update the first person camera reference, calculates optimal
+// first-person camera positions for each machine based on their control interfaces
 
     // calculates optimal first-person camera positions using machine control interface, analyzes reference mesh position to determine best viewing angle and distance
     setFirstPersonReference(machineType, referenceMesh, machineCenter, machineSize = 3) {
         if (!referenceMesh) {
             return;
         }
-        
-        // get world position of reference mesh
+        //before placing the camera, we need to see where the machine is in the world, also calculating its size and position and facing direction
+        // get world position of reference mesh, 
         referenceMesh.updateWorldMatrix(true, false);
         const referenceWorldPos = new THREE.Vector3();
         referenceMesh.getWorldPosition(referenceWorldPos);
         
         
         // calculate which side of the machine the reference mesh is on
-        const sideInfo = this.calculateMachineSide(referenceWorldPos, machineCenter, machineSize);
+        const sideInfo = this.calculateMachineSide(referenceWorldPos, machineCenter);
         
         //  SPECIAL HANDLING FOR CANDY MACHINE
         if (machineType === 'candy_machine') {
@@ -396,7 +426,8 @@ export class CameraManager {
             sideInfo.offset = new THREE.Vector3(0, 0, 1); // extra Z offset to ensure we're well outside
         }
         
-        // calculate first person camera position
+        // calculate first person camera positio
+        //once we have computed all the values, we can finally call the calculateFirstPersonPosition method in order to place the camera
         const fpData = this.calculateFirstPersonPosition(machineCenter, sideInfo, machineSize, machineType);
         
         this.firstPersonPositions[machineType] = fpData;
@@ -404,9 +435,16 @@ export class CameraManager {
     }
     
 
-    // determines which side of machine the reference point is on (left/right/front/back) compares axis displacement to identify primary direction and create offset vector
-   //t his ensures the first-person camera appears where a human would stand to operate the machine, namely on the same side as the controls, not behind or opposite side
-    calculateMachineSide(referencePos, machineCenter, machineSize) {
+
+    /**
+ * determines which side of the machine the reference (control panel) is on
+ * by comparing x and z displacement from the machine center (left/right/front/back).
+ * returns the side label and a unit offset vector pointing toward that side.
+ * does not move the camera; its result is used by calculateFirstPersonPosition.
+ */
+
+    
+    calculateMachineSide(referencePos, machineCenter) {
         const dx = referencePos.x - machineCenter.x;
         const dz = referencePos.z - machineCenter.z;
         
@@ -443,7 +481,7 @@ export class CameraManager {
         if (machineType === 'candy_machine') {
             extraDistance = 1.5; // much more distance for candy machine to avoid being inside
         } else if (machineType === 'claw_machine') {
-            extraDistance = 1.0; // standard distance for claw machine
+            extraDistance = 0.5; // standard distance for claw machine
         }
         
         const distanceFromMachine = baseDistance + extraDistance;
@@ -465,13 +503,15 @@ export class CameraManager {
         };
     }
     
+
     /**
-     * check if first person positions are set for both machines
+     * check if first person positions are set for both machines, so if the have correct values
      */
     isFirstPersonReady() {
         return this.firstPersonPositions.claw_machine !== null && 
                this.firstPersonPositions.candy_machine !== null;
     }
+
 
     /*
      *set first person camera height for all machines
@@ -502,6 +542,7 @@ export class CameraManager {
     /**
      * force recalculation of first person positions
      */
+
     recalculateFirstPersonPositions() {
         
         // Get current positions and machine types
@@ -562,9 +603,13 @@ export class CameraManager {
         
         return info;
     }
+
+
+
+
     
-    // TOP-DOWN CAMERA SYSTEM METHODS
-    
+    //********************************* TOP-DOWN CAMERA SYSTEM METHODS ***********************************
+
     // Set reference to claw group for top-down camera functionality
     setClawReference(clawGroup) {
         this.clawGroup = clawGroup;
@@ -573,7 +618,6 @@ export class CameraManager {
     // Toggle between normal first-person view and top-down view when in claw machine mode
     toggleClawCameraMode() {
         if (this.currentMode !== 'claw_machine' || !this.clawGroup) {
-            console.warn('Cannot toggle claw camera: not in claw machine mode or claw reference missing');
             return false;
         }
         
