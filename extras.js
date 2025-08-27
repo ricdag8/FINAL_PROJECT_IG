@@ -55,7 +55,7 @@ function startCeilingPopcorn() {
     const ceilingMaterial = new THREE.MeshBasicMaterial({ visible: false });
     const ceilingSpawnMesh = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
     ceilingSpawnMesh.position.set(0, ceilingHeight, 0);
-    ceilingSpawnMesh.rotation.x = -Math.PI / 2; // Face down
+    ceilingSpawnMesh.rotation.x = -Math.PI / 2; //face down
     scene.add(ceilingSpawnMesh);
     
     // Get all static colliders for popcorn collision
@@ -75,9 +75,10 @@ function startCeilingPopcorn() {
     });
 }
 
+//function to remove every popcorn in the scene after the user has stopped the animation 
 function stopCeilingPopcorn() {
     if (ceilingPopcornManager) {
-        // lean up all popcorn particles
+
         ceilingPopcornManager.particles.forEach(particle => {
             scene.remove(particle.mesh);
         });
@@ -190,6 +191,7 @@ function startDiscoLights() {
     //store original light colors
     const lightRefs = lightingManager.getLightReferences();
     if (lightRefs) {
+        //we save initial colors so that we dont lose any value 
         discoOriginalColors = {
             ambientLight: lightRefs.ambientLight ? lightRefs.ambientLight.color.clone() : null,
             clawLight: lightRefs.clawLight ? lightRefs.clawLight.color.clone() : null,
@@ -202,20 +204,26 @@ function startDiscoLights() {
 
 export function updateDiscoLights(deltaTime) {
     if (!discoMode || !lightingManager) return;
+    //we procede only if we are in disco mode
     
     discoTimer += deltaTime;
     
-    // Different speed patterns for each light
-    const speed1 = 4; // Fast flashing
-    const speed2 = 3; // Medium flashing  
-    const speed3 = 2; // Slow flashing
-    const speed4 = 5; // Very fast flashing
+    //different speed patterns for each light so each light will glow at different frequencies and thus velocities 
+    const speed1 = 4; // fast flashing
+    const speed2 = 3; // medium flashing
+    const speed3 = 2; // slow flashing
+    const speed4 = 5; // very fast flashing
 
     //generate different colors using different sine wave frequencies, so that each color has its own flashing pattern
     const red = Math.abs(Math.sin(discoTimer * speed1));
     const green = Math.abs(Math.sin(discoTimer * speed2 + 2));
     const blue = Math.abs(Math.sin(discoTimer * speed3 + 4));
     const purple = Math.abs(Math.sin(discoTimer * speed4 + 1));
+
+    //disco colors are built from time-driven sine waves (different speeds/phases) mixed into RGB, producing smooth color cycling
+// since channel amplitudes vary and ambient is affected, overall luminance changes too—so intensity appears to pulse
+
+
 
     //create  disco colors with higher intensity
     // combines color components into 5 different disco colors

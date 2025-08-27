@@ -10,9 +10,9 @@ import { PlayerInputHandler } from './Player_controller.js';
 import { getExtrasState, startLightShow, updateLightShow, updateDiscoLights, updateCeilingPopcorn } from './extras.js';
 import { initializeGame } from './game_initialization.js';
 
-// 🆕 ROOM SETUP AND MACHINE LOADING NOW MOVED TO Room_setup.js
 
-// 🆕 DICHIARAZIONE VARIABILI GLOBALI ALL'INIZIO
+
+
 let scene, camera, renderer, controls;
 let physicsEngine;
 let grabbableObjects = [];
@@ -22,7 +22,7 @@ let activeExplosions = [];
 let animatingCandies = [];
 let candyMachinePrizeAreaBox = null;
 
-// 🆕 PLAYER SYSTEM VARIABLES
+
 let player = null;
 let playerController = null;
 let playerInputHandler = null;
@@ -706,7 +706,7 @@ function setupCompatibilityReferences() {
 
 
 function initializeGameLogic() {
-    // 🆕 Rendi visibile l'interfaccia di gioco
+
     document.getElementById('controls').style.display = 'block';
     document.getElementById('modeIndicator').style.display = 'block';
     document.getElementById('toggleLightControls').style.display = 'block';
@@ -721,7 +721,7 @@ function initializeGameLogic() {
     document.addEventListener('keydown', handleKeyDown);
     document.addEventListener('keyup', handleKeyUp);
     
-    // 🆕 SET UP PAUSE MENU BUTTONS
+
     document.getElementById('resumeBtn').onclick = togglePauseMenu;
     document.getElementById('returnToMainMenuBtn').onclick = () => window.location.reload();
     document.getElementById('changeCharacterBtn').onclick = handleChangeCharacter;
@@ -836,9 +836,7 @@ function setupPhysicsAndObjects() {
 
 
 
-/** ⏺ Let me explain why these expanded bounds are necessary by looking at what would happen without them:
-  What World Bounds Do:
-
+/*
   The physics engine uses worldBounds to create invisible walls that prevent objects from falling into the void.
 
   Look at this code from physics_engine.js:
@@ -1356,7 +1354,7 @@ function handleClawMachineKeyUp(e) {
     }
 }
 
-// 🆕 CANDY MACHINE MODE CONTROLS
+
 function handleCandyMachineKeyDown(e) {
     // Prevent default for keys we use
     if (['KeyM', 'KeyC', 'Escape'].includes(e.code)) {

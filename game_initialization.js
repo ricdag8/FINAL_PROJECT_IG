@@ -92,9 +92,9 @@ function setupAudioSystem() {
     audioManager.initialize(camera);
     
     // Load prize win sounds
-    audioManager.loadSound('prizeWin', 'sounds/success-1-6297.mp3');
-    audioManager.loadSound('prizeWin', 'sounds/goodresult-82807.mp3');
-    audioManager.loadSound('prizeWin', 'sounds/winner-bell-game-show-91932.mp3');
+    audioManager.loadSound('prizeWin', 'sounds/win sounds/success-1-6297.mp3');
+    audioManager.loadSound('prizeWin', 'sounds/win sounds/goodresult-82807.mp3');
+    audioManager.loadSound('prizeWin', 'sounds/win sounds/winner-bell-game-show-91932.mp3');
     
     // Load background music (loop = true)
     audioManager.loadSound('arcade', 'sounds/background music/bgm-arcade.mp3', 0.2, true);

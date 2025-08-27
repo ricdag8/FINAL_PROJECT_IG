@@ -12,7 +12,7 @@ export class RigidBody {
         this.angularVelocity = new Vec3();
         this.force = new Vec3();
         this.torque = new Vec3();
-        this.restitution = 0;
+        this.restitution = 0; // Keep at 0 for gentle, non-bouncy collisions
         this.friction = 0.5;
         this.collisionEnabled = true;
         this.isHeld = false; // flag to indicate if the object is being held by the claw
@@ -20,8 +20,8 @@ export class RigidBody {
         this.canFallThrough = false;
         this.isSleeping = false;
         this.sleepyTimer = 0;
-        this.SLEEP_THRESHOLD = 0.1;   //  0.04
-this.FRAMES_TO_SLEEP = 30;    //  60
+        this.SLEEP_THRESHOLD = 0.15;   // Increased from 0.1 - objects sleep more easily
+this.FRAMES_TO_SLEEP = 20;    // Decreased from 30 - objects sleep faster
 this.isBlocked = false;
 
         this.hasTouchedClaw = false; 
@@ -68,11 +68,12 @@ this.boundingRadius = bb.getSize(new THREE.Vector3()).length() * 0.5;
             deltaRotation.multiply(this.orientation);
             this.orientation.x+=deltaRotation.x; this.orientation.y+=deltaRotation.y; this.orientation.z+=deltaRotation.z; this.orientation.w+=deltaRotation.w;
             this.orientation.normalize();
-            this.force.set(0,0,0); this.torque.set(0,0,0);
             
-            //damping factors in order to sloq objects down
-            this.linearVelocity.multiplyScalar(0.95);
-            this.angularVelocity.multiplyScalar(0.93); 
+            //damping factors in order to slow objects down - increased for gentler interactions
+            this.linearVelocity.multiplyScalar(0.92); // Increased damping from 0.95
+            this.angularVelocity.multiplyScalar(0.90); // Increased damping from 0.93 
+            this.force.set(0,0,0); this.torque.set(0,0,0);
+
 
             //sleep logic if objects get below a certain threshold after some frames
             const kineticEnergy = 0.5 * this.mass * this.linearVelocity.lengthSq() + 0.5 * this.angularVelocity.lengthSq();
@@ -88,6 +89,7 @@ this.boundingRadius = bb.getSize(new THREE.Vector3()).length() * 0.5;
                     this.isSleeping = true;
                     this.linearVelocity.set(0, 0, 0);
                     this.angularVelocity.set(0, 0, 0);
+                    
                 }
             } else {
                 this.sleepyTimer = 0;
@@ -112,6 +114,9 @@ export class PhysicsEngine {
         this.dispenserCenter = null;
         this.dispenserSafetyRadius = 0;
         this.dispenserSafetyRadiusSq = 0;
+        this.chuteCenter = null;
+        this.chuteSafetyRadius = 0;
+        this.chuteSafetyRadiusSq = 0;
     }
     
     setWorldBounds(minVec, maxVec) { 
@@ -136,6 +141,13 @@ export class PhysicsEngine {
         this.dispenserCenter = new Vec3(center.x, center.y, center.z);
         this.dispenserSafetyRadius = radius;
         this.dispenserSafetyRadiusSq = radius * radius;
+    }
+
+    setChuteSafetyZone(center, radius) {
+        //we define a zone around the claw machine chute to prevent objects from falling into it
+        this.chuteCenter = new Vec3(center.x, center.y, center.z);
+        this.chuteSafetyRadius = radius;
+        this.chuteSafetyRadiusSq = radius * radius;
     }
     
     addBody(body) { 
@@ -209,13 +221,15 @@ export class PhysicsEngine {
             body.update(deltaTime);
             if (body.isCandy) {
                 this._applyCandyConstraints(body);
+            } else {
+                this._applyPrizeConstraints(body);
             }
         });
     }
     
-    /*    // Timeout: ~1200ms from releaseStartTime
-      // During period: vertical-only gravity, no horizontal forces
-      // After timeout: restore normal physics
+    /*    //timeout: ~1200ms from releaseStartTime
+      //during period: vertical-only gravity, no horizontal forces
+      //after timeout: restore normal physics
   }
   Purpose: Ensures smooth vertical dropping when claw releases objects
   */
@@ -283,23 +297,23 @@ export class PhysicsEngine {
             if (!boundsToUse) return;
 
             //compute body bounding box, we are basically handling collisions with the boxes
-            const bodyBox = new THREE.Box3().setFromObject(body.mesh);
-            if (!body.hasTouchedClaw && boundsToUse && !bodyBox.intersectsBox(boundsToUse)) {
-                body.touchedFrameCount = (body.touchedFrameCount || 0) + 1;
-            } else if (!body.hasTouchedClaw) {
-                body.touchedFrameCount = 0;
-            }
+            // const bodyBox = new THREE.Box3().setFromObject(body.mesh);
+            // if (!body.hasTouchedClaw && boundsToUse && !bodyBox.intersectsBox(boundsToUse)) {
+            //     body.touchedFrameCount = (body.touchedFrameCount || 0) + 1;
+            // } else if (!body.hasTouchedClaw) {
+            //     body.touchedFrameCount = 0;
+            // }
 
-            if (!body.hasTouchedClaw && body.touchedFrameCount > 1) {
-                body.linearVelocity.set(0, 0, 0);
-                body.angularVelocity.set(0, 0, 0);
-                body.isSleeping = true;
-                body.hasTouchedClaw = true;
+            // if (!body.hasTouchedClaw && body.touchedFrameCount > 1) {
+            //     body.linearVelocity.set(0, 0, 0);
+            //     body.angularVelocity.set(0, 0, 0);
+            //     body.isSleeping = true;
+            //     body.hasTouchedClaw = true;
     
-                setTimeout(() => {
-                    body.isSleeping = false;
-                }, 150);
-            }
+            //     setTimeout(() => {
+            //         body.isSleeping = false;
+            //     }, 150);
+            // }
             const geometry = body.mesh.geometry;
             const vertices = geometry.attributes.position.array;
             const scale = body.mesh.scale;
@@ -380,7 +394,7 @@ export class PhysicsEngine {
                 // Also skip pairs involving another static, held, or blocked body.
                 if ((B.inverseMass === 0 && !B.isBeingDispensed) || B.isHeld || B.isBlocked) continue;
                 
-                // 🆕 CLEAN RELEASE: Skip collisions between objects during clean release
+                // CLEAN RELEASE: Skip collisions between objects during clean release
                 // This prevents released stars from interfering with each other
                 if ((A.isBeingReleased || B.isBeingReleased)) {
                     continue; // Skip collision resolution for releasing objects
@@ -395,22 +409,21 @@ export class PhysicsEngine {
         return pairs;
     }
     
-//bodytobody collisions resolution
+//bodytobody collisions resolution, this is where objects interact one another 
 
 resolveBodyCollisions() {
-    const pairs = this.getBodyPairsToCheck();
+    const pairs = this.getBodyPairsToCheck(); //we check which objects are potentially colliding 
 
-    const dynamicCorrectionFactor = 0.02; 
+    const dynamicCorrectionFactor = 0.01; // Reduced from 0.02 for gentler star-star collisions
 
-    const kinematicCorrectionFactor = 0.4;
+    const kinematicCorrectionFactor = 0.25; // Reduced from 0.4 for gentler wall interactions
 
     const slop = 0.005; 
 
     //we compute collision normal and penetration depth using BVH intersection tests
     pairs.forEach(([A, B]) => {
-        const matAB = new THREE.Matrix4()
-            .copy(B.mesh.matrixWorld).invert()
-            .multiply(A.mesh.matrixWorld);
+        const matAB = new THREE.Matrix4().copy(B.mesh.matrixWorld).invert()
+        .multiply(A.mesh.matrixWorld);
 
         if (!A.mesh.geometry.boundsTree.intersectsGeometry(B.mesh.geometry, matAB)) return;
 
@@ -449,7 +462,7 @@ resolveBodyCollisions() {
         //we compute the restitution based on the two objects, we also apply a threshold to avoid small bounces
         let e = Math.min(A.restitution, B.restitution);
 
-        const velocityRestitutionThreshold = 0.2; 
+        const velocityRestitutionThreshold = 0.5; //increased from 0.2, more collisions become non-bouncy
         //when we have bounces below this threshold, we set restitution to 0
         if (Math.abs(velAlongNormal) < velocityRestitutionThreshold) {
             e = 0;
@@ -576,11 +589,11 @@ spendStarAsCoin() {
 
     _applyCandyConstraints(body) {
 
-        if (this.candyBoundsMin && this.candyBoundsMax) {
+        if (this.candyBounds && this.candyBounds.min && this.candyBounds.max) {
             // Esempio: assicurati che il corpo rimanga nei limiti
-            body.position.x = Math.max(this.candyBoundsMin.x, Math.min(this.candyBoundsMax.x, body.position.x));
-            body.position.y = Math.max(this.candyBoundsMin.y, Math.min(this.candyBoundsMax.y, body.position.y));
-            body.position.z = Math.max(this.candyBoundsMin.z, Math.min(this.candyBoundsMax.z, body.position.z));
+            body.position.x = Math.max(this.candyBounds.min.x, Math.min(this.candyBounds.max.x, body.position.x));
+            body.position.y = Math.max(this.candyBounds.min.y, Math.min(this.candyBounds.max.y, body.position.y));
+            body.position.z = Math.max(this.candyBounds.min.z, Math.min(this.candyBounds.max.z, body.position.z));
         }
 
         // Vincolo 2: Zona di sicurezza del distributore
@@ -608,6 +621,40 @@ spendStarAsCoin() {
                     const dampingFactor = 0.7; // Riduzione graduale invece di azzeramento
                     body.linearVelocity.x -= dot * pushoutX * dampingFactor;
                     body.linearVelocity.z -= dot * pushoutZ * dampingFactor;
+                }
+            }
+        }
+    }
+
+    _applyPrizeConstraints(body) {
+        // Chute safety zone for prize objects (stars)
+        // Only apply to objects that are likely to be loose stars (not held, not being released, not sleeping)
+        // Also skip if object has very low kinetic energy (likely settled)
+        if (this.chuteCenter && !body.isHeld && !body.isBeingReleased && !body.isSleeping) {
+            const dx = body.position.x - this.chuteCenter.x;
+            const dz = body.position.z - this.chuteCenter.z;
+            const distanceSq = dx * dx + dz * dz;
+
+            if (distanceSq < this.chuteSafetyRadiusSq && distanceSq > 1e-6) {
+                // Only apply constraint if object is moving toward the chute center
+                const velocityTowardCenter = body.linearVelocity.x * (-dx) + body.linearVelocity.z * (-dz);
+                
+                if (velocityTowardCenter > 0.1) { // Only if moving toward center with some speed
+                    const distance = Math.sqrt(distanceSq);
+                    const overlap = this.chuteSafetyRadius - distance;
+
+                    const pushoutX = dx / distance;
+                    const pushoutZ = dz / distance;
+
+                    // Very gentle push to avoid interfering with normal physics
+                    const gentleFactor = 0.1; // Much gentler than before
+                    body.position.x += pushoutX * overlap * gentleFactor;
+                    body.position.z += pushoutZ * overlap * gentleFactor;
+
+                    // Gentle velocity dampening
+                    const dampingFactor = 0.3; // Much lighter dampening
+                    body.linearVelocity.x -= velocityTowardCenter * pushoutX * dampingFactor;
+                    body.linearVelocity.z -= velocityTowardCenter * pushoutZ * dampingFactor;
                 }
             }
         }

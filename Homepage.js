@@ -59,7 +59,7 @@ export class HomepageManager {
         this.characterDefs.forEach((def, index) => {
             loader.load(def.url, (gltf) => {
                 const model = gltf.scene;
-                model.scale.setScalar(1.2); // 🆕 Resi leggermente più piccoli
+                model.scale.setScalar(1.2);
                 model.position.copy(def.position);
                 model.userData.index = index;
                 

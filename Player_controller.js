@@ -70,16 +70,16 @@ export class PlayerController {
             }
         });
         
-        // Setup animations
+        // setup animations
         if (gltf.animations && gltf.animations.length > 0) {
             this.mixer = new THREE.AnimationMixer(this.mesh);
             const loadedAnimationNames = [];
             
             gltf.animations.forEach((clip) => {
-                // Handle names like "characterarmature|idle" -> "idle"
+                // handle names like "characterarmature|idle" -> "idle"
                 let cleanName = clip.name.toLowerCase();
                 if (cleanName.includes('|')) {
-                    cleanName = cleanName.split('|')[1]; // Take part after the '|', we are basically normalizing the name
+                    cleanName = cleanName.split('|')[1]; // take part after the '|', we are basically normalizing the name
                 }
                 
                 this.animations[cleanName] = this.mixer.clipAction(clip);
@@ -240,7 +240,7 @@ export class PlayerController {
     handleMachineCollisions() {
         const playerRadius = 0.7; // collision radius around player
         
-        //get machine positions dynamically from RoomSetupManager if available
+        //get machine positions dynamically from RoomSetupManager 
         let machines;
         if (this.roomSetupManager) {
             machines = [
@@ -257,7 +257,7 @@ export class PlayerController {
                 {
                     name: 'Popcorn Machine',
                     center: new THREE.Vector3(-3, 0.7, -2), // position from main.js
-                    size: { x: 2, z: 2 } //  scaled down size (0.5 scale factor)
+                    size: { x: 2, z: 2 } 
                 }
             ];
         } else {
@@ -317,7 +317,7 @@ export class PlayerController {
                         this.mesh.position.z += pushbackForce;
                     }
                 } else {
-                    // If penetration is deep, use stronger correction
+                    // if penetration is deep, use stronger correction
                     const safetyMargin = 0.02;
                     if (minPenetration === penetrationLeft) {
                         this.mesh.position.x = machineMinX - safetyMargin;
@@ -402,7 +402,7 @@ export class PlayerController {
     }
 
     playDeathAnimation(onComplete) {
-        const deathAnimationName = 'death'; // Use the cleaned name
+        const deathAnimationName = 'death'; // use the cleaned name
         const deathAnimation = this.animations[deathAnimationName];
         
         if (!deathAnimation) {

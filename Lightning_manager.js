@@ -21,7 +21,7 @@ export class LightingManager {
             clawSupports: [],
             candySupports: [],
             ledStrips: [],
-            paintingSpotlights: [] // 🆕 Aggiungi questo
+            paintingSpotlights: []
         };
         
         // LED Speed control
@@ -36,7 +36,10 @@ export class LightingManager {
     
     update(deltaTime) {
         this.time += deltaTime;
-        
+        //this allows for the LEDs to animate in order to have a more dynamic effect, appearing
+        //like a continuosly moving rainbow
+        //we let the hue channel change, by varying the time with the led speed and also this.time
+        //by varying hsl we can easily get a continuosly changing effect
         this.lightReferences.ledStrips.forEach((led, index) => {
             const hue = (this.time * 0.2 * this.ledSpeed + index * 0.02) % 1.0;
             const saturation = 1.0;
@@ -66,10 +69,10 @@ export class LightingManager {
         this.presets = {
             arcade: {
                 ambient: { color: '#ffffff', intensity: 0.2 },
-                claw: { color: '#ff0044', intensity: 2.5 },
-                candy: { color: '#0044ff', intensity: 2.5 },
+                claw: { color: '#ff0044', intensity: 3.5 },
+                candy: { color: '#0044ff', intensity: 3.5 },
                 side: { color: '#44ff00', intensity: 1.8 },
-                center: { color: '#ffffff', intensity: 5 }, // 🆕 Era 1.2, ora 2.5
+                center: { color: '#ffffff', intensity: 5 }, 
                 paintings: { color: '#ffffff', intensity: 1.5 },
                 room: { 
                     wall: 0x2c3e50,
@@ -78,12 +81,12 @@ export class LightingManager {
                 }
             },
             neon: {
-                ambient: { color: '#440066', intensity: 0.15 }, // Violetto
-                claw: { color: '#ff00ff', intensity: 3.0 },
-                candy: { color: '#00ffff', intensity: 3.0 },
+                ambient: { color: '#440066', intensity: 0.15 },
+                claw: { color: '#ff00ff', intensity: 4.0 },
+                candy: { color: '#00ffff', intensity: 4.0 },
                 side: { color: '#ffff00', intensity: 2.5 },
-                center: { color: '#ff8000', intensity: 3.5 }, // 🆕 Era 2.0, ora 3.5
-                paintings: { color: '#aaffff', intensity: 2.0 }, // 🆕
+                center: { color: '#ff8000', intensity: 3.5 }, 
+                paintings: { color: '#aaffff', intensity: 2.0 }, 
                 room: {
                     wall: 0x1a1a2e,
                     floor: 0x222222,
@@ -92,11 +95,11 @@ export class LightingManager {
             },
             warm: {
                 ambient: { color: '#fff8dc', intensity: 0.2 },
-                claw: { color: '#ff8000', intensity: 2.5 },
-                candy: { color: '#ffaa00', intensity: 2.5 },
+                claw: { color: '#ff8000', intensity: 3.5 },
+                candy: { color: '#ffaa00', intensity: 3.5 },
                 side: { color: '#ff6600', intensity: 2.0 },
                 center: { color: '#ffffaa', intensity: 1.5 },
-                paintings: { color: '#fff8e1', intensity: 1.8 }, // 🆕
+                paintings: { color: '#fff8e1', intensity: 1.8 }, // 
                 room: {
                     wall: 0x5d4037,
                     floor: 0x4e342e,
@@ -105,11 +108,11 @@ export class LightingManager {
             },
             cool: {
                 ambient: { color: '#f0f8ff', intensity: 0.15 },
-                claw: { color: '#0088ff', intensity: 2.2 },
-                candy: { color: '#00aaff', intensity: 2.2 },
+                claw: { color: '#0088ff', intensity: 3.2 },
+                candy: { color: '#00aaff', intensity: 3.2 },
                 side: { color: '#00ffaa', intensity: 1.8 },
                 center: { color: '#aaffff', intensity: 1.2 },
-                paintings: { color: '#e0f7fa', intensity: 1.8 }, // 🆕
+                paintings: { color: '#e0f7fa', intensity: 1.8 }, 
                 room: {
                     wall: 0x37474f,
                     floor: 0x263238,
@@ -117,12 +120,12 @@ export class LightingManager {
                 }
             },
             dark: {
-                ambient: { color: '#87CEEB', intensity: 0.05 }, // Azzurro
-                claw: { color: '#ff0000', intensity: 4.0 },
-                candy: { color: '#0000ff', intensity: 4.0 },
+                ambient: { color: '#87CEEB', intensity: 0.05 },
+                claw: { color: '#ff0000', intensity: 5.5 },
+                candy: { color: '#0000ff', intensity: 5.5 },
                 side: { color: '#00ff00', intensity: 3.0 },
                 center: { color: '#ffffff', intensity: 0.3 },
-                paintings: { color: '#ffffff', intensity: 2.5 }, // 🆕
+                paintings: { color: '#ffffff', intensity: 2.5 }, 
                 room: { 
                     wall: 0x101010,
                     floor: 0x050505,
@@ -132,13 +135,14 @@ export class LightingManager {
         };
     }
 
+    //in this code we apply a preset by updating the colors and intensities of the lights and room materials
     applyLightPreset(presetName) {
         const preset = this.presets[presetName];
         if (!preset) {
             return;
         }
-        
 
+        //thus, we update the lights based on the preset values
         Object.keys(preset).forEach(type => {
             if (type === 'room') return;
             
@@ -169,15 +173,17 @@ export class LightingManager {
             return;
         }
         
+        //we initialize an ambient light
         this.lightReferences.ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
         this.scene.add(this.lightReferences.ambientLight);
-        
+
+        //we initialize a directional light with also shadows, that are basically projected everywhere
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
         directionalLight.position.set(-50, 40, 40);
         directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+
         const shadowAreaSize = 60;
         directionalLight.shadow.camera.left = -shadowAreaSize;
         directionalLight.shadow.camera.right = shadowAreaSize;
@@ -188,13 +194,15 @@ export class LightingManager {
         
         this.scene.add(directionalLight);
         
-        this.lightReferences.clawSpotlight = new THREE.SpotLight(0xff4444, 3.5, 20, Math.PI / 2, 0.8);
+        //we also define the spotlight on the claw machine, 
+        this.lightReferences.clawSpotlight = new THREE.SpotLight(0xff4444, 5.0, 20, Math.PI / 2, 0.8);
         this.lightReferences.clawSpotlight.position.set(this.machineOffset.x, 7, this.machineOffset.z + 3);
         this.lightReferences.clawSpotlight.target.position.set(this.machineOffset.x, 0, this.machineOffset.z);
         this.lightReferences.clawSpotlight.castShadow = true;
         this.scene.add(this.lightReferences.clawSpotlight);
         this.scene.add(this.lightReferences.clawSpotlight.target);
         
+        //there are going to be 2 spotlights illuminating the claw machine
         const clawSupport1 = new THREE.PointLight(0xff4444, 1.5, 12);
         clawSupport1.position.set(this.machineOffset.x + 3, 5, this.machineOffset.z - 2);
         this.scene.add(clawSupport1);
@@ -202,14 +210,17 @@ export class LightingManager {
         const clawSupport2 = new THREE.PointLight(0xff4444, 1.5, 12);
         clawSupport2.position.set(this.machineOffset.x - 3, 5, this.machineOffset.z + 2);
         this.scene.add(clawSupport2);
+
+        //also, we add a spotlight for the candy machine
         
-        this.lightReferences.candySpotlight = new THREE.SpotLight(0x4444ff, 3.5, 20, Math.PI / 2, 0.8);
+        this.lightReferences.candySpotlight = new THREE.SpotLight(0x4444ff, 5.0, 20, Math.PI / 2, 0.8);
         this.lightReferences.candySpotlight.position.set(this.candyMachineOffset.x, 7, this.candyMachineOffset.z + 3);
         this.lightReferences.candySpotlight.target.position.set(this.candyMachineOffset.x, 0, this.candyMachineOffset.z);
         this.lightReferences.candySpotlight.castShadow = true;
         this.scene.add(this.lightReferences.candySpotlight);
         this.scene.add(this.lightReferences.candySpotlight.target);
         
+        //and in the same way as the claw machine, we instatiate two spotlights 
         const candySupport1 = new THREE.PointLight(0x4444ff, 1.5, 12);
         candySupport1.position.set(this.candyMachineOffset.x + 3, 5, this.candyMachineOffset.z - 2);
         this.scene.add(candySupport1);
@@ -220,6 +231,9 @@ export class LightingManager {
         
         this.lightReferences.wallWashers = [];
         
+
+
+
         for (let i = 0; i < 4; i++) {
             const wallWasher = new THREE.SpotLight(0x44ff44, 2.5, 15, Math.PI / 3, 0.9);
             wallWasher.position.set(-8, 6, -6 + i * 4);
@@ -247,7 +261,7 @@ export class LightingManager {
         
         this.setupCeilingLights();
         
-        // 🆕 AGGIUNGI LUCE DIRETTA DAL SOFFITTO
+        //we now create the light points on the ceiling
         const ceilingDirectionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
         ceilingDirectionalLight.position.set(0, 10, 0);
         ceilingDirectionalLight.target.position.set(0, 0, 0);
@@ -290,13 +304,15 @@ export class LightingManager {
                 
                 const createLight = (mesh) => {
                     if (!mesh) return null;
-                    
+
+                    //what happens is that we create a new material for the mesh with an emissive property
                     mesh.material = new THREE.MeshStandardMaterial({
                         emissive: 0xffffff,
                         emissiveIntensity: 0.0,
                     });
 
-                    const pointLight = new THREE.PointLight(0xffffff, 10.0, 20); // Era 6.0, ora 10.0
+                    //we also create a point light which is added to the led model and it is going to be what emits light
+                    const pointLight = new THREE.PointLight(0xffffff, 10.0, 20); 
                     pointLight.position.copy(mesh.position);
                     ledModel.add(pointLight);
 
@@ -318,7 +334,8 @@ export class LightingManager {
         const ledSize = 0.15;
         const ledSpacing = 0.2;
         const yPos = 0.02;
-
+        //now leds are different since they are not point lights, thus they will be just emissive meshes, so that
+        //they will appear bright despite not emitting light
         const ledGeometry = new THREE.PlaneGeometry(ledSize, ledSize);
         ledGeometry.rotateX(-Math.PI / 2);
 
@@ -464,7 +481,7 @@ export class LightingManager {
             { id: 'candyLightColor', type: 'candy', preview: 'candyLightPreview' },
             { id: 'sideLightColor', type: 'side', preview: 'sideLightPreview' },
             { id: 'centerLightColor', type: 'center', preview: 'centerLightPreview' },
-            { id: 'paintingsLightColor', type: 'paintings', preview: 'paintingsLightPreview' } // 🆕
+            { id: 'paintingsLightColor', type: 'paintings', preview: 'paintingsLightPreview' } 
         ];
         
         colorControls.forEach(control => {
@@ -484,7 +501,7 @@ export class LightingManager {
             { id: 'candyLightIntensity', type: 'candy', valueId: 'candyIntensityValue' },
             { id: 'sideLightIntensity', type: 'side', valueId: 'sideIntensityValue' },
             { id: 'centerLightIntensity', type: 'center', valueId: 'centerIntensityValue' },
-            { id: 'paintingsLightIntensity', type: 'paintings', valueId: 'paintingsIntensityValue' } // 🆕
+            { id: 'paintingsLightIntensity', type: 'paintings', valueId: 'paintingsIntensityValue' } 
         ];
         
         intensityControls.forEach(control => {
@@ -570,7 +587,7 @@ export class LightingManager {
                     if (led.mesh) led.mesh.material.emissive.copy(color);
                 });
                 break;
-            case 'paintings': // 🆕
+            case 'paintings': 
                 if (this.lightReferences.paintingSpotlights) {
                     this.lightReferences.paintingSpotlights.forEach(light => light.color.copy(color));
                 }
@@ -600,7 +617,7 @@ export class LightingManager {
                     if (led.mesh) led.mesh.material.emissiveIntensity = intensity;
                 });
                 break;
-            case 'paintings': // 🆕
+            case 'paintings': 
                 if (this.lightReferences.paintingSpotlights) {
                     this.lightReferences.paintingSpotlights.forEach(light => light.intensity = intensity);
                 }

@@ -12,7 +12,7 @@
     }
     button { margin: 2px; padding: 6px 12px; }
     
-    /* 🆕 STILI AGGIORNATI PER SCROLL */
+
     #lightControls {
       position: absolute;
       top: 10px;
@@ -22,13 +22,13 @@
       color: white;
       border-radius: 8px;
       width: 250px;
-      /* 🆕 AGGIUNGI SCROLL E ALTEZZA MASSIMA */
-      max-height: 80vh; /* Massimo 80% dell'altezza dello schermo */
-      overflow-y: auto; /* Scroll verticale quando necessario */
-      overflow-x: hidden; /* Nasconde scroll orizzontale */
+
+      max-height: 80vh; 
+      overflow-y: auto; 
+      overflow-x: hidden; 
     }
     
-    /* 🆕 STILI PER SCROLLBAR PERSONALIZZATA */
+
     #lightControls::-webkit-scrollbar {
       width: 8px;
     }
@@ -53,7 +53,7 @@
       border: 1px solid #444;
       border-radius: 5px;
       background: rgba(255,255,255,0.1);
-      /* 🆕 AGGIUNGI QUESTO PER EVITARE PROBLEMI DI OVERFLOW */
+
       box-sizing: border-box;
     }
     
@@ -70,7 +70,7 @@
       height: 20px;
       border-radius: 50%;
       border: 2px solid white;
-      flex-shrink: 0; /* 🆕 IMPEDISCE AL PREVIEW DI RESTRINGERSI */
+      flex-shrink: 0; 
     }
     
     input[type="color"] {
@@ -79,7 +79,7 @@
       border: none;
       border-radius: 5px;
       cursor: pointer;
-      box-sizing: border-box; /* 🆕 AGGIUNTO PER CONSISTENCY */
+      box-sizing: border-box; 
     }
     
     .intensity-control {
@@ -98,7 +98,7 @@
       border-radius: 5px;
       background: #444;
       outline: none;
-      box-sizing: border-box; /* 🆕 AGGIUNTO */
+      box-sizing: border-box;
     }
     
     input[type="checkbox"] {
@@ -115,10 +115,10 @@
       padding: 8px 12px;
       border-radius: 5px;
       cursor: pointer;
-      z-index: 1000; /* 🆕 ASSICURA CHE SIA SEMPRE VISIBILE */
+      z-index: 1000; 
     }
     
-    /* 🆕 STILI PER I PULSANTI PRESET */
+
     .preset-buttons {
       margin-top: 15px;
       border-top: 1px solid #444;
@@ -140,7 +140,7 @@
       transform: scale(1.05);
     }
     
-    /* 🆕 INDICATORE SCROLL */
+
     .scroll-indicator {
       position: sticky;
       bottom: 0;
@@ -153,7 +153,7 @@
       margin-top: 10px;
     }
 
-    /* 🆕 LOADING AND CHARACTER SELECTION SCREENS */
+
     .overlay-screen {
       position: absolute;
       top: 0;
@@ -170,7 +170,7 @@
       backdrop-filter: blur(10px);
     }
 
-    /* 🆕 Make the character selection screen transparent to see the 3D models */
+
     #characterSelectionScreen {
         background: transparent;
         backdrop-filter: none;
@@ -268,7 +268,7 @@
         background-color: #218838;
     }
 
-    /* 🆕 PAUSE MENU */
+
     #pauseMenu {
       background: rgba(26, 26, 46, 0.9);
     }
@@ -295,7 +295,7 @@
       transform: scale(1.05);
     }
 
-    /* 🎮 HOMEPAGE STYLES */
+
     .homepage-container {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       padding: 20px;

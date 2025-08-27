@@ -15,10 +15,10 @@ class PopcornParticle {
     this.colliders = colliders; // Static colliders for machine collision
     
 
-    //  Limiti del contenitore, calcolati una sola volta dal manager
+
     this.containerBounds = containerBounds;
-    
-    // Stato per l'accumulo: quando un popcorn si ferma, smette di essere calcolato
+
+    // when a popcorn stops, it is considered settled
     this.isSettled = false;
 
     this.reset();
@@ -69,14 +69,14 @@ class PopcornParticle {
 
     // check collision with the floor - immediately respawn for continuous effect
     if (pos.y < this.containerBounds.min.y) {
-        // Immediately reset the particle for continuous popping effect
+        // immediately reset the particle for continuous popping effect
         setTimeout(() => {
             this.reset();
         }, Math.random() * 200 + 50); // Faster respawn (0.05-0.25 seconds) before respawning
         
-        // Temporarily hide the particle or move it out of view while waiting to respawn
+        //temporarily hide the particle or move it out of view while waiting to respawn
         this.mesh.visible = false;
-        this.isSettled = true; // Stop updating until reset
+        this.isSettled = true; //stop updating until reset
     }
     
     // check collision with the ceiling of the machine
@@ -103,11 +103,11 @@ class PopcornParticle {
     }
   }
 
-  // Handle collision with static colliders (machines)
+  //handle collision with static colliders (machines)
   handleStaticCollisions() {
     if (!this.colliders || this.colliders.length === 0) return;
     
-    const particleRadius = this.baseScale * 0.5; // Approximate radius
+    const particleRadius = this.baseScale * 0.5; //approximate radius
     const position = this.mesh.position;
     
     this.colliders.forEach(staticMesh => {
@@ -166,24 +166,24 @@ class PopcornParticle {
   }
 
   update(dt) {
-    // Se il popcorn è depositato, non fare nulla
+    //se il popcorn è depositato, non fare nulla
     if (this.isSettled) {
       return;
     }
     
-    // Applica la gravità e aggiorna la posizione
+    //applica la gravità e aggiorna la posizione
     this.velocity.y -= this.gravity * dt;
     this.mesh.position.addScaledVector(this.velocity, dt);
 
-    // Applica la rotazione
+    // we apply also a rotation in order to make a more pleasant effect
     this.mesh.rotation.x += this.angularVelocity.x * dt;
     this.mesh.rotation.y += this.angularVelocity.y * dt;
     this.mesh.rotation.z += this.angularVelocity.z * dt;
-    
-    //  Controlla le collisioni con il contenitore
+
+    //check collisions with container
     this.handleContainment();
     
-    //  Check collision with static colliders (machines)
+    //check collision with static colliders (machines)
     this.handleStaticCollisions();
     
     // Floor collision (when no container bounds) - immediately respawn
@@ -241,21 +241,21 @@ export class PopcornManager {
         new PopcornParticle(geometry, material, scene, spawnMesh, containerBounds, this.colliders, this.gravity, this.baseScale)
       );
     }
-    
-    setInterval(() => this.burst(this.burstSize), this.burstInterval);
+
+    setInterval(() => this.burst(this.burstSize), this.burstInterval); //we basically create a burst effect by reactivating some particles every interval
   }
   
   // let a number of popcorn burst - now just for initial startup since particles self-reset
   burst(amount = 3) { // Reduced amount since particles will self-reset
-    console.log('Burst called with amount:', amount);
+
     const settledParticles = this.particles.filter(p => p.isSettled);
-    console.log('Settled particles available:', settledParticles.length);
+
     
-    // Only burst a small amount to supplement the continuous self-resetting
+    // only burst a small amount to supplement the continuous self-resetting
     const activeParticles = this.particles.filter(p => !p.isSettled);
     const shouldBurst = settledParticles.length > 5 || activeParticles.length === 0;
-    
-    if (!shouldBurst) return; // Don't burst if most particles are already active
+    //we do the burst only when enough particles are settled or if all are active (initial burst)
+    if (!shouldBurst) return; // don't burst if most particles are already active
     
     for (let i = 0; i < Math.min(amount, settledParticles.length || this.particles.length); i++) {
       let p = null;
@@ -266,11 +266,11 @@ export class PopcornManager {
       } else {
         // Fallback for initial startup
         p = this.particles[Math.floor(Math.random() * this.particles.length)];
-        console.log('Using random particle for initial burst');
+
       }
       
       if(p) {
-        console.log('Resetting particle');
+
         p.reset();
         // Remove from settled particles array to avoid reusing the same particle
         const index = settledParticles.indexOf(p);

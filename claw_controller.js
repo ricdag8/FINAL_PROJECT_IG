@@ -83,6 +83,16 @@ export class ClawController {
             this.chuteMesh.updateWorldMatrix(true, false);
             this.chuteBox = new THREE.Box3().setFromObject(this.chuteMesh);
             this.createDropZoneIndicator();
+            
+            // Set up chute safety zone in physics engine to prevent objects from falling into chute
+            const chuteCenter = new THREE.Vector3();
+            this.chuteBox.getCenter(chuteCenter);
+            const chuteSize = new THREE.Vector3();
+            this.chuteBox.getSize(chuteSize);
+            
+            // Use a smaller, more precise safety radius to avoid interfering with claw operation
+            const safetyRadius = Math.max(chuteSize.x, chuteSize.z) * 0.4; // 40% of the larger dimension
+            this.physicsEngine.setChuteSafetyZone(chuteCenter, safetyRadius);
         }
         
         // Initialize cable after spawn position is set

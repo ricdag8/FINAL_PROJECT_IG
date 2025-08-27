@@ -78,9 +78,9 @@ export class ThirdPersonCamera {
 
 
         /*  animation Priority: camera animations override normal following
-greeting Freeze: Camera stays still while player greets NPCs/objects
-directional Following: Camera always stays behind player relative to their rotation
-instant Response: No smoothing - camera moves immediately with player
+greeting freeze: camera stays still while player greets NPCs/objects
+directional following: camera always stays behind player relative to their rotation
+instant response: no smoothing - camera moves immediately with player
 */
     }
 
@@ -158,21 +158,21 @@ instant Response: No smoothing - camera moves immediately with player
     }
     
     // debug , remove
-    getDebugInfo() {
-        if (!this.target) return null;
+    // getDebugInfo() {
+    //     if (!this.target) return null;
         
-        const playerPos = this.target.getPosition();
-        const cameraPos = this.camera.position;
-        const playerForward = this.target.getForwardDirection();
+    //     const playerPos = this.target.getPosition();
+    //     const cameraPos = this.camera.position;
+    //     const playerForward = this.target.getForwardDirection();
         
-        return {
-            playerPosition: playerPos,
-            cameraPosition: cameraPos,
-            playerForwardDirection: playerForward,
-            distance: this.distance,
-            height: this.height,
-        };
-    }
+    //     return {
+    //         playerPosition: playerPos,
+    //         cameraPosition: cameraPos,
+    //         playerForwardDirection: playerForward,
+    //         distance: this.distance,
+    //         height: this.height,
+    //     };
+    // }
 }
 
 /*
@@ -195,7 +195,7 @@ export class CameraTransition {
         this.onComplete = null;
     }
     
-    // begins smooth camera transition from current position to target position and look-at captures current state and sets up interpolation parameters for animation
+    //begins camera transition from current position to target position and look-at captures current state and sets up interpolation parameters for animation
     startTransition(endPos, endLookAt, onComplete = null) {
         this.startPosition.copy(this.camera.position);
         this.endPosition.copy(endPos);

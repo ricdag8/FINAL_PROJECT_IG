@@ -68,7 +68,7 @@ export class LightingManager {
                 claw: { color: '#ff0044', intensity: 2.5 },
                 candy: { color: '#0044ff', intensity: 2.5 },
                 side: { color: '#44ff00', intensity: 1.8 },
-                center: { color: '#ffffff', intensity: 5 }, // 🆕 Era 1.2, ora 2.5
+                center: { color: '#ffffff', intensity: 5 }, 
                 paintings: { color: '#ffffff', intensity: 1.5 },
                 room: { 
                     wall: 0x2c3e50,
@@ -77,12 +77,12 @@ export class LightingManager {
                 }
             },
             neon: {
-                ambient: { color: '#440066', intensity: 0.15 }, // Violetto
+                ambient: { color: '#440066', intensity: 0.15 }, 
                 claw: { color: '#ff00ff', intensity: 3.0 },
                 candy: { color: '#00ffff', intensity: 3.0 },
                 side: { color: '#ffff00', intensity: 2.5 },
-                center: { color: '#ff8000', intensity: 3.5 }, // 🆕 Era 2.0, ora 3.5
-                paintings: { color: '#aaffff', intensity: 2.0 }, // 🆕
+                center: { color: '#ff8000', intensity: 3.5 }, 
+                paintings: { color: '#aaffff', intensity: 2.0 }, 
                 room: {
                     wall: 0x1a1a2e,
                     floor: 0x222222,
@@ -95,7 +95,7 @@ export class LightingManager {
                 candy: { color: '#ffaa00', intensity: 2.5 },
                 side: { color: '#ff6600', intensity: 2.0 },
                 center: { color: '#ffffaa', intensity: 1.5 },
-                paintings: { color: '#fff8e1', intensity: 1.8 }, // 🆕
+                paintings: { color: '#fff8e1', intensity: 1.8 }, 
                 room: {
                     wall: 0x5d4037,
                     floor: 0x4e342e,
@@ -108,7 +108,7 @@ export class LightingManager {
                 candy: { color: '#00aaff', intensity: 2.2 },
                 side: { color: '#00ffaa', intensity: 1.8 },
                 center: { color: '#aaffff', intensity: 1.2 },
-                paintings: { color: '#e0f7fa', intensity: 1.8 }, // 🆕
+                paintings: { color: '#e0f7fa', intensity: 1.8 }, 
                 room: {
                     wall: 0x37474f,
                     floor: 0x263238,
@@ -116,12 +116,12 @@ export class LightingManager {
                 }
             },
             dark: {
-                ambient: { color: '#87CEEB', intensity: 0.05 }, // Azzurro
+                ambient: { color: '#87CEEB', intensity: 0.05 }, 
                 claw: { color: '#ff0000', intensity: 4.0 },
                 candy: { color: '#0000ff', intensity: 4.0 },
                 side: { color: '#00ff00', intensity: 3.0 },
                 center: { color: '#ffffff', intensity: 0.3 },
-                paintings: { color: '#ffffff', intensity: 2.5 }, // 🆕
+                paintings: { color: '#ffffff', intensity: 2.5 }, 
                 room: { 
                     wall: 0x101010,
                     floor: 0x050505,
@@ -522,7 +522,7 @@ export class LightingManager {
             { id: 'candyLightColor', type: 'candy', preview: 'candyLightPreview' },
             { id: 'sideLightColor', type: 'side', preview: 'sideLightPreview' },
             { id: 'centerLightColor', type: 'center', preview: 'centerLightPreview' },
-            { id: 'paintingsLightColor', type: 'paintings', preview: 'paintingsLightPreview' } // 🆕
+            { id: 'paintingsLightColor', type: 'paintings', preview: 'paintingsLightPreview' } 
         ];
         
         colorControls.forEach(control => {
@@ -542,7 +542,7 @@ export class LightingManager {
             { id: 'candyLightIntensity', type: 'candy', valueId: 'candyIntensityValue' },
             { id: 'sideLightIntensity', type: 'side', valueId: 'sideIntensityValue' },
             { id: 'centerLightIntensity', type: 'center', valueId: 'centerIntensityValue' },
-            { id: 'paintingsLightIntensity', type: 'paintings', valueId: 'paintingsIntensityValue' } // 🆕
+            { id: 'paintingsLightIntensity', type: 'paintings', valueId: 'paintingsIntensityValue' } 
         ];
         
         intensityControls.forEach(control => {
@@ -658,7 +658,7 @@ export class LightingManager {
                     if (led.mesh) led.mesh.material.emissiveIntensity = intensity;
                 });
                 break;
-            case 'paintings': // 🆕
+            case 'paintings': 
                 if (this.lightReferences.paintingSpotlights) {
                     this.lightReferences.paintingSpotlights.forEach(light => light.intensity = intensity);
                 }

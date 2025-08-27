@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshBVH } from 'https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js';
 import { CandyMachine } from './candy_machine.js';
 
-// 🆕 INTERACTION ZONE CLASS
+
 export class InteractionZone {
     constructor(position, radius, machineType, onEnter, onExit) {
         this.position = position.clone();
@@ -28,18 +28,18 @@ export class InteractionZone {
     }
 }
 
-// 🆕 ROOM AND MACHINE SETUP MANAGER
+
 export class RoomSetupManager {
     constructor() {
         this.scene = null;
         this.physicsEngine = null;
         this.cameraManager = null;
         
-        // 🆕 Room Materials
+
         this.wallMaterial = null;
         this.floorMaterial = null;
         this.ceilingMaterial = null;
-        this.paintingSpotlights = []; // 🆕 Per contenere le luci dei quadri
+        this.paintingSpotlights = [];
         
         // Machine positions
         this.machineOffset = new THREE.Vector3(10, 0, 0);
@@ -258,7 +258,7 @@ export class RoomSetupManager {
 
                 this.scene.add(model);
 
-                // --- 🆕 Aggiungi uno spotlight per il quadro ---
+
                 const spotlight = new THREE.SpotLight(0xffffff, 2.5, 15, Math.PI / 6, 0.4);
                 
                 // Posiziona la luce sopra il quadro e un po' in avanti
@@ -643,7 +643,7 @@ export class RoomSetupManager {
         });
     }
     
-    // 🆕 LOAD ALL MACHINES SEQUENTIALLY
+
     async loadAllMachines() {
         try {
             
