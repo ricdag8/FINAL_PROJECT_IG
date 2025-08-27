@@ -1,252 +1,252 @@
+//import three.js library for 3d graphics
 import * as THREE from 'three';
+//import physics body class for collision detection
 import { RigidBody } from './physics_engine.js';
+//import 3d vector class for position calculations
 import { Vec3 } from './physics_engine_vec3.js';
 
+//candy machine class handles candy dispensing mechanism and coin insertion
 export class CandyMachine {
     constructor(model, physicsEngine, scene) {
-        this.model = model;
-        this.physicsEngine = physicsEngine;
-        this.scene = scene;
-        this.knob = null;
-        this.isAnimating = false;
-        this.rotationProgress = 0;
-        this.rotationDuration = 2;
-        this.candiesInMachine = [];
+        this.model = model; //the 3d model of the candy machine
+        this.physicsEngine = physicsEngine; //physics engine for collision detection
+        this.scene = scene; //three.js scene where objects are rendered
+        this.knob = null; //reference to the machine's rotating knob
+        this.isAnimating = false; //tracks if knob rotation animation is playing
+        this.rotationProgress = 0; //how far the knob has rotated (0 to 1)
+        this.rotationDuration = 2; //time in seconds for complete knob rotation
+        this.candiesInMachine = []; //array of all candy objects inside the machine
 
-        // Define properties before they are used
-        this.candyWorldTargetPos = new THREE.Vector3(); // The destination for the candy
-        this.targetSphere = null; // The green helper sphere
+        //define properties before they are used
+        this.candyWorldTargetPos = new THREE.Vector3(); //world position where candy should be dispensed
+        this.targetSphere = null; //green helper sphere showing dispense target location
 
-        // --- PROPERTIES FOR DISPENSING MECHANISM ---
-        this.gate = null; // Reference to the Gate mesh
-        this.gateSidePlanes = []; // Per animare Plane2, Plane3, Plane4
-        this.gateSidePlanesOriginalPositions = [];
-        this.gateSidePlanesTargetPositions = [];
-        this.gateOriginalPosition = null; // Store original gate position
-        this.isDispensing = false; // Track if dispensing is in progress
-        this.dispensingCandy = null; // The candy being dispensed
-        this.onCandyEjected = null; // AGGIUNTO: Callback per quando la caramella è espulsa
-        this.gateTargetPosition = null; // Target position for gate lowering
+        //properties for dispensing mechanism
+        this.gate = null; //reference to the gate mesh that controls candy flow
+        this.gateSidePlanes = []; //side panels that animate during dispensing
+        this.gateSidePlanesOriginalPositions = []; //original positions of side panels
+        this.gateSidePlanesTargetPositions = []; //target positions for side panels animation
+        this.gateOriginalPosition = null; //original position of the gate before lowering
+        this.isDispensing = false;
+        this.dispensingCandy = null; 
+        this.onCandyEjected = null;
+        this.gateTargetPosition = null; 
         this.gateAnimationProgress = 0;
-        this.dispensingStage = 'idle'; // 'lowering_gate', 'moving_candy', 'descending', 'opening_door', 'ejecting_candy', 'closing_door', 'raising_gate', 'idle'
-        this.candyMoveProgress = 0;
-        this.candyStartPos = new THREE.Vector3();
-        this.releaseDoor = null;
-        this.releaseDoorPivot = null; // A pivot group for correct rotation
-        this.doorAnimationProgress = 0;
-        this.candyDescentTargetPos = new THREE.Vector3(); // New target for the descent phase
-        this.candyIntermediateExitPos = new THREE.Vector3(); // Punto intermedio per l'espulsione
-        this.candyFinalExitPos = new THREE.Vector3();       // Punto di uscita finale
-        this.releaseMechanismPosition = new THREE.Vector3(); // To store Object_6's position
+        this.dispensingStage = 'idle'; //current stage of dispensing process
+        this.candyMoveProgress = 0; //progress of candy movement animation (0 to 1)
+        this.candyStartPos = new THREE.Vector3(); //starting position of candy during dispensing
+        this.releaseDoor = null; //door that opens to let candy out
+        this.releaseDoorPivot = null; //pivot point for door rotation animation
+        this.doorAnimationProgress = 0; //progress of door opening animation (0 to 1)
+        this.candyDescentTargetPos = new THREE.Vector3(); //target position for candy descent phase
+        this.candyIntermediateExitPos = new THREE.Vector3(); //intermediate position during candy exit
+        this.candyFinalExitPos = new THREE.Vector3(); //final position where candy exits machine
+        this.releaseMechanismPosition = new THREE.Vector3(); //position of the release mechanism
 
-        // --- NEW PROPERTIES FOR COIN LOGIC ---
-        this.clawController = null; // reference to the claw controller
-        this.hasCoinInserted = false; // state to check if a coin is ready to be used
-        this.coinMesh = null; // the visual mesh for the coin
+        //properties for coin insertion logic
+        this.clawController = null; //reference to claw controller for score tracking
+        this.hasCoinInserted = false; //tracks if player has inserted a coin
+        this.coinMesh = null; //3d mesh representing the coin
 
-        this._findParts();
-        this._createCoin(); // create the coin mesh at startup
-        this.coinFlyProgress = 0;
-this.coinStartPos = new THREE.Vector3();
-this.coinTargetPos = new THREE.Vector3();
-this.coinIsFlying = false;
-        this.coinHasReachedKnob = false;
-        this.coinDisappearTimer = 0;
-        this.knobAnimationComplete = false; // track if knob has completed 360° rotation
-        this.knobInitialRotationY = 0; // for a precise knob rotation
+        this._findParts(); //find and store references to machine parts
+        this._createCoin(); //create the coin mesh at startup
+        this.coinFlyProgress = 0; //progress of coin flying animation (0 to 1)
+        this.coinStartPos = new THREE.Vector3(); //starting position for coin flying animation
+        this.coinTargetPos = new THREE.Vector3(); //target position for coin flying animation
+        this.coinIsFlying = false; //tracks if coin is currently flying toward knob
+        this.coinHasReachedKnob = false; //tracks if coin has reached the knob
+        this.coinDisappearTimer = 0; //timer for coin disappearing after reaching knob
+        this.knobAnimationComplete = false; //tracks if knob has completed full 360 degree rotation
+        this.knobInitialRotationY = 0; //initial rotation of knob for precise animation
     }
 
+    //sets up the release door and creates rotation pivot for proper hinge animation
     setReleaseDoor(mesh) {
-        this.releaseDoor = mesh;
+        this.releaseDoor = mesh; //store reference to the door mesh
         
         //create a pivot for the door to rotate around its hinge
-        // calculate the pivot point in the door's local coordinates.
-        mesh.geometry.computeBoundingBox();
-        const bbox = mesh.geometry.boundingBox;
-        const pivotPointLocal = new THREE.Vector3(
-            (bbox.min.x + bbox.max.x) / 2,
-            (bbox.min.y + bbox.max.y) / 2,
-            bbox.max.z // we add the pivot to be at a max coordinate along the z-axis
+        //calculate the pivot point in the door's local coordinates
+        mesh.geometry.computeBoundingBox(); //compute bounding box for pivot calculation
+        const bbox = mesh.geometry.boundingBox; //get the bounding box
+        const pivotPointLocal = new THREE.Vector3( //create pivot point at door hinge
+            (bbox.min.x + bbox.max.x) / 2, //center x position
+            (bbox.min.y + bbox.max.y) / 2, //center y position
+            bbox.max.z //max z position for hinge location
         );
 
-        // create the pivot Group and position it where the hinge should be in the world.
-        this.releaseDoorPivot = new THREE.Group();
-        mesh.localToWorld(pivotPointLocal); // this updates pivotPointLocal to world coords
-        this.releaseDoorPivot.position.copy(pivotPointLocal);
-        this.scene.add(this.releaseDoorPivot);
+        //create the pivot group and position it where the hinge should be in world coordinates
+        this.releaseDoorPivot = new THREE.Group(); //create empty group for pivot
+        mesh.localToWorld(pivotPointLocal); //convert local coordinates to world coordinates
+        this.releaseDoorPivot.position.copy(pivotPointLocal); //position pivot at hinge location
+        this.scene.add(this.releaseDoorPivot); //add pivot group to scene
 
-        // attach the door to the pivot, this makes the door a child of the pivot
-        // while maintaining its current world position, thus allowing correct rotation around the hinge
-        //by rotating the parent, we then also rotate the children
+        //attach the door to the pivot making door a child of pivot group
+        //this maintains current world position while allowing rotation around hinge
+        //by rotating the parent pivot we also rotate the child door
         
-        this.releaseDoorPivot.attach(this.releaseDoor);
+        this.releaseDoorPivot.attach(this.releaseDoor); //make door child of pivot for rotation
 
-        // calculate descent target and create its helper here 
-        this.candyDescentTargetPos.copy(this.candyWorldTargetPos); // keep X/Z from the upper target point
-        this.candyDescentTargetPos.y = this.releaseDoorPivot.position.y - 0.9; // use the correct Y from the door pivot and lower it slightly so that it basically corresponds to the exit point
+        //calculate descent target and create helper positions
+        this.candyDescentTargetPos.copy(this.candyWorldTargetPos); //copy x and z from dispense target
+        this.candyDescentTargetPos.y = this.releaseDoorPivot.position.y - 0.9; //set y below door for descent
 
+        //define the intermediate and final exit positions for candy trajectory
+        const pivotPos = this.releaseDoorPivot.position; //get door pivot position
 
-
-        // define the intermediate and final exit positions 
-        const pivotPos = this.releaseDoorPivot.position;
-
-        //the intermediate point (yellow helper) is slightly below the pivot and further back
+        //intermediate exit point is slightly below pivot and further back
         this.candyIntermediateExitPos.set(
-            pivotPos.x,
-            pivotPos.y - 0.5,
-            pivotPos.z + 1.0  
+            pivotPos.x, //same x as door pivot
+            pivotPos.y - 0.5, //slightly below pivot
+            pivotPos.z + 1.0 //further back from door
         );
 
-        // the final exit position (blue helper) is higher than the intermediate, the blue one is the finish line basically when then the animation is executed
+        //final exit position is higher than intermediate making an arc trajectory
         this.candyFinalExitPos.set(
-            pivotPos.x,
-            this.candyIntermediateExitPos.y + 2.0, // positioned higher than the intermediate
-            pivotPos.z + 0.5
+            pivotPos.x, //same x as door pivot
+            this.candyIntermediateExitPos.y + 2.0, //much higher for arc effect
+            pivotPos.z + 0.5 //slightly forward from intermediate
         );
-
-
-
     }
 
-    /*
-      creates the coin mesh and keeps it hidden, ready for use.
-     */
+    //creates the coin mesh and keeps it hidden ready for use
     _createCoin() {
-        const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.008, 16);
-        const coinMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffd700, // Gold color
-            metalness: 0.8,
-            roughness: 0.4
+        const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.008, 16); //thin cylinder shape for coin
+        const coinMaterial = new THREE.MeshStandardMaterial({ //golden material properties
+            color: 0xffd700, //gold color
+            metalness: 0.8, //highly metallic surface
+            roughness: 0.4 //moderately rough for realistic look
         });
-        this.coinMesh = new THREE.Mesh(coinGeometry, coinMaterial);
-        this.coinMesh.material = new THREE.MeshStandardMaterial({
-    color: 0xffff00, emissive: 0xffaa00, emissiveIntensity: 0.8, metalness: 0.7, roughness: 0.3
-});
+        this.coinMesh = new THREE.Mesh(coinGeometry, coinMaterial); //create coin mesh
+        this.coinMesh.material = new THREE.MeshStandardMaterial({ //override with brighter material
+            color: 0xffff00, //bright yellow color
+            emissive: 0xffaa00, //orange glow effect
+            emissiveIntensity: 0.8, //strong glow intensity
+            metalness: 0.7, //metallic surface
+            roughness: 0.3 //smooth surface for shine
+        });
 
-        this.coinMesh.visible = false; // Initially hidden
+        this.coinMesh.visible = false; //initially hidden until inserted
     }
 
-    //we bind the claw controller
+    //binds the claw controller to track scores and spend coins
     setClawController(controller) {
-        this.clawController = controller;
+        this.clawController = controller; //store reference for coin spending
     }
 
-insertCoin() {
-    if (this.hasCoinInserted || this.isAnimating) {
-        return;
-    }
-    if (!this.clawController) {
-        return;
-    }
+    //handles coin insertion when player presses coin button
+    insertCoin() {
+        if (this.hasCoinInserted || this.isAnimating) { //prevent multiple coins or animation conflicts
+            return; //exit if coin already inserted or machine is animating
+        }
+        if (!this.clawController) { //safety check for controller reference
+            return; //exit if no claw controller available
+        }
 
-    if (this.clawController.spendStarAsCoin()) {
-        this.hasCoinInserted = true;
+        if (this.clawController.spendStarAsCoin()) { //try to spend one star as coin
+            this.hasCoinInserted = true; //mark coin as successfully inserted
 
-        if (this.knob && this.coinMesh) {
-           
+            if (this.knob && this.coinMesh) { //check if knob and coin mesh exist
+                //set starting position for coin flying animation
+                const worldStartPos = new THREE.Vector3(2, 2, 5); //starting position in world space
 
-            
-            const worldStartPos = new THREE.Vector3(2, 2, 5);
+                //compute the world position of the knob to use as target
+                const localTargetPos = new THREE.Vector3(-0.1, 0.5, -0.8); //position relative to knob
+                this.knob.updateWorldMatrix(true, false); //update knob world matrix
+                const worldTargetPos = this.knob.localToWorld(localTargetPos.clone()); //convert to world space
 
-            //we basically compute the world position of the knob to use it as target
-            const localTargetPos = new THREE.Vector3(-0.1, 0.5, -0.8);
-            this.knob.updateWorldMatrix(true, false);
-            const worldTargetPos = this.knob.localToWorld(localTargetPos.clone());
+                //convert both global positions to local coordinates relative to coin parent
+                this.model.updateWorldMatrix(true, false); //update model world matrix
+                this.coinStartPos.copy(this.model.worldToLocal(worldStartPos)); //convert start to local
+                this.coinTargetPos.copy(this.model.worldToLocal(worldTargetPos)); //convert target to local
+                //setup coin for flying animation
+                this.model.add(this.coinMesh); //add coin to machine model
+                this.coinMesh.position.copy(this.coinStartPos); //position coin at starting point
+                this.coinMesh.rotation.set(Math.PI / 2, 0, 0); //rotate coin to stand upright
+                this.coinMesh.visible = true; //make coin visible
 
-            // we then convert both global positions to LOCAL coordinates relative to the coin's parent (this.model) so that we can animate the coin in local space
-            this.model.updateWorldMatrix(true, false);
-            this.coinStartPos.copy(this.model.worldToLocal(worldStartPos));
-            this.coinTargetPos.copy(this.model.worldToLocal(worldTargetPos));
-            
-
-            this.model.add(this.coinMesh);
-            this.coinMesh.position.copy(this.coinStartPos); 
-            this.coinMesh.rotation.set(Math.PI / 2, 0, 0);
-            this.coinMesh.visible = true;
-
-            this.coinFlyProgress = 0;
-            this.coinIsFlying = true;
-            this.coinHasReachedKnob = false;
-            this.coinDisappearTimer = 0;
+                //reset animation properties for new coin flight
+                this.coinFlyProgress = 0; //reset animation progress
+                this.coinIsFlying = true; //start flying animation
+                this.coinHasReachedKnob = false; //reset knob reached flag
+                this.coinDisappearTimer = 0; //reset disappear timer
+            }
         }
     }
-}
+    //finds and stores references to important parts of the candy machine model
     _findParts() {
-        const gateMeshes = []; // collect all gate-related meshes, the ones needed in order to lower the gates
-        const allMeshNames = []; // debug: collect all mesh names, to remove!!!
+        const gateMeshes = []; //collect all gate related meshes for dispensing mechanism
+        const allMeshNames = []; //debug array to collect all mesh names
         
-        
+        //traverse through all children in the 3d model to find important parts
         this.model.traverse(child => {
-            if (child.isMesh) {
-                allMeshNames.push(child.name);
+            if (child.isMesh) { //check if child is a mesh object
+                allMeshNames.push(child.name); //add mesh name to debug list
             }
-            if (child.isMesh && child.name === 'Object_6') {
-    this.knob = child;
+            if (child.isMesh && child.name === 'Object_6') { //find the rotating knob
+                this.knob = child; //store reference to knob mesh
 
-    const positions = this.knob.geometry.attributes.position.array;
-    const centroid = new THREE.Vector3();
-    for (let i = 0; i < positions.length; i += 3) {
-        centroid.x += positions[i];
-        centroid.y += positions[i + 1];
-        centroid.z += positions[i + 2];
-    }
-    centroid.divideScalar(positions.length / 3);
+                //center the knob geometry for proper rotation
+                const positions = this.knob.geometry.attributes.position.array; //get vertex positions
+                const centroid = new THREE.Vector3(); //calculate center point
+                for (let i = 0; i < positions.length; i += 3) { //loop through vertices
+                    centroid.x += positions[i]; //sum x coordinates
+                    centroid.y += positions[i + 1]; //sum y coordinates
+                    centroid.z += positions[i + 2]; //sum z coordinates
+                }
+                centroid.divideScalar(positions.length / 3); //calculate average position
 
-    this.knob.geometry.translate(-centroid.x, -centroid.y, -centroid.z);
-    const transformedOffset = centroid.clone().applyQuaternion(this.knob.quaternion).multiply(this.knob.scale);
-    this.knob.position.add(transformedOffset);
+                //translate geometry to center it at origin for proper rotation
+                this.knob.geometry.translate(-centroid.x, -centroid.y, -centroid.z);
+                const transformedOffset = centroid.clone().applyQuaternion(this.knob.quaternion).multiply(this.knob.scale);
+                this.knob.position.add(transformedOffset); //adjust position to compensate
 
-    this.knob.rotation.y += Math.PI; //we rotate the knob by 180 degrees, so it faces the correct direction
-}
+                this.knob.rotation.y += Math.PI; //rotate knob 180 degrees to face correct direction
+            }
 
-            // find the Gate mesh for dispensing
+            //find the gate mesh for dispensing mechanism
             if (child.isMesh && child.name === 'Gate') {
-                this.gate = child;
-                this.gateOriginalPosition = child.position.clone();
-                // calculate gate lowering position (move down by 0.5 units)
-                this.gateTargetPosition = child.position.clone();
-                this.gateTargetPosition.y -= 0.5;
+                this.gate = child; //store reference to gate mesh
+                this.gateOriginalPosition = child.position.clone(); //save original position
+                //calculate gate lowering position by moving down 0.5 units
+                this.gateTargetPosition = child.position.clone(); //copy current position
+                this.gateTargetPosition.y -= 0.5; //lower the target position
             }
 
-
+            //find side planes that animate with the gate
             if (child.isMesh && ['Plane2', 'Plane3', 'Plane4'].includes(child.name)) {
-                this.gateSidePlanes.push(child);
-                const originalPos = child.position.clone();
-                this.gateSidePlanesOriginalPositions.push(originalPos);
+                this.gateSidePlanes.push(child); //add to side planes array
+                const originalPos = child.position.clone(); //save original position
+                this.gateSidePlanesOriginalPositions.push(originalPos); //store for reset
                 
-                const targetPos = originalPos.clone();
-                targetPos.y -= 0.5; 
-                this.gateSidePlanesTargetPositions.push(targetPos);
+                const targetPos = originalPos.clone(); //copy for target calculation
+                targetPos.y -= 0.5; //lower target position same as gate
+                this.gateSidePlanesTargetPositions.push(targetPos); //store target position
             }
 
-
+            //collect all gate related meshes for center calculation
             if (child.isMesh && ['Gate', 'Plane2', 'Plane3', 'Plane4'].includes(child.name)) {
-                gateMeshes.push(child);
-}
+                gateMeshes.push(child); //add to gate meshes for dispensing center
+            }
 
         });
 
         //calculate the center of the gate area for candy targeting
-        if (gateMeshes.length > 0) {
-            this._calculateDispenseCenter(gateMeshes);
+        if (gateMeshes.length > 0) { //check if gate meshes were found
+            this._calculateDispenseCenter(gateMeshes); //calculate dispensing center point
         }
     }
 
-    /**
-     * calculate the center of the gate area for candy targeting
-     */
+    //calculates the center of the gate area for candy targeting
     _calculateDispenseCenter(gateMeshes) {
-        
-        const bounds = new THREE.Box3();
-        gateMeshes.forEach((mesh) => {
-            mesh.updateWorldMatrix(true, false);
-            const meshBounds = new THREE.Box3().setFromObject(mesh);
-            bounds.union(meshBounds);
+        const bounds = new THREE.Box3(); //create bounding box to contain all gates
+        gateMeshes.forEach((mesh) => { //loop through each gate mesh
+            mesh.updateWorldMatrix(true, false); //update mesh world matrix
+            const meshBounds = new THREE.Box3().setFromObject(mesh); //get mesh bounds
+            bounds.union(meshBounds); //combine with total bounds
         });
         
-        //get the center in world coordinates and store it.
-        bounds.getCenter(this.candyWorldTargetPos);
-        
+        //get the center in world coordinates and store it
+        bounds.getCenter(this.candyWorldTargetPos); //calculate and store center point
     }
 
     populate(containerMesh, count, candyGeometry, scene) {
@@ -354,36 +354,37 @@ insertCoin() {
     /*
       Start the candy dispensing sequence
      */
+    //starts the candy dispensing sequence when player inserts coin
     startCandyDispensing() {
-        if (!this.hasCoinInserted) {
-            return;
+        if (!this.hasCoinInserted) { //check if coin was inserted
+            return; //exit if no coin available
         }
         
-        if (this.isDispensing || this.isAnimating) {
-            return;
+        if (this.isDispensing || this.isAnimating) { //prevent multiple dispensing operations
+            return; //exit if already dispensing or animating
         }
         
-        if (this.candiesInMachine.length === 0) {
-            return;
+        if (this.candiesInMachine.length === 0) { //check if candies are available
+            return; //exit if no candies to dispense
         }
         
+        //start both dispensing and knob animation simultaneously
+        this.isDispensing = true; //mark dispensing as active
+        this.dispensingStage = 'lowering_gate'; //set first stage of dispensing
+        this.gateAnimationProgress = 0; //reset gate animation progress
         
-        // START BOTH dispensing AND knob animation
-        this.isDispensing = true;
-        this.dispensingStage = 'lowering_gate';
-        this.gateAnimationProgress = 0;
-        
-        // START KNOB ANIMATION
-        this.isAnimating = true;
-        this.rotationProgress = 0;
-        this.knobAnimationComplete = false;
-        if (this.knob) {
-            this.knobInitialRotationY = this.knob.rotation.y;
+        //start knob rotation animation
+        this.isAnimating = true; //mark knob animation as active
+        this.rotationProgress = 0; //reset knob rotation progress
+        this.knobAnimationComplete = false; //reset completion flag
+        if (this.knob) { //check if knob exists
+            this.knobInitialRotationY = this.knob.rotation.y; //save initial rotation
         }
     }
 
+    //updates the multi stage dispensing animation system
     updateDispensingAnimation(deltaTime) {
-        const animationSpeed = 2.0; //animation speed multiplier, this appeared to be the right value
+        const animationSpeed = 2.0; //animation speed multiplier for all dispensing stages
 
         switch (this.dispensingStage) {
             case 'lowering_gate':
@@ -628,59 +629,60 @@ insertCoin() {
         }
     }
 
+    //main update method called every frame to handle all animations
     update(deltaTime) {
-    if (this.coinIsFlying) {
-        this.coinFlyProgress += deltaTime;
-        const t = Math.min(this.coinFlyProgress / 0.8, 1);
-        const pos = new THREE.Vector3().lerpVectors(this.coinStartPos, this.coinTargetPos, t);
-        pos.y += Math.sin(t * Math.PI) * 0.5;
-        this.coinMesh.position.copy(pos);
+        //handle coin flying animation when coin is inserted
+        if (this.coinIsFlying) {
+            this.coinFlyProgress += deltaTime; //update animation progress
+            const t = Math.min(this.coinFlyProgress / 0.8, 1); //normalize to 0-1 over 0.8 seconds
+            const pos = new THREE.Vector3().lerpVectors(this.coinStartPos, this.coinTargetPos, t); //interpolate position
+            pos.y += Math.sin(t * Math.PI) * 0.5; //add arc trajectory with sine wave
+            this.coinMesh.position.copy(pos); //update coin position
 
-        if (t >= 1) {
-            this.coinIsFlying = false;
-            this.coinHasReachedKnob = true;
+            if (t >= 1) { //check if animation is complete
+                this.coinIsFlying = false; //stop flying animation
+                this.coinHasReachedKnob = true; //mark coin as reached knob
 
-            this.model.remove(this.coinMesh);
-            this.knob.add(this.coinMesh);
+                this.model.remove(this.coinMesh); //remove coin from machine model
+                this.knob.add(this.coinMesh); //add coin to knob as child
 
-            // reposition and rotate the coin relative to the knob
-            this.coinMesh.position.set(-0.1, 0.5, -0.8);
-            this.coinMesh.rotation.set(0, Math.PI / 2, 0);
-
-        }
-    }
-
-    // handle the dispensing state machine
-    if (this.isDispensing) {
-        this.updateDispensingAnimation(deltaTime);
-    }
-
-    // handle knob animation
-    if (this.isAnimating) {
-        this.rotationProgress += deltaTime;
-        const t = Math.min(this.rotationProgress / this.rotationDuration, 1);
-
-        if (this.knob) {
-
-            this.knob.rotation.y = this.knobInitialRotationY + t * (Math.PI * 2);
-        }
-
-        if (this.coinHasReachedKnob) {
-            this.coinDisappearTimer += deltaTime;
-            if (this.coinDisappearTimer >= 0.3 && this.coinMesh.visible) {
-                this.coinMesh.visible = false;
+                //reposition and rotate the coin relative to the knob
+                this.coinMesh.position.set(-0.1, 0.5, -0.8); //set local position on knob
+                this.coinMesh.rotation.set(0, Math.PI / 2, 0); //rotate coin to face correctly
             }
         }
 
+        //handle the dispensing state machine
+        if (this.isDispensing) {
+            this.updateDispensingAnimation(deltaTime); //update multi stage dispensing animation
+        }
 
-        if (this.rotationProgress >= this.rotationDuration) {
-            this.knobAnimationComplete = true;
-            
-            // If the dispensing part is waiting for us, end the whole sequence
-            if (this.dispensingStage === 'waiting_for_knob') {
-                this._completeDispensingSequence();
+        //handle knob rotation animation
+        if (this.isAnimating) {
+            this.rotationProgress += deltaTime; //update rotation progress
+            const t = Math.min(this.rotationProgress / this.rotationDuration, 1); //normalize to 0-1
+
+            if (this.knob) { //check if knob exists
+                this.knob.rotation.y = this.knobInitialRotationY + t * (Math.PI * 2); //rotate 360 degrees
+            }
+
+            //handle coin disappearing after reaching knob
+            if (this.coinHasReachedKnob) {
+                this.coinDisappearTimer += deltaTime; //increment disappear timer
+                if (this.coinDisappearTimer >= 0.3 && this.coinMesh.visible) { //wait 0.3 seconds
+                    this.coinMesh.visible = false; //hide the coin
+                }
+            }
+
+            //check if knob rotation is complete
+            if (this.rotationProgress >= this.rotationDuration) {
+                this.knobAnimationComplete = true; //mark rotation as complete
+                
+                //if dispensing is waiting for knob completion end the whole sequence
+                if (this.dispensingStage === 'waiting_for_knob') {
+                    this._completeDispensingSequence(); //complete the entire dispensing process
+                }
             }
         }
-    }
-    }
-}
+    } //end of main update method
+} //end of candy machine class
