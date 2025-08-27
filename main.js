@@ -24,6 +24,14 @@ import {
     tryInitializeClawController,
     resetObjects
 } from './prize_trigger_manager.js';
+import {
+    showInteractionPrompt,
+    hideInteractionPrompt,
+    updateModeIndicator,
+    enterMachineMode,
+    exitMachineMode,
+    toggleClawCameraMode
+} from './ui_manager.js';
 
 
 
@@ -304,7 +312,7 @@ function initializeGameLogic() {
     CameraUtils.initGlobalControls(cameraManager);
     
     const gameStateManager = { get currentZone() { return currentZone; } };
-    const modeManager = { enterMachineMode: enterMachineMode };
+    const modeManager = { enterMachineMode: enterMachineModeWrapper };
     playerInputHandler = new PlayerInputHandler(playerController, gameStateManager, modeManager, cameraManager);
     
     document.addEventListener('keydown', handleKeyDown);
@@ -315,7 +323,7 @@ function initializeGameLogic() {
     document.getElementById('returnToMainMenuBtn').onclick = () => window.location.reload();
     document.getElementById('changeCharacterBtn').onclick = handleChangeCharacter;
 
-    updateModeIndicator('exploration');
+    updateModeIndicator('exploration', clawCameraMode);
 
     // Resume game
     isGamePaused = false;
@@ -345,61 +353,46 @@ function handleChangeCharacter() {
 function onZoneEnter(zone) {
     currentZone = zone;
     roomSetupManager.setCurrentZone(zone);
-    showInteractionPrompt(zone.machineType);
+    showInteractionPrompt(zone.machineType, interactionPrompt);
 }
 
 function onZoneExit(zone) {
     currentZone = null;
     roomSetupManager.setCurrentZone(null);
-    hideInteractionPrompt();
+    hideInteractionPrompt(interactionPrompt);
 }
 
 
-function showInteractionPrompt(machineType) {
-    if (interactionPrompt) {
-        const machineName = machineType === 'claw_machine' ? 'Claw Machine' : 'Candy Machine';
-        interactionPrompt.innerHTML = `Press <span style="color: #ffd700;">E</span> to use ${machineName}`;
-        interactionPrompt.style.display = 'block';
+
+
+// wrapper functions to maintain compatibility with existing code
+function enterMachineModeWrapper(machineType) {
+    const result = enterMachineMode(machineType, cameraManager, playerController, machineOffset, candyMachineOffset, interactionPrompt, clawCameraMode);
+    if (result.success) {
+        gameMode = result.newGameMode;
     }
 }
 
-function hideInteractionPrompt() {
-    if (interactionPrompt) {
-        interactionPrompt.style.display = 'none';
+function exitMachineModeWrapper() {
+    const result = exitMachineMode(cameraManager, playerController, controls, camera, currentZone, interactionPrompt, clawCameraMode);
+    if (result.success) {
+        gameMode = result.newGameMode;
+        clawCameraMode = result.newClawCameraMode;
+        normalCameraPosition = result.normalCameraPosition;
+        normalCameraTarget = result.normalCameraTarget;
     }
 }
 
-function updateModeIndicator(mode) {
-    const indicator = document.getElementById('modeIndicator');
-    if (!indicator) return;
-    
-    switch(mode) {
-        case 'exploration':
-            indicator.textContent = 'Exploration Mode - WASD to move, E to interact';
-            indicator.style.background = 'rgba(0,0,0,0.7)';
-            break;
-        case 'claw_machine':
-            const cameraMode = clawCameraMode === 'top_down' ? 'TOP-DOWN' : 'FIRST PERSON';
-            indicator.textContent = `${cameraMode} - Claw Machine: WASD to move claw, ↓ to grab, P to toggle camera, ESC to exit`;
-            indicator.style.background = 'rgba(255,68,68,0.8)';
-            break;
-        case 'candy_machine':
-            indicator.textContent = 'FIRST PERSON - Candy Machine: C to insert coin, M to dispense, ESC to exit';
-            indicator.style.background = 'rgba(68,68,255,0.8)';
-            break;
-        case 'popcorn':
-            indicator.textContent = 'POPCORN MODE ACTIVE - X to toggle popcorn rain, WASD to move';
-            indicator.style.background = 'rgba(255,215,0,0.8)';
-            break;
-        case 'disco':
-            indicator.textContent = 'DISCO MODE ACTIVE - L to toggle party lights, WASD to move';
-            indicator.style.background = 'rgba(255,0,255,0.8)';
-            break;
+function toggleClawCameraModeWrapper() {
+    const result = toggleClawCameraMode(gameMode, cameraManager, clawGroup, camera, normalCameraPosition, normalCameraTarget, clawCameraMode);
+    if (result.success) {
+        clawCameraMode = result.newClawCameraMode;
+        normalCameraPosition = result.normalCameraPosition;
+        normalCameraTarget = result.normalCameraTarget;
     }
 }
 
-
-window.updateModeIndicator = updateModeIndicator;
+window.updateModeIndicator = (mode) => updateModeIndicator(mode, clawCameraMode);
 
 
 function setupPhysicsAndObjects() {
@@ -641,115 +634,12 @@ window.applyLightPreset = function(presetName) {
 
 
 
-function enterMachineMode(machineType) {
-    if (!cameraManager || !playerController?.mesh) return;
-    
-    gameMode = machineType;
-    
-
-    playerController.mesh.visible = false;
-    
-    // use the camera manager to switch view in first person 
-    const targetMachineOffset = machineType === 'claw_machine' ? machineOffset : candyMachineOffset;
-    cameraManager.switchToMachineMode(machineType, targetMachineOffset, () => {
-      
-        
-        updateModeIndicator(machineType);
-        hideInteractionPrompt();
-    });
-}
-
-function exitMachineMode() {
-    if (!cameraManager || !playerController?.mesh) return;
-    
-    const oldMode = gameMode;
-    gameMode = 'exploration';
-    
-
-    clawCameraMode = 'normal';
-    camera.userData.followClaw = false;
-    normalCameraPosition = null;
-    normalCameraTarget = null;
-    
-
-    playerController.mesh.visible = true;
-    
-    // disable machine controls
-    controls.enabled = false;
-    
-    // use camera manager to switch back to exploration mode
-    cameraManager.switchToExplorationMode(playerController, () => {
-        updateModeIndicator('exploration');
-        
-        // check if player is still in a zone
-        if (currentZone) {
-            showInteractionPrompt(currentZone.machineType);
-        }
-    });
-}
-
-
-function toggleClawCameraMode() {
-    if (gameMode !== 'claw_machine' || !cameraManager || !clawGroup) return;
-    
-    if (clawCameraMode === 'normal') {
-        // save current camera position and target
-        normalCameraPosition = camera.position.clone();
-        normalCameraTarget = new THREE.Vector3();
-        camera.getWorldDirection(normalCameraTarget);
-        normalCameraTarget.add(camera.position);
-        
-        // switch to top-down view
-        switchToTopDownView();
-        clawCameraMode = 'top_down';
-        updateModeIndicator('claw_machine');
-    } else {
-        // switch back to normal view
-        switchToNormalView();
-        clawCameraMode = 'normal';
-        updateModeIndicator('claw_machine');
-    }
-}
-
-function switchToTopDownView() {
-    if (!clawGroup) return;
-    
-    // get the claw's current position
-    const clawPosition = clawGroup.position.clone();
-    
-    // position camera above the claw
-    const cameraHeight = 1.5; // Height above the claw
-    const cameraPos = new THREE.Vector3(
-        clawPosition.x,
-        clawPosition.y + cameraHeight,
-        clawPosition.z
-    );
-    
-    // set camera position and look down at the claw
-    camera.position.copy(cameraPos);
-    camera.lookAt(clawPosition);
-    
-    // update camera each frame to follow the claw
-    camera.userData.followClaw = true;
-}
-
-function switchToNormalView() {
-    if (!normalCameraPosition || !normalCameraTarget) return;
-    
-    // restore the original camera position and target
-    camera.position.copy(normalCameraPosition);
-    camera.lookAt(normalCameraTarget);
-    
-    // Stop following the claw
-    camera.userData.followClaw = false;
-}
-
 
 function handleKeyDown(e) {
     const callbacks = {
         togglePauseMenu,
-        toggleClawCameraMode,
-        exitMachineMode,
+        toggleClawCameraMode: toggleClawCameraModeWrapper,
+        exitMachineMode: exitMachineModeWrapper,
         updateCoinsDisplay: (newCoins) => { coins = newCoins; }
     };
     
