@@ -78,14 +78,20 @@ function handleClawMachineKeyDown(e, callbacks) {
             clawController.setMoving('backward', true);
             break;
         case 'ArrowDown':
+            console.log('ArrowDown pressed - repeat:', e.repeat, 'gameOver:', isGameOver, 'isAnimating:', clawController?.isAnimating, 'coins:', coins);
             if (!e.repeat && !isGameOver && !clawController.isAnimating) {
                 if (coins > 0) {
+                    console.log('Processing ArrowDown - decrementing coins and starting drop sequence');
                     coins--;
                     clawController.startDropSequence();
                     if (callbacks.updateCoinsDisplay) {
                         callbacks.updateCoinsDisplay(coins);
                     }
+                } else {
+                    console.log('ArrowDown blocked - no coins available');
                 }
+            } else {
+                console.log('ArrowDown blocked by conditions');
             }
             break;
         case 'KeyP':

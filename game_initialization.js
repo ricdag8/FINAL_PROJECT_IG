@@ -179,10 +179,10 @@ function loadGameAssets() {
     roomSetupManager.loadAllMachines().then((results) => {
         dependencies.setupCompatibilityReferences();
         
-        // Set candy machine callback
-        if (dependencies.candyMachine) {
-            dependencies.candyMachine.onCandyEjected = dependencies.startCandyDisappearanceAnimation;
-        }
+        // Set candy machine callback (will be properly set later in main.js with physicsEngine)
+        // if (dependencies.candyMachine) {
+        //     dependencies.candyMachine.onCandyEjected = dependencies.startCandyDisappearanceAnimation;
+        // }
         
         // Load popcorn machine
         loadPopcornMachine();

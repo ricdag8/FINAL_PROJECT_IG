@@ -279,11 +279,14 @@ export class ClawController {
 
 calculateAndSetDropHeight() {
     const fallbackHeight = this.machineBox ? this.machineBox.min.y + 0.5 : 0;
-    // drop at an height of 0.5
+    console.log('calculateAndSetDropHeight - fallbackHeight:', fallbackHeight);
+    console.log('Current claw Y position:', this.clawGroup.position.y);
+    console.log('grabbableObjects length:', this.grabbableObjects?.length || 0);
 
     //if we dont have any grabbable objcects, then we set the drop height to a fallback value, because we need a valid target
     if (!this.grabbableObjects || this.grabbableObjects.length === 0) {
         this.dropTargetY = fallbackHeight;
+        console.log('No grabbable objects - using fallback height:', this.dropTargetY);
         return;
     }
 
@@ -291,31 +294,44 @@ calculateAndSetDropHeight() {
     this.grabbableObjects.forEach(objData => {
 
         if (objData && objData.body && objData.body.position && !objData.body.isHeld) {
+            console.log('Object position Y:', objData.body.position.y, 'name:', objData.name);
             if (objData.body.position.y > highestY) {
                 highestY = objData.body.position.y;
             }
         }
     });
 
+    console.log('Highest Y found:', highestY);
 
     if (highestY === -Infinity) {
         this.dropTargetY = fallbackHeight;
+        console.log('No valid objects found - using fallback height:', this.dropTargetY);
         return;
     }
 
     // apply a small penetration offset to ensure the claw goes slightly below the object's top
-    const penetrationOffset = -0.15; //penetration value
-    this.dropTargetY = highestY - penetrationOffset; //subtract the offset instead of adding it
+    const penetrationOffset = 0.15; // FIXED: Changed to positive to go ABOVE the object
+    this.dropTargetY = highestY + penetrationOffset; // FIXED: Add offset to go above the object
 
     // final safety check: make sure the target is not below the machine's floor
     if (this.machineBox && this.dropTargetY < this.machineBox.min.y) {
         this.dropTargetY = this.machineBox.min.y + 0.1;
+        console.log('Drop target clamped to floor level:', this.dropTargetY);
     }
 
+    // MOST IMPORTANT FIX: Ensure we always drop DOWN from current position
+    // The drop target should always be BELOW the current claw position
+    if (this.dropTargetY >= this.clawGroup.position.y) {
+        this.dropTargetY = fallbackHeight;
+        console.log('Drop target was above/equal to claw - using fallback height:', this.dropTargetY);
+    }
+
+    console.log('Final dropTargetY:', this.dropTargetY);
 }
 
 // before starting a drop, blocks the descent if the claw is horizontally over the chute (with a safety margin).
 startDropSequence() {
+    console.log('startDropSequence called - Current state:', this.automationState, 'isAnimating:', this.isAnimating);
 
     if (this.chuteBox) {
         const clawPos = this.clawGroup.position;
@@ -338,6 +354,7 @@ startDropSequence() {
             clawPos.z <= (chuteBounds.max.z + safeMarginZ);
 
         if (isOverChute) {
+            console.log('Drop blocked - claw is over chute');
             return; 
         }
     }
@@ -346,6 +363,7 @@ startDropSequence() {
 
 
     if (this.automationState === 'MANUAL_HORIZONTAL' && !this.isAnimating) { //
+        console.log('Starting drop sequence - setting state to DESCENDING');
         
         if (this.button) { //
             this.buttonPressTime = Date.now(); //
@@ -356,17 +374,23 @@ startDropSequence() {
         this.isAnimating = true; //
         this.returnYPosition = this.clawGroup.position.y; //
         this.automationState = 'DESCENDING'; //
+    } else {
+        console.log('Drop sequence blocked - automationState:', this.automationState, 'isAnimating:', this.isAnimating);
     }
 }
 
 
 async runCloseSequence() {
+    console.log('runCloseSequence called - transitioning to OPERATING');
     this.automationState = 'OPERATING';
 //this new state is operating, and we need to close the claw
+    console.log('Starting claw close animation');
     await this.closeClaw(); 
 //we have to wait for the claw to close before proceeding, also setting a small timer before proceeding
+    console.log('Claw closed, waiting 300ms');
     await new Promise(resolve => setTimeout(resolve, 300));
 
+    console.log('runCloseSequence complete - transitioning to ASCENDING');
     this.automationState = 'ASCENDING';
 }
 
@@ -691,9 +715,12 @@ openClaw() {
             }
 
             case 'DESCENDING': {
+                console.log('DESCENDING state - Current Y:', this.clawGroup.position.y, 'Target Y:', this.dropTargetY, 'Difference:', this.clawGroup.position.y - this.dropTargetY);
                 if (this.clawGroup.position.y > this.dropTargetY) {
+                    console.log('DESCENDING: Moving down by', this.moveSpeed * deltaTime);
                     this.clawGroup.position.y -= this.moveSpeed * deltaTime;
                 } else {
+                    console.log('DESCENDING: Reached target Y, starting close sequence. Current Y:', this.clawGroup.position.y, 'Target Y:', this.dropTargetY);
                     this.clawGroup.position.y = this.dropTargetY;
                     this.runCloseSequence();
                 }
@@ -712,17 +739,24 @@ openClaw() {
                     this.clawGroup.position.y = this.returnYPosition;
     
                     if (this.isGrabbing && this.grabbedObject) {
+                        console.log('ASCENDING: Object grabbed, moving to DELIVERING_MOVE_X');
                         this.automationState = 'DELIVERING_MOVE_X';
                     } else {
-                        this.automationState = 'RELEASING_OBJECT';
-                        this.releasingObjectStartTime = Date.now();
+                        console.log('ASCENDING: No object grabbed, resetting to MANUAL_HORIZONTAL');
+                        // Immediately reset state for unsuccessful grabs to prevent getting stuck
+                        this.automationState = 'MANUAL_HORIZONTAL';
+                        this.isAnimating = false;
+                        this.isClosed = false;
+                        this.isClosing = false;
+                        this.isGrabbing = false;
+                        this.grabbedObject = null;
+                        console.log('State reset complete - automationState:', this.automationState, 'isAnimating:', this.isAnimating);
+                        
+                        // Open claw asynchronously without blocking state reset
                         this.openClaw().then(() => {
-                            this.automationState = 'MANUAL_HORIZONTAL';
-                            this.isAnimating = false;
-                        }).catch(() => {
-                            // Fallback in case openClaw() fails
-                            this.automationState = 'MANUAL_HORIZONTAL';
-                            this.isAnimating = false;
+                            console.log('Claw opened successfully after unsuccessful grab');
+                        }).catch((error) => {
+                            console.log('Error opening claw after unsuccessful grab:', error);
                         });
                     }
                 }
@@ -761,20 +795,6 @@ openClaw() {
                 break;
             }
                 
-            case 'RELEASING_OBJECT': {
-                // safety timeout in case the openClaw() promise doesn't resolve
-                if (Date.now() - this.releasingObjectStartTime > 3000) {
-                    console.warn('RELEASING_OBJECT timeout - forcing reset to MANUAL_HORIZONTAL');
-                    this.automationState = 'MANUAL_HORIZONTAL';
-                    this.isAnimating = false;
-                    // ensure claw is open and clean state
-                    this.isClosed = false;
-                    this.isClosing = false;
-                    this.isGrabbing = false;
-                    this.grabbedObject = null;
-                }
-                break;
-            }
 
             case 'RETURNING_ASCEND': {
                 if (this.clawGroup.position.y < this.returnYPosition) {
