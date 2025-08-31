@@ -542,17 +542,20 @@ export class CandyMachine {
                     
                     //once the animation is complete, release the candy to the physics world
                     if (t >= 1) {
+                        console.log('Candy ejection complete - candy at position:', this.dispensingCandy.position);
+                        console.log('Calling onCandyEjected callback');
 
                         if (this.onCandyEjected) {
                             this.onCandyEjected(this.dispensingCandy);
                         }
                         
-
+                        console.log('Removing candy from candiesInMachine array');
                         this.candiesInMachine = this.candiesInMachine.filter(c => c !== this.dispensingCandy);
                         this.dispensingCandy = null;
                         
                         this.dispensingStage = 'closing_door';
                         this.doorAnimationProgress = 0;
+                        console.log('Transitioning to closing_door stage');
                     }
                 }
                 break;

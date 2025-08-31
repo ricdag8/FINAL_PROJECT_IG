@@ -276,10 +276,6 @@ function init() {
     interactionPrompt = initializedSystems.interactionPrompt;
     lightReferences = initializedSystems.lightReferences;
     
-    // Fix candy machine callback with proper physicsEngine reference
-    if (candyMachine && physicsEngine) {
-        candyMachine.onCandyEjected = (candyBody) => startCandyDisappearanceAnimation(candyBody, physicsEngine);
-    }
     
     // Start animation loop after all systems are initialized
     animate();
@@ -304,6 +300,16 @@ function setupCompatibilityReferences() {
     triggerVolume = components.triggerVolume;
     finalPrizeHelper = components.finalPrizeHelper;
     
+    // Fix candy machine callback with proper physicsEngine reference
+    if (candyMachine && physicsEngine) {
+        console.log('Setting candyMachine.onCandyEjected callback');
+        candyMachine.onCandyEjected = (candyBody) => {
+            console.log('onCandyEjected callback triggered - calling startCandyDisappearanceAnimation');
+            startCandyDisappearanceAnimation(candyBody, physicsEngine);
+        };
+    } else {
+        console.log('Failed to set candy callback - candyMachine:', !!candyMachine, 'physicsEngine:', !!physicsEngine);
+    }
 }
 
 
