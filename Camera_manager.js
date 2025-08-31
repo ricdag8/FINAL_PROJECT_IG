@@ -39,17 +39,20 @@ export class ThirdPersonCamera {
             this.animationProgress += deltaTime / this.animationDuration;
             const t = this.easeInOutCubic(this.animationProgress);
             const currentOffset = new THREE.Vector3().lerpVectors(this.startOffset, this.endOffset, t);
-            const idealPosition = playerPos.clone().add(currentOffset);
+            const idealPosition = playerPos.clone().add(currentOffset); //we basically add the offset to the camera in order to get the ideal position
             this.camera.position.copy(idealPosition);
             const idealLookAt = playerPos.clone();
             idealLookAt.y += 2.5; // look at the character's face level
             this.camera.lookAt(idealLookAt);
 
-            //at t>1 the animation is finished, thus we can reset everything
+            //at t>1 the animation is finished, thus we can reset everythin
+            //this is linked to the playercontroller . in fact thanks to this, the animation/promise is resolved after one second
+            //and then the player can finally execute his action
             if (this.animationProgress >= 1.0) {
                 this.isAnimatingView = false;
                 if (this.onAnimationComplete) {
-                    this.onAnimationComplete();
+                    this.onAnimationComplete(); //here we are calling the resolve function to indicate that the animation is complete, 
+                    //once the animation is finally resolved, then we can finally execute the other actions
                     this.onAnimationComplete = null;
                 }
             }
@@ -65,7 +68,7 @@ export class ThirdPersonCamera {
         
         
         
-        
+        //THIS IS THE MAIN METHOD IN ORDER TO KEEP THE CAMERA BEHIND THE PLAYER!
         const playerForward = this.target.getForwardDirection();
         
         // calculate ideal camera position (behind player relative to player's rotation)
@@ -102,12 +105,13 @@ instant response: no smoothing - camera moves immediately with player
             if (this.isAnimatingView || !this.target) {
                 resolve();
                 return;
-            }
-
+            } //if an animation is already in progress, then the promise resolves immediately, thus we do not start a new animation
+            //otherwise, we set up the animation parameters
             this.isAnimatingView = true;
             this.animationDuration = duration;
             this.animationProgress = 0;
-            this.onAnimationComplete = resolve;
+            this.onAnimationComplete = resolve; //we basically save the resolve function in order to call it when the animation is finished, 
+            //every frame the update method checks if the animation is finished, and if so it calls this function
 
             const playerPos = this.target.getPosition();
             const playerForward = this.target.getForwardDirection();
@@ -330,7 +334,6 @@ export class CameraManager {
     }
 
 
-    
    
     // transitions from exploration to first-person machine interaction view
     // disables third-person system and smoothly moves to pre-calculated machine position
@@ -389,15 +392,12 @@ export class CameraManager {
     }
 
 /*
-  The
-  CameraTransition system handles the smooth movement:
-  - Captures current camera position and look-at direction
-  - Retrieves  pre-calculated first-person position for the machine
-  - Interpolates smoothly over 1.5 seconds usingeasing curve (easeInOutCubic)
-  - Updates both  camera position AND look-at target every frame
+  the cameraTransition system handles the smooth movement:
+  - captures current camera position and look-at direction
+  - retrieves  pre-calculated first-person position for the machine
+  - interpolates smoothly over 1.5 seconds usingeasing curve (easeInOutCubic)
+  - updates both  camera position AND look-at target every frame
 */
-
-
 
 
 //function to update the first person camera reference, calculates optimal
@@ -433,7 +433,6 @@ export class CameraManager {
         this.firstPersonPositions[machineType] = fpData;
         
     }
-    
 
 
     /**
@@ -442,8 +441,6 @@ export class CameraManager {
  * returns the side label and a unit offset vector pointing toward that side.
  * does not move the camera; its result is used by calculateFirstPersonPosition.
  */
-
-    
     calculateMachineSide(referencePos, machineCenter) {
         const dx = referencePos.x - machineCenter.x;
         const dz = referencePos.z - machineCenter.z;
@@ -590,24 +587,6 @@ export class CameraManager {
         return Promise.resolve();
     }
     
-    getDebugInfo() {
-        const info = {
-            currentMode: this.currentMode,
-            cameraPosition: this.camera.position.clone(),
-            isTransitioning: this.cameraTransition ? this.cameraTransition.isTransitioning : false
-        };
-        
-        if (this.thirdPersonCamera) {
-            info.thirdPerson = this.thirdPersonCamera.getDebugInfo();
-        }
-        
-        return info;
-    }
-
-
-
-
-    
     //********************************* TOP-DOWN CAMERA SYSTEM METHODS ***********************************
 
     // Set reference to claw group for top-down camera functionality
@@ -738,162 +717,3 @@ export const CameraUtils = {
     }
 }; 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/* 
-
-
-Here’s a compact, developer-oriented summary of how the camera system works.
-
-# Big picture
-
-* The **CameraManager** is the conductor. It owns:
-
-  * a **ThirdPersonCamera** (live follow of the player),
-  * a **CameraTransition** (smooth blends between viewpoints),
-  * and precomputed **first-person “machine” viewpoints** (for claw/candy machines).
-* Two main modes:
-
-  * **`exploration`** → third-person follow.
-  * **`claw_machine` / `candy_machine`** → first-person, fixed viewpoint facing a machine.
-
-# Lifecycle & flow
-
-1. **Setup**
-
-   * `new CameraManager(camera)` → sets defaults.
-   * `initialize(scene)` → stores scene (future queries).
-   * `initThirdPersonCamera(target)` → creates ThirdPerson + Transition and places the camera behind/above the player (seed position).
-
-2. **Per-frame update**
-
-   * `CameraManager.update(dt)`:
-
-     * If in **exploration**, calls `ThirdPersonCamera.update(dt)` to follow the player.
-     * Always calls `CameraTransition.update(dt)` to advance any ongoing blend.
-
-3. **Mode switches**
-
-   * **To a machine (first-person):**
-     `switchToMachineMode(machineType, machineOffset?, onComplete?)`
-
-     * Reads a precomputed first-person `{position,target}` for that machine.
-     * Starts a smooth **CameraTransition** to it.
-     * Disables third-person updates (manager stops calling its update).
-   * **Back to exploration:**
-     `switchToExplorationMode(target, onComplete?)`
-
-     * Computes a point **behind** the player (−distance on forward, +height in Y).
-     * Transitions there and resumes third-person updates.
-
-# ThirdPersonCamera (follow system)
-
-* **State:** `distance = 4`, `height = 4`, object-view animation flags, easing.
-* **`update(dt)` logic:**
-
-  * If an **object-view animation** is active, it eases the camera from current offset to a target offset (and looks slightly above the player), then returns.
-  * If the player is greeting, it holds the camera.
-  * Otherwise it snaps the camera to `playerPos + (-forward * distance) + (0, height, 0)` and looks slightly above the player.
-* **Helpers:**
-
-  * `animateToObjectView(duration)` → move camera **in front** of the player.
-  * `animateToOriginalView(duration)` → restore the **behind** view.
-  * `setDistance(d)`, `setHeight(h)`.
-  * `setEnabled(...)` exists but isn’t read inside `update` (the manager handles enabling by mode).
-
-# CameraTransition (smooth blends)
-
-* Holds start/end **position** and **lookAt** and a duration (default \~1.5s).
-* `startTransition(endPos, endLookAt, onComplete?)` captures current pos/look as start, sets targets, and arms the transition.
-* `update(dt)` eases `t` (easeInOutCubic), interpolates pos & lookAt, calls `onComplete` at the end.
-* `setDuration(seconds)` to globally change the blend speed.
-
-# First-person (machine) viewpoints
-
-* **Goal:** pick a natural “human height” camera spot facing the machine’s controls.
-* **Pipeline:**
-
-  1. `setFirstPersonReference(machineType, referenceMesh, machineCenter, machineSize=3)`
-
-     * Converts `referenceMesh` to world space to know **which side** of the machine the interface sits on.
-     * For **candy\_machine**, forces the **front** and adds extra Z distance.
-     * Stores the computed `{ position, target, side }` for later transitions.
-  2. `calculateMachineSide(referencePos, machineCenter, machineSize)`
-
-     * Chooses `left/right/front/back` by comparing |dx| vs |dz|; returns a unit offset vector.
-  3. `calculateFirstPersonPosition(machineCenter, sideInfo, machineSize, machineType?)`
-
-     * Height: **3.8** (human eye level).
-     * Distance: `machineSize * 0.8` + extra (candy +1.5, claw +1.0).
-     * **Target** height \~70% of camera height for a natural downward gaze.
-* **Utilities:**
-
-  * `isFirstPersonReady()` → true when both claw & candy positions are stored.
-  * `setFirstPersonHeight(h)` → updates stored positions (target set to **75%** of `h`).
-  * Presets: Low(2.8), Normal(3.8), High(4.5), Tall(5.2), Giant(6.5).
-  * `recalculateFirstPersonPositions()` → placeholder (future dynamic recompute).
-
-# Manager convenience APIs
-
-* `setThirdPersonDistance(d)` / `setThirdPersonHeight(h)` → forwarders to ThirdPersonCamera.
-* `setTransitionDuration(s)` → updates CameraTransition.
-* `animateCameraToObject(duration)` / `animateCameraToOriginal(duration)`
-
-  * Work **only in exploration** (wrap ThirdPersonCamera’s animations).
-* `getDebugInfo()` → snapshot of mode, position, transition state, plus third-person debug if present.
-
-# Notes & gotchas
-
-* The manager’s mode gate is what truly “disables” third-person updates; `setEnabled` on ThirdPersonCamera is currently redundant.
-* Some **CameraUtils** globals reference **non-existent** manager methods (would throw). Either implement those or remove them.
-* There’s a minor inconsistency: first-person target height is **70%** during initial compute but **75%** when adjusted via `setFirstPersonHeight`. Align if desired.
-* `machineOffset` is passed into `switchToMachineMode` but isn’t used.
-
-# Typical usage (minimal)
-
-```js
-const manager = new CameraManager(camera);
-manager.initialize(scene);
-manager.initThirdPersonCamera(player);
-
-// per-frame
-manager.update(deltaTime);
-
-// precompute first-person spots (once per machine)
-manager.setFirstPersonReference('claw_machine', clawJoystick, clawCenter, clawSize);
-manager.setFirstPersonReference('candy_machine', candyButtons, candyCenter, candySize);
-
-// later: switch views
-manager.switchToMachineMode('claw_machine');
-manager.switchToExplorationMode(player);
-```
-
-That’s the system in a nutshell: third-person follow for exploration, precomputed first-person anchors for machines, and a single transition engine to tie it all together.
-
-
-
-
-
-
-
-
-*/

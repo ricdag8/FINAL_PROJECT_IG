@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MeshBVH } from 'https://unpkg.com/three-mesh-bvh@0.7.0/build/index.module.js';
+
 
 class PopcornParticle {
   constructor(geometry, baseMaterial, scene, spawnMesh, containerBounds, colliders = [], gravity = 0.03, baseScale = 0.15) {
@@ -14,8 +14,6 @@ class PopcornParticle {
     this.restitution = 0.3; // Basso rimbalzo
     this.colliders = colliders; // Static colliders for machine collision
     
-
-
     this.containerBounds = containerBounds;
 
     // when a popcorn stops, it is considered settled
@@ -103,7 +101,7 @@ class PopcornParticle {
     }
   }
 
-  //handle collision with static colliders (machines)
+  //handle collision with static colliders (machines), this is called mainly by the ceiling popcorn in order to not let popcorns penetrate the machines
   handleStaticCollisions() {
     if (!this.colliders || this.colliders.length === 0) return;
     
@@ -186,7 +184,7 @@ class PopcornParticle {
     //check collision with static colliders (machines)
     this.handleStaticCollisions();
     
-    // Floor collision (when no container bounds) - immediately respawn
+    // Floor collision (when no container bounds) - immediately respawn, ot is just a safety check 
     if (!this.containerBounds && this.mesh.position.y <= 0.1) {
       // Immediately reset for continuous effect
       setTimeout(() => {
@@ -206,7 +204,7 @@ class PopcornParticle {
 
 export class PopcornManager {
   // particle system updated that allows to create a popcorn effect and to manage it
-  constructor({ scene, spawnMesh, containerMesh, count = 100, gravity = 0.1, baseScale = 0.15, colliders = [], burstSize = 15, burstInterval = 500 }) {
+  constructor({ scene, spawnMesh, containerMesh, count = 100, gravity = 1.4, baseScale = 0.15, colliders = [], burstSize = 15, burstInterval = 500 }) {
     this.particles = [];
     this.colliders = colliders; // Store static colliders for collision detection
     this.gravity = gravity;
@@ -287,101 +285,3 @@ export class PopcornManager {
     }
   }
 }
-
-
-
-/* 
-
-Here’s a tight, developer-oriented summary of the **popcorn particle system**.
-
-# Big picture
-
-* **PopcornParticle** = a single popcorn mesh with simple physics (gravity, bounces, friction, settle).
-* **PopcornManager** = a pool of particles that “burst” periodically from a spawn area into a container, with per-frame updates.
-
-# PopcornParticle
-
-**constructor(geometry, baseMaterial, scene, spawnMesh, containerBounds, colliders=\[], gravity=0.03, baseScale=0.15)**
-
-* Creates a mesh (clones `baseMaterial`), enables shadows, sets physics params (`velocity`, `angularVelocity`, `restitution=0.3`, flags) and calls `reset()`.
-* Uses:
-
-  * `spawnMesh` → where pops originate,
-  * `containerBounds: Box3 | null` → walls/floor/ceiling for bounces,
-  * `colliders: Object3D[]` → extra statics to push out of.
-
-**getSpawnParams()**
-
-* Returns `Box3` of `spawnMesh`.
-
-**reset()**
-
-* Re-spawns the kernel slightly above spawn center with random XY jitter.
-* Gives it an upward impulse + small horizontal spread and random spin.
-* Restores `isSettled=false`, `visible=true`, `scale=baseScale`.
-
-**handleContainment()**
-
-* If `containerBounds` and not settled:
-
-  * **Floor**: clamp Y, invert/dampen `vel.y`, add friction to `vel.x/z` + angular, and **settle** if energy ≪ (|v|² < 1e-4).
-  * **Ceiling**: clamp Y, bounce `vel.y`.
-  * **Walls (X/Z)**: clamp position and flip respective velocity with damping.
-
-**handleStaticCollisions()**
-
-* For each collider:
-
-  * Expand its `Box3` by particle radius (`baseScale*0.5`).
-  * If inside, push out along the closest axis and invert that velocity (Y → bounce up).
-
-**update(dt)**
-
-* Early-out if settled.
-* Else: apply gravity, integrate position & rotation, then `handleContainment()` and `handleStaticCollisions()`.
-* If **no container**: snap to floor at `y=0.1` and settle.
-* Fail-safe: if fell below `container.min.y - 1`, call `reset()`.
-
-# PopcornManager
-
-**constructor({ scene, spawnMesh, containerMesh, count=100, gravity=0.1, baseScale=0.15, colliders=\[], burstSize=15, burstInterval=500 })**
-
-* Computes `containerBounds` from `containerMesh` and **shrinks** \~5% to avoid edge penetrations.
-* Creates **one** shared geometry (small icosahedron) and **one** base material (yellowish); instantiates `count` particles (each clones material internally).
-* Starts a `setInterval` that calls `burst(burstSize)` periodically.
-
-**burst(amount=5)**
-
-* Finds settled particles and `reset()`s up to `amount`.
-
-**update(dt)**
-
-* Calls `particle.update(dt)` for all particles.
-
-# Typical usage
-
-```js
-const popcorn = new PopcornManager({
-  scene, spawnMesh, containerMesh,
-  count: 150, gravity: 0.12, baseScale: 0.14,
-  colliders: [machineBody, glassPane],
-  burstSize: 12, burstInterval: 400
-});
-
-function tick(dt /* seconds ) {
-  popcorn.update(dt);
-}
-```
-
-# Notes & gotchas
-
-* **Time units:** `dt` must be in **seconds** (physics uses v += a*dt, p += v*dt).
-* **Performance:** `handleStaticCollisions()` recomputes collider `Box3` per particle per frame; cache those AABBs and update only when colliders move.
-* **Material clones:** each particle clones `baseMaterial` (flexible but heavier). If per-particle variation isn’t needed, avoid cloning.
-* **Settling behavior:** lateral damping is light on wall hits; increase damping or add global drag if kernels “buzz” near walls.
-* **Burst interval:** there’s no `dispose()`—add one to clear the interval and remove meshes when destroying the manager.
-* **Spawn height:** `reset()` uses `spawnMesh` bbox top; for very low lids, add extra Y offset to avoid immediate collisions.
-* **Container margin:** the 5% shrink reduces usable volume; tune for tiny containers.
-
-
-*/

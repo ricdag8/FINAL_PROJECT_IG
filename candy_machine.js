@@ -433,7 +433,6 @@ export class CandyMachine {
                         t
                     );
 
-                    //linear interpolation between 0 and 1
                     
                     this.dispensingCandy.position.copy(newPos);
                     this.dispensingCandy.mesh.position.copy(newPos);
@@ -467,7 +466,7 @@ export class CandyMachine {
                         this.candyDescentTargetPos,
                         t
                     );
-
+                    
                     this.dispensingCandy.position.copy(newPos);
                     this.dispensingCandy.mesh.position.copy(newPos);
 
@@ -482,9 +481,6 @@ export class CandyMachine {
                         this.dispensingCandy.linearVelocity.set(0, 0, 0); // Ferma la spinta
                         this.dispensingStage = 'opening_door';
                         this.doorAnimationProgress = 0;
-                        //set the start position for the next animation stage (the ejection)
-                        this.candyStartPos.copy(this.dispensingCandy.position);
-                        this.candyMoveProgress = 0; //reset progress for the ejection animation
                     }
                 }
                 break;
@@ -500,12 +496,17 @@ export class CandyMachine {
 
                 if (open_t >= 1) {
                     this.dispensingStage = 'ejecting_candy'; //next, animate the candy out
+                    
+                    // Use candy's current position as start, but follow the machine's proper exit trajectory
+                    this.candyStartPos.copy(this.dispensingCandy.position);
+                    
+                    this.candyMoveProgress = 0; // reset progress for ejection
                 }                break;
                 
             case 'ejecting_candy':
                 //this stage animates the candy along a two-part exit path with a parabola, in fact it needs to go from bottom to up 
                 if (this.dispensingCandy) {
-                    this.candyMoveProgress += deltaTime * 1.0;
+                    this.candyMoveProgress += deltaTime * 1; // SLOWED DOWN from 1.0 to 0.5
                     const t = Math.min(this.candyMoveProgress, 1);
 
                     const newPos = new THREE.Vector3();
@@ -516,24 +517,23 @@ export class CandyMachine {
                         //first half, from `start` to `intermediate` (linear)
                         const t_part1 = t * 2; 
                         newPos.lerpVectors(
-                        this.candyStartPos,
+                            this.candyStartPos,
                             this.candyIntermediateExitPos,
                             t_part1
                         );
+
                     } else {
                         //second half, from `intermediate` to `final` (with parabola)
                         const t_part2 = (t - 0.5) * 2; 
-                        
-                        
                         
                         newPos.lerpVectors(
                             this.candyIntermediateExitPos,
                             this.candyFinalExitPos,
                             t_part2
-                    );
-                        
+                        );
 
-                        newPos.y += Math.sin(t_part2 * Math.PI) * parabolaHeight;
+                        newPos.y += Math.sin(t_part2 * Math.PI) * parabolaHeight; //with this line of code we basically create a more round effect in order to not let the candy go into  straight line
+
                     }
 
                     //keep physics paused while we animate
@@ -542,20 +542,30 @@ export class CandyMachine {
                     
                     //once the animation is complete, release the candy to the physics world
                     if (t >= 1) {
-                        console.log('Candy ejection complete - candy at position:', this.dispensingCandy.position);
-                        console.log('Calling onCandyEjected callback');
+                        // Force synchronization between physics body and mesh positions
+                        this.dispensingCandy.mesh.position.copy(newPos);
+                        this.dispensingCandy.position.copy(newPos);
+                        
+          
+                        
+                        // Restore physics properties before removal
+                        this.dispensingCandy.isBeingDispensed = false;
+                        this.dispensingCandy.inverseMass = 1.0; // Restore to dynamic body
 
+                        
                         if (this.onCandyEjected) {
+
                             this.onCandyEjected(this.dispensingCandy);
+
                         }
                         
-                        console.log('Removing candy from candiesInMachine array');
+
                         this.candiesInMachine = this.candiesInMachine.filter(c => c !== this.dispensingCandy);
                         this.dispensingCandy = null;
                         
                         this.dispensingStage = 'closing_door';
                         this.doorAnimationProgress = 0;
-                        console.log('Transitioning to closing_door stage');
+
                     }
                 }
                 break;

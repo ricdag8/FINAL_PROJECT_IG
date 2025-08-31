@@ -550,9 +550,9 @@ spendStarAsCoin() {
 
 
     _applyCandyConstraints(body) {
-
-        if (this.candyBounds && this.candyBounds.min && this.candyBounds.max) {
-            // Esempio: assicurati che il corpo rimanga nei limiti
+        // Skip bounds constraints for candies being dispensed - they need to move outside container
+        if (!body.isBeingDispensed && this.candyBounds && this.candyBounds.min && this.candyBounds.max) {
+            // Keep candy within container bounds only when not being dispensed
             body.position.x = Math.max(this.candyBounds.min.x, Math.min(this.candyBounds.max.x, body.position.x));
             body.position.y = Math.max(this.candyBounds.min.y, Math.min(this.candyBounds.max.y, body.position.y));
             body.position.z = Math.max(this.candyBounds.min.z, Math.min(this.candyBounds.max.z, body.position.z));

@@ -64,10 +64,7 @@ function checkChuteTrigger(triggerVolume, grabbableObjects) {
             const starPos = body.mesh.position;
             const triggerCenter = triggerVolume.position;
             const distance = starPos.distanceTo(triggerCenter);
-            
-            if (distance < 3.0) { // only log if star is within 3 units of trigger
-                console.log(`Star ${index} near trigger - pos:`, starPos, 'distance:', distance.toFixed(2));
-            }
+
 
             // se la bounding box della stella interseca quella dell'helper...
             if (triggerBox.intersectsBox(bodyBox)) {
@@ -107,92 +104,113 @@ function tryInitializeClawController(clawLoaded, clawTopBox, joystickPivot, butt
     return null;
 }
 
+//resets and neatly respawns all grabbable objects inside the machine, avoiding the chute
 function resetObjects(clawTopBox, grabbableObjects, chuteMesh, scene) {
+    //early exit if we have no bounds or no objects
     if (!clawTopBox || grabbableObjects.length === 0) return;
 
+    //get center and size of the allowed area
     const center = new THREE.Vector3();
     clawTopBox.getCenter(center);
     const size = new THREE.Vector3();
     clawTopBox.getSize(size);
 
-    // we don't want objects to spawn inside the chute
+    //build a box for the chute to avoid spawning inside it
     const chuteBox = chuteMesh ? new THREE.Box3().setFromObject(chuteMesh) : null;
-    const starRadius = 0.2; // we add a sef radius to not let the stars spawn inside the chute
+    const starRadius = 0.2; //we add a small radius so stars do not spawn too close to the chute
 
+    //define a spawn area smaller than the full bounds for safety margins
     const spawnAreaWidth = size.x * 0.7;
-    const spawnAreaDepth = size.z * 0.9;
+    const spawnAreaDepth = size.z * 0.6;
 
-    // we will spawn objects in a grid-like pattern, centered around the claw machine, in order not to overlap with the chute
-    // i did this because i wanted to create a more organized spawning system that did not spawn stars at random, more in particular i didn't want
-    // stars to spawn inside the chute, so i created a grid-like system that spawns stars in a grid around the chute, or at least stars go to a grid like structure when we have a lot of them
-    const itemsPerLayer = 10;
-    const cols = 5;
-    const rows = 2;
-    const spacingX = spawnAreaWidth / (cols > 1 ? cols - 1 : 1);
-    const spacingZ = spawnAreaDepth / (rows > 1 ? rows - 1 : 1);
-    const layerHeight = 0.25;
+    //define a grid layout to place objects in layers
+    const itemsPerLayer = 10; //total items per layer
+    const cols = 5; //number of columns in the grid
+    const rows = 2; //number of rows in the grid
+    const spacingX = spawnAreaWidth / (cols > 1 ? cols - 1 : 1); //horizontal spacing
+    const spacingZ = spawnAreaDepth / (rows > 1 ? rows - 1 : 1); //depth spacing
+    const layerHeight = 0.25; //vertical spacing between layers
 
-    
+    //compute the top-left start of the grid in world space
     const startX = center.x - spawnAreaWidth / 2;
-    // we make the stars spawn on the top left corner of the claw machine, not on the chute
-    const startZ = clawTopBox.min.z + 0.3; 
-    const baseY = clawTopBox.min.y + 0.1;
+    const startZ = clawTopBox.min.z + 0.3; //bias away from the chute side
+    const baseY = clawTopBox.min.y + 0.1; //slightly above the floor
 
+    //stop any running star animations before resetting states
     resetAnimations();
 
+    //place each object on the grid with layered stacking
     grabbableObjects.forEach((objData, idx) => {
         const b = objData.body;
 
+        //compute current layer and position within the layer
         const layerIdx = Math.floor(idx / itemsPerLayer);
         const idxInLayer = idx % itemsPerLayer;
-        
-        const r = Math.floor(idxInLayer / cols);
-        const c = idxInLayer % cols;
+        const r = Math.floor(idxInLayer / cols); //row index
+        const c = idxInLayer % cols; //column index
 
+        //offset every other layer for better packing
         const xOffset = (layerIdx % 2 === 1) ? spacingX / 2 : 0;
 
+        //final grid position for this object
         const x = startX + c * spacingX + xOffset;
         const z = startZ + r * spacingZ;
         const y = baseY + (layerIdx * layerHeight);
-        
+
+        //candidate position to test against the chute
         const testPosition = new THREE.Vector3(x, y, z);
 
-        // if the calculated position is inside the chute, place it at a default safe spot.
+        //warning:this expands the chute box in place, so repeated calls may grow it over time
+        //note:if this is unwanted, clone the box before expanding
         if (chuteBox && chuteBox.expandByScalar(starRadius).containsPoint(testPosition)) {
-             b.position.set(center.x, baseY, clawTopBox.min.z + 0.3);
+            //fallback safe spot if inside chute
+            b.position.set(center.x, baseY, clawTopBox.min.z + 0.3);
         } else {
-             b.position.set(x, y, z);
+            //use the planned grid position
+            b.position.set(x, y, z);
         }
-        
+
+        //reset linear and angular velocities for a clean start
         b.linearVelocity.set(0, 0, 0);
         b.orientation.setFromEuler(new THREE.Euler(
-            Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI));
+            Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI
+        )); //give a random relaxed orientation
         b.angularVelocity.set(0, 0, 0);
+
+        //sync the visible mesh with the physics body
         b.mesh.position.copy(b.position);
         b.mesh.quaternion.copy(b.orientation);
+
+        //wake the body and clear contact flags
         b.isSleeping = false;
         b.hasTouchedClaw = false;
-        
+
+        //ensure the mesh is in the scene and visible
         if (!b.mesh.parent) scene.add(b.mesh);
         b.mesh.visible = true;
-        
+
+        //reset custom gameplay flags
         b.canFallThrough = false;
         b.isBlocked = false;
     });
 }
 
+//resets the score on the controller and updates the ui
 function resetScore(clawController, updateScoreDisplay) {
+    //only proceed if a controller exists
     if (clawController) {
+        //set score to zero on the controller
         clawController.resetScore();
+        //refresh the on-screen score display
         updateScoreDisplay();
     }
 }
 
 export {
-    checkFinalPrizeTrigger,
-    checkChuteTrigger,
-    tryInitializeClawController,
-    resetObjects,
-    resetScore,
-    startPrizeAnimationLocal
+    checkFinalPrizeTrigger, //exports an external function for final prize detection
+    checkChuteTrigger, //exports an external function to detect chute interactions
+    tryInitializeClawController, //exports an external function to init the claw controller
+    resetObjects, //exports the reset objects utility
+    resetScore, //exports the reset score utility
+    startPrizeAnimationLocal //exports an external function for local prize animation
 };

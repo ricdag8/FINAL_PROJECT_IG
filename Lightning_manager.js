@@ -38,8 +38,7 @@ export class LightingManager {
         this.time += deltaTime;
         //this allows for the LEDs to animate in order to have a more dynamic effect, appearing
         //like a continuosly moving rainbow
-        //we let the hue channel change, by varying the time with the led speed and also this.time
-        //by varying hsl we can easily get a continuosly changing effect
+        //we let the hue channel change, by varying the time with the led speed and also this.time by varying hsl we can easily get a continuosly changing effect
         this.lightReferences.ledStrips.forEach((led, index) => {
             const hue = (this.time * 0.2 * this.ledSpeed + index * 0.02) % 1.0;
             const saturation = 1.0;

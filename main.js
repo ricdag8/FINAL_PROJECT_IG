@@ -519,7 +519,7 @@ function onWindowResize() {
 
 function animate() {
     requestAnimationFrame(animate);
-    const deltaTime = 1 / 30;
+    const deltaTime = 1/60;
 
 
     if (homepageManager && homepageManager.isActive) {

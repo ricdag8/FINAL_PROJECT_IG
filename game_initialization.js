@@ -283,7 +283,7 @@ function loadPopcornMachine() {
                 spawnMesh: popcornSpawnPoint,
                 containerMesh: finalContainer,
                 count: 300,
-                gravity: 0.3, // Increased from default 0.1 to make them fall faster
+                gravity: 2.5, // VERY fast falling inside machine
                 burstSize: 20, // Slightly more particles per burst
                 burstInterval: 300 // More frequent bursts (every 0.3 seconds)
             });

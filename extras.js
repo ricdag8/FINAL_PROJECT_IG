@@ -67,7 +67,7 @@ function startCeilingPopcorn() {
         spawnMesh: ceilingSpawnMesh,
         containerMesh: null, // no container - they fall to the floor
         count: 1000, // much more popcorn for intense rain effect
-        gravity: 0.5, // much stronger gravity for faster falling
+        gravity: 4.0, // EXTREMELY fast gravity for rapid ceiling rain
         baseScale: 0.08, // slightly smaller for more realistic look
         colliders: staticColliders, // pass all static colliders for collision
         burstSize: 10, // much larger bursts for heavy rain

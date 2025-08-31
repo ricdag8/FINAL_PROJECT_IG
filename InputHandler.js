@@ -134,11 +134,6 @@ export class InputHandler {
                     this.toggleClawCameraMode();
                 }
                 break;
-            case 'KeyR':
-                if (!e.repeat && this.clawController.forceResetState) {
-                    this.clawController.forceResetState();
-                }
-                break;
             case 'Escape':
                 if (!e.repeat && this.exitMachineCallback) {
                     this.exitMachineCallback();

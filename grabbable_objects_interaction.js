@@ -55,9 +55,7 @@ skips objects that are:
         this.objects.forEach(obj => {
             if (!obj.body || !obj.mesh || obj.body.inverseMass === 0 || obj.body.isHeld || obj.body.ignoreClawCollision) {
     return; //salta le collisioni con la claw 
-}
-
-            
+}            
             this.checkCollisionsWithObject(obj);
         });
     }
@@ -85,7 +83,7 @@ skips objects that are:
             fingerMesh.updateMatrixWorld(true);
 
             try {
-                //use intersectsGeometry method
+                //use intersectsGeometry method to detect collisions
                 const fingerToObject = new THREE.Matrix4();
                 fingerToObject.copy(objectMesh.matrixWorld).invert().multiply(fingerMesh.matrixWorld);
                 
@@ -112,28 +110,29 @@ skips objects that are:
     }
 
     /*
-Compute a robust contact between a claw finger and an object—direction, point, and depth—so you can apply realistic collision/force responses.
 
-Key inputs: objectMesh, fingerCenter (world), fingerRadius, and the object’s BVH (objectBVH).
+compute a robust contact between a claw finger and an object—direction, point, and depth—so you can apply realistic collision/force responses.
 
 
-Bounding boxes
-Ensure objectMesh.geometry.computeBoundingBox() is available (same for the finger if needed) to get reliable centers.
 
-World-space centers
-boundingBox.getCenter(vec).applyMatrix4(objectMesh.matrixWorld) to obtain the object’s center in world coordinates (accounts for position/rotation/scale).
+bounding boxes
+ensure objectmesh.geometry.computeboundingbox() is available (same for the finger if needed) to get reliable centers.
 
-Collision normal
-normal = objectCenter.clone().sub(fingerCenter).normalize() ,push direction from finger toward object.
+world-space centers
+boundingbox.getcenter(vec).applymatrix4(objectmesh.matrixworld) to obtain the object’s center in world coordinates (accounts for position/rotation/scale).
 
-Precise contact point (BVH)
-objectBVH.closestPointToPoint(objectLocalPoint, closestPoint) ,exact nearest point on the mesh surface (far more accurate than center-to-center; works for complex shapes).
+collision normal
+normal = objectcenter.clone().sub(fingercenter).normalize() ,push direction from finger toward object.
 
-Penetration depth
-penetrationDepth = Math.max(0.005, fingerRadius*0.5 - actualDistance + 0.01) , how far the finger “sinks” in; clamped with a small minimum to avoid zero-force jitter.
+precise contact point (bvh)
+objectbvh.closestpointtopoint(objectlocalpoint, closestpoint) ,exact nearest point on the mesh surface (far more accurate than center-to-center; works for complex shapes).
 
-Outputs you use: the normal, the closest surface point, and the penetration depth—feed these into your force/impulse or constraint logic for stable, believable contact.
-    */
+penetration depth
+penetrationdepth = math.max(0.005, fingerradius\*0.5 - actualdistance + 0.01) , how far the finger “sinks” in; clamped with a small minimum to avoid zero-force jitter.
+
+outputs you use: the normal, the closest surface point, and the penetration depth—feed these into your force/impulse or constraint logic for stable, believable contact.
+*/
+
 
     calculateContactPoint(objectBVH, fingerMesh, objectMesh) {
         // Ensure bounding boxes are computed
@@ -192,55 +191,47 @@ Outputs you use: the normal, the closest surface point, and the penetration dept
 
 
 
+//THIS METHOD IS USEFUL NOW, BUT BEFORE IT WAS MORE USEFUL SINCE THE CLAW WAS ALLOWED TO MOVE 
+//ALSO AT THE STARS LEVEL   
 
+/*apply a spring–damper collision response so objects are pushed away from claw fingers with stable forces and realistic spin.
 
-/*
-Purpose: Apply a spring–damper collision response so objects are pushed away from claw fingers with stable forces and realistic spin.
+key inputs: objectbody (pos/vel/sleep), normal (unit, from finger → object), penetrationdepth, relativevelocity, contactpoint, constants springstiffness=20, damping=0.8.
 
-Key inputs: objectBody (pos/vel/sleep), normal (unit, from finger → object), penetrationDepth, relativeVelocity, contactPoint, constants springStiffness=20, damping=0.8.
+main steps / methods:
 
-Main steps / methods:
+wake the body objectbody.issleeping = false; objectbody.sleepytimer = 0;
+ensures the object reacts immediately (no “stuck asleep” bodies).
 
-Wake the body
+spring (penalty) force -> penaltyforce = normal \* (penetrationdepth \* springstiffness)
+deeper penetration ⇒ stronger push along the collision normal.
 
-objectBody.isSleeping = false; objectBody.sleepyTimer = 0;
-Ensures the object reacts immediately (no “stuck asleep” bodies).
+damping along the normal -> velocityalongnormal = relativevelocity · normal
+dampingforce = -normal \* (damping \* velocityalongnormal)
+opposes motion toward the finger, removing bounce/oscillation.
 
-Spring (penalty) force
+total force e torque ->totalforce = penaltyforce + dampingforce
+r = contactpoint - objectbody.position
+torque = r × totalforce
+off-center pushes induce realistic rotation/tumbling.
 
-penaltyForce = normal * (penetrationDepth * springStiffness)
-Deeper penetration ⇒ stronger push along the collision normal.
+applies force (push out) and torque (spin if off-center) for a firm, non-bouncy response that quickly settles.*/
 
-Damping along the normal
-
-velocityAlongNormal = relativeVelocity · normal
-dampingForce = -normal * (damping * velocityAlongNormal)
-Opposes motion toward the finger, removing bounce/oscillation.
-
-Total force & torque
-
-totalForce = penaltyForce + dampingForce
-r = contactPoint - objectBody.position
-torque = r × totalForce
-Off-center pushes induce realistic rotation/tumbling.
-
-Effect: Applies force (push out) and torque (spin if off-center) for a firm, non-bouncy response that quickly settles.
- */
 
     
     resolveCollision(objectBody, contactPoint, normal, penetrationDepth) {
         objectBody.isSleeping = false;
         objectBody.sleepyTimer = 0;
 
-        // A spring-damper system provides a stable  interaction.
+        // spring-damper system provides the  interaction.
         
         // 1 spring Force (penalty force): pushes the object out based on penetration depth.
         const springStiffness = 20; // increased stiffness for a firmer push
         const penaltyForceMagnitude = penetrationDepth * springStiffness;
         const penaltyForce = new Vec3().copy(normal).multiplyScalar(penaltyForceMagnitude);
 
-        // 2 damping force: tesists velocity along the normal to prevent oscillation and bounciness
-        const dampingFactor = 0.8; // a higher damping factor reduces bounciness
+        // 2 damping force:  velocity along the normal to prevent oscillation and bounciness
+        const dampingFactor = 0.9; // a higher damping factor reduces bounciness
         const relativeVelocity = objectBody.linearVelocity; // finger's velocity is considered zero.
         const velocityAlongNormal = relativeVelocity.dot(normal);
         const dampingForceMagnitude = velocityAlongNormal * dampingFactor;

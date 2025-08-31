@@ -134,11 +134,14 @@ function updatePrizeAnimations(deltaTime, clawTopBox, scene, physicsEngine) {
 // starts the particle animation when a candy is collected or disappears
 // this function chooses between different particle effects for visual variety
 function startCandyDisappearanceAnimation(candyBody, physicsEngine) {
+
     physicsEngine.removeBody(candyBody); // remove candy from physics simulation
+
 
     // randomly choose between two different particle animation styles
     const animations = ['confetti', 'ribbons'];
     const choice = animations[Math.floor(Math.random() * animations.length)];
+
 
     // add the candy to the animation system with the chosen particle effect
     animatingCandies.push({
@@ -161,10 +164,13 @@ function updateCandyAnimations(deltaTime, scene) {
         switch (candyAnim.state) {
             case 'confetti':
                 // create instant particle explosion using the main particle system
+
                 const explosion = createExplosion(candyAnim.body.mesh.position, candyAnim.body.mesh.material.color);
                 scene.add(explosion); // add the particle explosion to the 3d scene
                 activeExplosions.push(explosion); // track the explosion for updates
+
                 scene.remove(candyAnim.body.mesh); // remove the original candy mesh
+
                 animatingCandies.splice(i, 1); // remove from animation list since it's done
                 break;
 

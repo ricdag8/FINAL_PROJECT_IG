@@ -54,7 +54,7 @@ function updateModeIndicator(mode, clawCameraMode) {
 
 //switches the player from exploration mode to machine interaction mode
 function enterMachineMode(machineType, cameraManager, playerController, machineOffset, candyMachineOffset, interactionPrompt, clawCameraMode) {
-    if (!cameraManager || !playerController?.mesh) return { success: false }; //safety checks
+
     
     playerController.mesh.visible = false; //hide the player character model
     
@@ -70,7 +70,6 @@ function enterMachineMode(machineType, cameraManager, playerController, machineO
 
 //switches the player back from machine interaction mode to exploration mode
 function exitMachineMode(cameraManager, playerController, controls, camera, currentZone, interactionPrompt, clawCameraMode) {
-    if (!cameraManager || !playerController?.mesh) return { success: false }; //safety checks
     
     //reset camera settings
     camera.userData.followClaw = false; //stop camera from following the claw
@@ -101,7 +100,6 @@ function exitMachineMode(cameraManager, playerController, controls, camera, curr
 
 //toggles between normal first-person view and top-down view when using claw machine
 function toggleClawCameraMode(gameMode, cameraManager, clawGroup, camera, normalCameraPosition, normalCameraTarget, clawCameraMode) {
-    if (gameMode !== 'claw_machine' || !cameraManager || !clawGroup) return { success: false }; //only works in claw machine mode
     
     if (clawCameraMode === 'normal') {
         //save current camera position and target before switching
