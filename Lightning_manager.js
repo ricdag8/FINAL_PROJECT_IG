@@ -16,7 +16,6 @@ export class LightingManager {
             sideLight2: null,
             centerLight: null,
             ceilingLeds: [],
-            wallWashers: [],
             ceilingGrid: [],
             clawSupports: [],
             candySupports: [],
@@ -228,35 +227,6 @@ export class LightingManager {
         candySupport2.position.set(this.candyMachineOffset.x - 3, 5, this.candyMachineOffset.z + 2);
         this.scene.add(candySupport2);
         
-        this.lightReferences.wallWashers = [];
-        
-
-
-
-        for (let i = 0; i < 4; i++) {
-            const wallWasher = new THREE.SpotLight(0x44ff44, 2.5, 15, Math.PI / 3, 0.9);
-            wallWasher.position.set(-8, 6, -6 + i * 4);
-            wallWasher.target.position.set(-10, 2, -6 + i * 4);
-            this.scene.add(wallWasher);
-            this.scene.add(wallWasher.target);
-            this.lightReferences.wallWashers.push(wallWasher);
-            
-            const wallWasher2 = new THREE.SpotLight(0x44ff44, 2.5, 15, Math.PI / 3, 0.9);
-            wallWasher2.position.set(8, 6, -6 + i * 4);
-            wallWasher2.target.position.set(10, 2, -6 + i * 4);
-            this.scene.add(wallWasher2);
-            this.scene.add(wallWasher2.target);
-            this.lightReferences.wallWashers.push(wallWasher2);
-        }
-        
-        for (let i = 0; i < 5; i++) {
-            const backWallWasher = new THREE.SpotLight(0x44ff44, 2.0, 12, Math.PI / 4, 0.8);
-            backWallWasher.position.set(-8 + i * 4, 6, -6);
-            backWallWasher.target.position.set(-8 + i * 4, 2, -8);
-            this.scene.add(backWallWasher);
-            this.scene.add(backWallWasher.target);
-            this.lightReferences.wallWashers.push(backWallWasher);
-        }
         
         this.setupCeilingLights();
         
@@ -591,7 +561,7 @@ export class LightingManager {
                 if (this.lightReferences.candySupports) this.lightReferences.candySupports.forEach(light => light.color.copy(color));
                 break;
             case 'side':
-                if (this.lightReferences.wallWashers) this.lightReferences.wallWashers.forEach(light => light.color.copy(color));
+                // wallWashers removed
                 break;
             case 'center':
                 this.lightReferences.ceilingLeds.forEach(led => {
@@ -621,7 +591,7 @@ export class LightingManager {
                 if (this.lightReferences.candySupports) this.lightReferences.candySupports.forEach(light => light.intensity = intensity);
                 break;
             case 'side':
-                if (this.lightReferences.wallWashers) this.lightReferences.wallWashers.forEach(light => light.intensity = intensity * 1.5);
+                // wallWashers removed
                 break;
             case 'center':
                 this.lightReferences.ceilingLeds.forEach(led => {
