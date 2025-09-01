@@ -261,12 +261,12 @@ export class LightingManager {
         this.setupCeilingLights();
         
         //we now create the light points on the ceiling
-        const ceilingDirectionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        ceilingDirectionalLight.position.set(0, 10, 0);
-        ceilingDirectionalLight.target.position.set(0, 0, 0);
-        ceilingDirectionalLight.castShadow = true;
-        this.scene.add(ceilingDirectionalLight);
-        this.scene.add(ceilingDirectionalLight.target);
+        // const ceilingDirectionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        // ceilingDirectionalLight.position.set(0, 10, 0);
+        // ceilingDirectionalLight.target.position.set(0, 0, 0);
+        // ceilingDirectionalLight.castShadow = true;
+        // this.scene.add(ceilingDirectionalLight);
+        // this.scene.add(ceilingDirectionalLight.target);
         
         this.lightReferences.clawSupports = [clawSupport1, clawSupport2];
         this.lightReferences.candySupports = [candySupport1, candySupport2];
@@ -292,7 +292,7 @@ export class LightingManager {
                 new THREE.Vector3(0, 7, 3)  
             ];
 
-            positions.forEach(pos => {
+            positions.forEach((pos, index) => {
                 const ledModel = ledTemplate.clone(true);
                 ledModel.position.copy(pos);
                 ledModel.scale.set(2, 2, 2);
@@ -300,6 +300,9 @@ export class LightingManager {
 
                 const light1Mesh = ledModel.getObjectByName('light1');
                 const light2Mesh = ledModel.getObjectByName('light2');
+                
+                // Solo i primi 2 LED avranno ombre per non superare il limite GPU
+                const shouldCastShadow = index < 2;
                 
                 const createLight = (mesh) => {
                     if (!mesh) return null;
@@ -313,6 +316,16 @@ export class LightingManager {
                     //we also create a point light which is added to the led model and it is going to be what emits light
                     const pointLight = new THREE.PointLight(0xffffff, 10.0, 20); 
                     pointLight.position.copy(mesh.position);
+                    
+                    // Abilita ombre solo per alcuni LED
+                    if (shouldCastShadow) {
+                        pointLight.castShadow = true;
+                        pointLight.shadow.mapSize.width = 512;
+                        pointLight.shadow.mapSize.height = 512;
+                        pointLight.shadow.camera.near = 0.1;
+                        pointLight.shadow.camera.far = 25;
+                    }
+                    
                     ledModel.add(pointLight);
 
                     this.lightReferences.ceilingLeds.push({ light: pointLight, mesh: mesh });
