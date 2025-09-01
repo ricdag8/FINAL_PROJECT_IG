@@ -49,7 +49,7 @@ this.boundingRadius = bb.getSize(new THREE.Vector3()).length() * 0.5;
 
   physics simulation is skipped if the object is:
    static (inverseMass === 0) - walls, machine parts
-  sleeping - stable objects to save CPU
+  sleeping 
   blocked - temporarily disabled for animations
   being dispensed - controlled by candy machine logic
   held - grabbed by the claw
@@ -187,31 +187,6 @@ export class PhysicsEngine {
 
 
         this.resolveBodyCollisions();
-/* // for each collision pair:
-      // narrow-phase BVH intersection test
-      // calculate penetration and normal
-      // apply position correction
-      // calculate and apply collision impulse
-      // wake up both objects
-      // 
- */
-
-
-
-        //handle collisions with machine parts using closest-point queries
-       // this.resolveStaticCollisions();
-
-      /*
-// for each body vs static collider:
-      // BVH intersection test
-      // find closest point on static mesh
-      // calculate penetration
-      // apply aggressive correction
-      // apply penalty forces (spring-damper)
-  }
-  purpose: handle collisions with machine parts using closest-point queries
-*/
-
 
         if (this.worldBounds) this.handleCollisions();
 
@@ -344,6 +319,7 @@ export class PhysicsEngine {
             return;
         }
         //get the current bounds parameters
+        //in particular we check if the object is colliding along the axis in the direction specified
         const limit = dir > 0 ? bounds.max[axis] : bounds.min[axis];
         //we check if the object has penetrated the box
         if ((dir > 0 && vertex[axis] > limit) || (dir < 0 && vertex[axis] < limit)) {
@@ -354,16 +330,20 @@ export class PhysicsEngine {
             //we then get the velocity of the response
             const relativePos = new Vec3().copy(vertex).sub(body.position);
             const contactVelocity = new Vec3().copy(body.linearVelocity).add(body.angularVelocity.cross(relativePos));
+            //closing speed is the velocity with which the object is getting closer to the walls
             const closingSpeed = contactVelocity[axis] * dir;
             if (closingSpeed <= 0) return;
             if (closingSpeed < 0.01) return;
 
             //in the end we compute the impulse to apply to the body in response to the contact
+            //thanks to the velocity components we have computed before, we can define the response of the object to the walls 
             const impulseMag = -closingSpeed;
             const normalImpulse = new Vec3();
             normalImpulse[axis] = impulseMag * dir;
             //we then apply a bounce impulse if the closing speed is above a certain threshold in order to cause a bounce effect
             if (closingSpeed > 0.05) { 
+                //we also apply an impulse to get a bounce effect, scaled down by restitution and a factor to keep it gentle
+                //i tried to implement a more realistic effect
                 const bounceImpulseMag = -closingSpeed * body.restitution * 0.6; 
                 const bounceImpulse = new Vec3();
                 bounceImpulse[axis] = bounceImpulseMag * dir;
@@ -412,10 +392,11 @@ export class PhysicsEngine {
 //bodytobody collisions resolution, this is where objects interact one another 
 
 resolveBodyCollisions() {
-    const pairs = this.getBodyPairsToCheck(); //we check which objects are potentially colliding 
+    const pairs = this.getBodyPairsToCheck(); //we check which objects are potentially colliding , we thus get the pairs
+    //that are potentially colliding and we then apply the physics 
 
     const starCorrectionFactor = 0.01; // Gentle for star-star collisions
-    const candyCorrectionFactor = 0.06; // Stronger for candy-candy to prevent penetration
+    const candyCorrectionFactor = 0.02; // Stronger for candy-candy to prevent penetration
 
     const kinematicCorrectionFactor = 0.25; // Reduced from 0.4 for gentler wall interactions
 
@@ -436,8 +417,8 @@ resolveBodyCollisions() {
         }
         
         const penetration = (A.boundingRadius + B.boundingRadius) - dist;
-        
-        if (penetration <= slop) return;
+
+        if (penetration <= slop) return;//we are ignoring small penetrations below a threshold
 
         n.normalize();
 
@@ -449,9 +430,9 @@ resolveBodyCollisions() {
         if (isKinematicCollision) {
             correctionFactor = kinematicCorrectionFactor;
         } else if (A.isCandy && B.isCandy) {
-            correctionFactor = candyCorrectionFactor; // Stronger for candy-candy collisions
+            correctionFactor = candyCorrectionFactor;
         } else {
-            correctionFactor = starCorrectionFactor; // Gentle for star-star and mixed collisions
+            correctionFactor = starCorrectionFactor; 
         }
 
         //we compute the correction amount and apply it
@@ -467,7 +448,7 @@ resolveBodyCollisions() {
         const velAlongNormal = rv.dot(n);
 
 
-        if (velAlongNormal > 0) return;
+        if (velAlongNormal > 0) return; //if the velocity is positive, this means that objects are already moving away 
 
         //we compute the restitution based on the two objects, we also apply a threshold to avoid small bounces
         let e = Math.min(A.restitution, B.restitution);
@@ -502,38 +483,40 @@ resolveBodyCollisions() {
 
 
 /*
-Prende le coppie da getBodyPairsToCheck().
+takes the pairs from getbodypairstocheck().
 
-Narrow phase preciso con BVH:
+accurate narrow phase with bvh:
 
-Costruisce la matrice locale-A → locale-B (matAB).
+builds the local-a → local-b matrix (matab).
 
-Usa boundsTree.intersectsGeometry per verificare intersezione geometrica reale.
+uses boundstree.intersectsgeometry to verify real geometric intersection.
 
-Se niente intersezione → salta.
+if no intersection → skip.
 
-Calcola normale fra centri, distanza, penetrazione (con slop).
+computes the normal between centers, distance, penetration (with slop).
 
-Correzione posizioni:
+position correction:
 
-Sceglie un correctionFactor (più alto per candies-candies, più basso per stars, medio se uno è cinematico).
+chooses a correctionfactor (higher for candies-candies, lower for stars, medium if one is kinematic).
 
-Sposta A e B lungo la normale in proporzione alle masse (via inverseMass).
+moves a and b along the normal in proportion to their masses (via inversemass).
 
-Impulso di collisione:
+collision impulse:
 
-Prende la velocità relativa sulla normale.
+takes the relative velocity along the normal.
 
-Se si stanno allontanando, esce.
+if they are separating, exit.
 
-Determina la restitution effettiva con soglia (più bouncy per candies).
+determines the effective restitution with a threshold (more bouncy for candies).
 
-Calcola l’impulso e aggiorna le velocità lineari di A e B.
+computes the impulse and updates the linear velocities of a and b.
 
-Sveglia entrambi (reset dei timer sleep).
+wakes both up (reset the sleep timers).
 
-Qui non usa i box-limite: è oggetto↔oggetto con intersezione geometrica (BVH).
+here it does not use bounding boxes: it is object↔object with geometric intersection (bvh).
 */
+
+
 spendStarAsCoin() {
     if (this.deliveredStars > 0) {
         this.deliveredStars--;
@@ -558,8 +541,8 @@ spendStarAsCoin() {
             body.position.z = Math.max(this.candyBounds.min.z, Math.min(this.candyBounds.max.z, body.position.z));
         }
 
-        // Vincolo 2: Zona di sicurezza del distributore
-        // Si applica solo se la caramella NON è quella in fase di erogazione.
+
+        //si applica solo se la caramella NON è quella in fase di erogazione.
         if (this.dispenserCenter && !body.isBeingDispensed) {
             const dx = body.position.x - this.dispenserCenter.x;
             const dz = body.position.z - this.dispenserCenter.z;
@@ -572,15 +555,15 @@ spendStarAsCoin() {
                 const pushoutX = dx / distance;
                 const pushoutZ = dz / distance;
 
-                // Sposta la caramella sul bordo della zona PIÙ DOLCEMENTE
-                const gentleFactor = 0.3; // Fattore per movimento più graduale
+                //sposta la caramella sul bordo della zona PIÙ DOLCEMENTE
+                const gentleFactor = 0.3; //fattore per movimento più graduale
                 body.position.x += pushoutX * overlap * gentleFactor;
                 body.position.z += pushoutZ * overlap * gentleFactor;
 
-                // Riduce dolcemente la velocità verso il centro invece di annullarla
+                //riduce dolcemente la velocità verso il centro invece di annullarla
                 const dot = body.linearVelocity.x * pushoutX + body.linearVelocity.z * pushoutZ;
                 if (dot < 0) {
-                    const dampingFactor = 0.7; // Riduzione graduale invece di azzeramento
+                    const dampingFactor = 0.7; //riduzione graduale invece di azzeramento
                     body.linearVelocity.x -= dot * pushoutX * dampingFactor;
                     body.linearVelocity.z -= dot * pushoutZ * dampingFactor;
                 }

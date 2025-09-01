@@ -277,50 +277,16 @@ export class ClawController {
 
 // calculates a safe drop target y for the claw by scanning unheld grabbable objects and clamping above the floor.
 
-calculateAndSetDropHeight() {
-    const fallbackHeight = this.machineBox ? this.machineBox.min.y + 0.5 : 0;
+  calculateAndSetDropHeight() {
+      const FIXED_DROP_DISTANCE = 1.5; // Distanza fissa in unità world
+      this.dropTargetY = this.clawGroup.position.y - FIXED_DROP_DISTANCE;
 
-    //if we dont have any grabbable objcects, then we set the drop height to a fallback value, because we need a valid target
-    if (!this.grabbableObjects || this.grabbableObjects.length === 0) {
-        this.dropTargetY = fallbackHeight;
+      // Safety check per non andare sotto il pavimento
+      if (this.machineBox && this.dropTargetY < this.machineBox.min.y + 0.1) {
+          this.dropTargetY = this.machineBox.min.y + 0.1;
+      }
+  }
 
-        return;
-    }
-
-    let highestY = -Infinity;
-    this.grabbableObjects.forEach(objData => {
-
-        if (objData && objData.body && objData.body.position && !objData.body.isHeld) {
-
-            if (objData.body.position.y > highestY) {
-                highestY = objData.body.position.y;
-            }
-        }
-    });
-
-    if (highestY === -Infinity) {
-        this.dropTargetY = fallbackHeight;
-        return;
-    }
-
-    // apply a small penetration offset to ensure the claw goes slightly below the object's top
-    const penetrationOffset = 0.15; // FIXED: Changed to positive to go ABOVE the object
-    this.dropTargetY = highestY + penetrationOffset; // FIXED: Add offset to go above the object
-
-    // final safety check: make sure the target is not below the machine's floor
-    if (this.machineBox && this.dropTargetY < this.machineBox.min.y) {
-        this.dropTargetY = this.machineBox.min.y + 0.1;
-
-    }
-
-    // MOST IMPORTANT FIX: Ensure we always drop DOWN from current position
-    // The drop target should always be BELOW the current claw position
-    if (this.dropTargetY >= this.clawGroup.position.y) {
-        this.dropTargetY = fallbackHeight;
-
-    }
-
-}
 
 // before starting a drop, blocks the descent if the claw is horizontally over the chute (with a safety margin).
 startDropSequence() {
